@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Arena Tile Map Editor</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100vh; overflow:hidden; background:#1a1a2e; color:#ccc; font-family:'Segoe UI',monospace; font-size:13px; }
+
+#app {
+  display:grid;
+  grid-template-rows:44px 1fr 28px;
+  grid-template-columns:280px 1fr;
+  height:100vh;
+}
+
+/* Toolbar */
+#toolbar {
+  grid-column:1/-1;
+  background:#12122a;
+  border-bottom:1px solid #333;
+  display:flex;
+  align-items:center;
+  padding:0 12px;
+  gap:6px;
+}
+#toolbar .sep { width:1px; height:24px; background:#333; margin:0 6px; }
+.btn {
+  background:#2a2a4e; border:1px solid #444; color:#aaa; cursor:pointer;
+  padding:4px 10px; border-radius:3px; font-size:12px; font-family:inherit;
+  transition: background 0.1s;
+}
+.btn:hover { background:#3a3a5e; color:#ddd; }
+.btn.active { background:#3a5a8a; border-color:#5a8aba; color:#fff; }
+.btn-accent { background:#2a5a3a; border-color:#3a8a5a; }
+.btn-accent:hover { background:#3a7a4a; }
+#toolbar label { color:#888; font-size:11px; margin-left:4px; }
+
+/* Palette */
+#palette {
+  background:#12122a;
+  border-right:1px solid #333;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+#palette-tabs {
+  display:flex;
+  border-bottom:1px solid #333;
+  flex-shrink:0;
+}
+#palette-tabs .btn { border-radius:0; border:none; border-right:1px solid #333; flex:1; text-align:center; padding:6px 4px; font-size:11px; }
+#palette-scroll {
+  flex:1;
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+#palette-canvas { display:block; cursor:pointer; }
+#palette-info {
+  flex-shrink:0;
+  padding:4px 8px;
+  border-top:1px solid #333;
+  font-size:11px;
+  color:#888;
+  background:#0e0e22;
+}
+
+/* Viewport */
+#viewport {
+  overflow:hidden;
+  position:relative;
+  cursor:crosshair;
+}
+#viewport canvas { position:absolute; top:0; left:0; }
+
+/* Status */
+#status {
+  grid-column:1/-1;
+  background:#0e0e22;
+  border-top:1px solid #333;
+  padding:0 12px;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  font-size:11px;
+  color:#666;
+}
+#status span { color:#999; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <button class="btn active" data-tool="paint" title="Paint (B)">Paint</button>
+    <button class="btn" data-tool="erase" title="Erase (E)">Erase</button>
+    <button class="btn" data-tool="fill" title="Fill (G)">Fill</button>
+    <button class="btn" data-tool="pan" title="Pan (Space)">Pan</button>
+    <div class="sep"></div>
+    <label>Layer:</label>
+    <button class="btn active" data-layer="floor">Floor</button>
+    <button class="btn" data-layer="deco">Deco</button>
+    <div class="sep"></div>
+    <label>Brush:</label>
+    <button class="btn active" data-size="1">1x1</button>
+    <button class="btn" data-size="2">2x2</button>
+    <button class="btn" data-size="3">3x3</button>
+    <div class="sep"></div>
+    <button class="btn" id="btn-undo" title="Undo (Ctrl+Z)">Undo</button>
+    <button class="btn" id="btn-redo" title="Redo (Ctrl+Y)">Redo</button>
+    <div class="sep"></div>
+    <button class="btn btn-accent" id="btn-import" title="Import (Ctrl+O)">Import</button>
+    <button class="btn btn-accent" id="btn-export" title="Export (Ctrl+S)">Export</button>
+    <button class="btn" id="btn-clear">Clear All</button>
+    <div style="flex:1"></div>
+    <label>Zoom: <span id="zoom-label">100%</span></label>
+  </div>
+
+  <!-- Palette -->
+  <div id="palette">
+    <div id="palette-tabs"></div>
+    <div id="palette-scroll">
+      <canvas id="palette-canvas"></canvas>
+    </div>
+    <div id="palette-info">No tile selected</div>
+  </div>
+
+  <!-- Viewport -->
+  <div id="viewport">
+    <canvas id="main-canvas"></canvas>
+  </div>
+
+  <!-- Status -->
+  <div id="status">
+    <div>Grid: <span id="st-grid">-</span></div>
+    <div>World: <span id="st-world">-</span></div>
+    <div>Tool: <span id="st-tool">paint</span></div>
+    <div>Tile: <span id="st-tile">none</span></div>
+    <div>Tiles placed: <span id="st-count">0</span></div>
+  </div>
+</div>
+
+<script>
+// =========================================================
+// Constants
+// =========================================================
+const TILE = 16;
+const GRID = 75; // 75*16 = 1200
+const ARENA_SIZE = 1200;
+const ARENA_R = 550;
+const CENTER = 600;
+const VOID = '#0a0a1e';
+
+const TILESETS = {
+  'tile-floor':   { file:'assets/tiles/TilesetFloor.png',   cols:22, rows:26 },
+  'tile-nature':  { file:'assets/tiles/TilesetNature.png',  cols:24, rows:21 },
+  'tile-dungeon': { file:'assets/tiles/TilesetDungeon.png', cols:12, rows:4  },
+  'tile-element': { file:'assets/tiles/TilesetElement.png', cols:16, rows:15 },
+};
+const TILESET_LABELS = {
+  'tile-floor':'Floor','tile-nature':'Nature','tile-dungeon':'Dungeon','tile-element':'Element'
+};
+const TILESET_KEYS = Object.keys(TILESETS);
+
+// =========================================================
+// TilesetManager
+// =========================================================
+class TilesetManager {
+  constructor() { this.images = new Map(); }
+  async loadAll() {
+    const ps = Object.entries(TILESETS).map(([k,v]) => new Promise((res,rej) => {
+      const img = new Image();
+      img.onload = () => { this.images.set(k, img); res(); };
+      img.onerror = () => rej(`Failed to load ${v.file}`);
+      img.src = v.file;
+    }));
+    await Promise.all(ps);
+  }
+  drawTile(ctx, key, frame, dx, dy, scale=1) {
+    const info = TILESETS[key];
+    const img = this.images.get(key);
+    if (!img) return;
+    const sx = (frame % info.cols) * TILE;
+    const sy = Math.floor(frame / info.cols) * TILE;
+    ctx.drawImage(img, sx, sy, TILE, TILE, dx, dy, TILE*scale, TILE*scale);
+  }
+  totalFrames(key) { const i=TILESETS[key]; return i.cols*i.rows; }
+}
+
+// =========================================================
+// MapData
+// =========================================================
+class MapData {
+  constructor() { this.clear(); }
+  clear() {
+    // floor: Map<"col,row" -> {tileset, frame}>
+    this.floor = new Map();
+    this.decorations = [];
+  }
+  key(c,r) { return `${c},${r}`; }
+  setTile(c,r,tileset,frame) { this.floor.set(this.key(c,r), {tileset,frame}); }
+  getTile(c,r) { return this.floor.get(this.key(c,r)) || null; }
+  clearTile(c,r) { this.floor.delete(this.key(c,r)); }
+  tileCount() { return this.floor.size; }
+
+  toJSON() {
+    const tiles = [];
+    for (const [k,v] of this.floor) {
+      const [c,r] = k.split(',').map(Number);
+      tiles.push({col:c, row:r, tileset:v.tileset, frame:v.frame});
+    }
+    return {
+      version: 1,
+      meta: { tileSize:TILE, gridCols:GRID, gridRows:GRID, arenaSize:ARENA_SIZE, arenaRadius:ARENA_R },
+      floor: { tiles },
+      decorations: this.decorations.map(d => ({...d})),
+    };
+  }
+  fromJSON(json) {
+    this.clear();
+    if (!json || !json.floor) return;
+    for (const t of json.floor.tiles) {
+      this.setTile(t.col, t.row, t.tileset, t.frame);
+    }
+    this.decorations = (json.decorations || []).map(d => ({...d}));
+  }
+}
+
+// =========================================================
+// Undo Stack
+// =========================================================
+class UndoStack {
+  constructor() { this.undos=[]; this.redos=[]; this.current=null; }
+  beginStroke() { this.current = []; }
+  record(action) { if(this.current) this.current.push(action); }
+  endStroke() {
+    if (this.current && this.current.length > 0) {
+      this.undos.push(this.current);
+      this.redos = [];
+      if (this.undos.length > 200) this.undos.shift();
+    }
+    this.current = null;
+  }
+  undo(mapData) {
+    const stroke = this.undos.pop();
+    if (!stroke) return false;
+    const redo = [];
+    for (let i = stroke.length - 1; i >= 0; i--) {
+      const a = stroke[i];
+      if (a.type === 'set') {
+        const cur = mapData.getTile(a.col, a.row);
+        redo.push({type:'set', col:a.col, row:a.row, tileset:cur?.tileset||null, frame:cur?.frame??null, prev:a});
+        if (a.oldTileset === null) mapData.clearTile(a.col, a.row);
+        else mapData.setTile(a.col, a.row, a.oldTileset, a.oldFrame);
+      }
+    }
+    this.redos.push(redo);
+    return true;
+  }
+  redo(mapData) {
+    const stroke = this.redos.pop();
+    if (!stroke) return false;
+    const undo = [];
+    for (let i = stroke.length - 1; i >= 0; i--) {
+      const a = stroke[i];
+      const cur = mapData.getTile(a.col, a.row);
+      undo.push({type:'set', col:a.col, row:a.row, oldTileset:cur?.tileset||null, oldFrame:cur?.frame??null});
+      if (a.tileset === null) mapData.clearTile(a.col, a.row);
+      else mapData.setTile(a.col, a.row, a.tileset, a.frame);
+    }
+    this.undos.push(undo);
+    return true;
+  }
+}
+
+// =========================================================
+// Editor
+// =========================================================
+class Editor {
+  constructor() {
+    this.tsm = new TilesetManager();
+    this.map = new MapData();
+    this.undo = new UndoStack();
+
+    // State
+    this.tool = 'paint';
+    this.layer = 'floor';
+    this.brushSize = 1;
+    this.selectedTileset = TILESET_KEYS[0];
+    this.selectedFrame = null;
+    this.zoom = 0.55;
+    this.panX = 0;
+    this.panY = 0;
+    this.hoverCol = -1;
+    this.hoverRow = -1;
+    this.isPainting = false;
+    this.isPanning = false;
+    this.panStartX = 0;
+    this.panStartY = 0;
+    this.panStartPanX = 0;
+    this.panStartPanY = 0;
+    this.spaceHeld = false;
+    this.dirty = true;
+    this.paintedThisStroke = new Set();
+
+    // Deco state
+    this.selectedDeco = -1;
+    this.draggingDeco = false;
+    this.decoScale = 3;
+    this.decoAlpha = 0.65;
+
+    // DOM
+    this.canvas = document.getElementById('main-canvas');
+    this.ctx = this.canvas.getContext('2d');
+    this.viewport = document.getElementById('viewport');
+    this.palCanvas = document.getElementById('palette-canvas');
+    this.palCtx = this.palCanvas.getContext('2d');
+  }
+
+  async init() {
+    await this.tsm.loadAll();
+    this.resize();
+    this.centerView();
+    this.buildPaletteTabs();
+    this.renderPalette();
+    this.bindEvents();
+    this.loop();
+  }
+
+  resize() {
+    const vp = this.viewport;
+    this.canvas.width = vp.clientWidth;
+    this.canvas.height = vp.clientHeight;
+    this.dirty = true;
+  }
+
+  centerView() {
+    const vp = this.viewport;
+    this.panX = vp.clientWidth / 2 - CENTER * this.zoom;
+    this.panY = vp.clientHeight / 2 - CENTER * this.zoom;
+  }
+
+  // ----- Palette -----
+  buildPaletteTabs() {
+    const tabs = document.getElementById('palette-tabs');
+    tabs.innerHTML = '';
+    for (const key of TILESET_KEYS) {
+      const btn = document.createElement('button');
+      btn.className = 'btn' + (key === this.selectedTileset ? ' active' : '');
+      btn.textContent = TILESET_LABELS[key];
+      btn.onclick = () => {
+        this.selectedTileset = key;
+        this.selectedFrame = null;
+        tabs.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.renderPalette();
+        this.updateInfo();
+      };
+      tabs.appendChild(btn);
+    }
+  }
+
+  renderPalette() {
+    const key = this.selectedTileset;
+    const total = this.tsm.totalFrames(key);
+    const cols = 8;
+    const s = 32; // display size
+    const rows = Math.ceil(total / cols);
+    const w = cols * (s + 2) + 4;
+    const h = rows * (s + 2) + 4;
+    this.palCanvas.width = w;
+    this.palCanvas.height = h;
+    this.palCols = cols;
+    this.palTileSize = s;
+
+    const ctx = this.palCtx;
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = '#12122a';
+    ctx.fillRect(0, 0, w, h);
+
+    for (let i = 0; i < total; i++) {
+      const c = i % cols;
+      const r = Math.floor(i / cols);
+      const dx = 2 + c * (s + 2);
+      const dy = 2 + r * (s + 2);
+      this.tsm.drawTile(ctx, key, i, dx, dy, s / TILE);
+
+      if (key === this.selectedTileset && i === this.selectedFrame) {
+        ctx.strokeStyle = '#ffaa00';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(dx - 1, dy - 1, s + 2, s + 2);
+      }
+    }
+  }
+
+  // ----- Main Canvas Rendering -----
+  render() {
+    const ctx = this.ctx;
+    const w = this.canvas.width;
+    const h = this.canvas.height;
+    ctx.imageSmoothingEnabled = false;
+
+    // Clear
+    ctx.fillStyle = '#0d0d1a';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.save();
+    ctx.setTransform(this.zoom, 0, 0, this.zoom, this.panX, this.panY);
+
+    // Dark void background
+    ctx.fillStyle = VOID;
+    ctx.fillRect(0, 0, ARENA_SIZE, ARENA_SIZE);
+
+    // Draw floor tiles
+    for (const [k, v] of this.map.floor) {
+      const [c, r] = k.split(',').map(Number);
+      this.tsm.drawTile(ctx, v.tileset, v.frame, c * TILE, r * TILE, 1);
+    }
+
+    // Circle mask — dim everything outside arena radius
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, ARENA_SIZE, ARENA_SIZE);
+    ctx.arc(CENTER, CENTER, ARENA_R, 0, Math.PI * 2, true);
+    ctx.fillStyle = VOID;
+    ctx.globalAlpha = 0.85;
+    ctx.fill('evenodd');
+    ctx.restore();
+
+    // Arena circle outline
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 2 / this.zoom;
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.arc(CENTER, CENTER, ARENA_R, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Grid lines
+    if (this.zoom > 0.3) {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 0.5 / this.zoom;
+      ctx.globalAlpha = this.zoom > 0.8 ? 0.12 : 0.06;
+      ctx.beginPath();
+      for (let i = 0; i <= GRID; i++) {
+        ctx.moveTo(i * TILE, 0); ctx.lineTo(i * TILE, ARENA_SIZE);
+        ctx.moveTo(0, i * TILE); ctx.lineTo(ARENA_SIZE, i * TILE);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // Decorations
+    for (let i = 0; i < this.map.decorations.length; i++) {
+      const d = this.map.decorations[i];
+      ctx.save();
+      ctx.globalAlpha = d.alpha || 0.65;
+      const ds = (d.scale || 3) * TILE;
+      this.tsm.drawTile(ctx, d.tileset, d.frame, d.x - ds/2, d.y - ds/2, d.scale || 3);
+      if (i === this.selectedDeco && this.layer === 'deco') {
+        ctx.strokeStyle = '#ffaa00';
+        ctx.lineWidth = 2 / this.zoom;
+        ctx.globalAlpha = 1;
+        ctx.strokeRect(d.x - ds/2 - 2, d.y - ds/2 - 2, ds + 4, ds + 4);
+      }
+      ctx.restore();
+    }
+
+    // Hover highlight
+    if (this.layer === 'floor' && this.hoverCol >= 0 && this.hoverCol < GRID && this.hoverRow >= 0 && this.hoverRow < GRID) {
+      ctx.fillStyle = this.tool === 'erase' ? 'rgba(255,60,60,0.25)' : 'rgba(255,255,100,0.2)';
+      const bs = this.brushSize;
+      for (let dc = 0; dc < bs; dc++) {
+        for (let dr = 0; dr < bs; dr++) {
+          const c = this.hoverCol + dc, r = this.hoverRow + dr;
+          if (c < GRID && r < GRID) {
+            ctx.fillRect(c * TILE, r * TILE, TILE, TILE);
+          }
+        }
+      }
+    }
+
+    // Center crosshair
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1 / this.zoom;
+    ctx.globalAlpha = 0.2;
+    ctx.beginPath();
+    ctx.moveTo(CENTER - 16, CENTER); ctx.lineTo(CENTER + 16, CENTER);
+    ctx.moveTo(CENTER, CENTER - 16); ctx.lineTo(CENTER, CENTER + 16);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+  }
+
+  // ----- Screen <-> World -----
+  screenToWorld(sx, sy) {
+    return { x: (sx - this.panX) / this.zoom, y: (sy - this.panY) / this.zoom };
+  }
+  screenToGrid(sx, sy) {
+    const w = this.screenToWorld(sx, sy);
+    return { col: Math.floor(w.x / TILE), row: Math.floor(w.y / TILE) };
+  }
+
+  // ----- Tools -----
+  paintAt(col, row) {
+    if (this.selectedFrame === null) return;
+    const bs = this.brushSize;
+    for (let dc = 0; dc < bs; dc++) {
+      for (let dr = 0; dr < bs; dr++) {
+        const c = col + dc, r = row + dr;
+        if (c < 0 || c >= GRID || r < 0 || r >= GRID) continue;
+        const key = `${c},${r}`;
+        if (this.paintedThisStroke.has(key)) continue;
+        this.paintedThisStroke.add(key);
+        const old = this.map.getTile(c, r);
+        this.undo.record({type:'set', col:c, row:r, oldTileset:old?.tileset||null, oldFrame:old?.frame??null});
+        this.map.setTile(c, r, this.selectedTileset, this.selectedFrame);
+      }
+    }
+    this.dirty = true;
+  }
+
+  eraseAt(col, row) {
+    const bs = this.brushSize;
+    for (let dc = 0; dc < bs; dc++) {
+      for (let dr = 0; dr < bs; dr++) {
+        const c = col + dc, r = row + dr;
+        if (c < 0 || c >= GRID || r < 0 || r >= GRID) continue;
+        const key = `${c},${r}`;
+        if (this.paintedThisStroke.has(key)) continue;
+        this.paintedThisStroke.add(key);
+        const old = this.map.getTile(c, r);
+        if (old) {
+          this.undo.record({type:'set', col:c, row:r, oldTileset:old.tileset, oldFrame:old.frame});
+          this.map.clearTile(c, r);
+        }
+      }
+    }
+    this.dirty = true;
+  }
+
+  fillAt(col, row) {
+    if (this.selectedFrame === null) return;
+    const target = this.map.getTile(col, row);
+    const targetKey = target ? `${target.tileset}:${target.frame}` : null;
+    const fillKey = `${this.selectedTileset}:${this.selectedFrame}`;
+    if (targetKey === fillKey) return;
+
+    this.undo.beginStroke();
+    const visited = new Set();
+    const queue = [[col, row]];
+    let count = 0;
+    const maxFill = 10000;
+
+    while (queue.length > 0 && count < maxFill) {
+      const [c, r] = queue.shift();
+      const k = `${c},${r}`;
+      if (visited.has(k)) continue;
+      if (c < 0 || c >= GRID || r < 0 || r >= GRID) continue;
+
+      const cur = this.map.getTile(c, r);
+      const curKey = cur ? `${cur.tileset}:${cur.frame}` : null;
+      if (curKey !== targetKey) continue;
+
+      visited.add(k);
+      this.undo.record({type:'set', col:c, row:r, oldTileset:cur?.tileset||null, oldFrame:cur?.frame??null});
+      this.map.setTile(c, r, this.selectedTileset, this.selectedFrame);
+      count++;
+
+      queue.push([c-1,r],[c+1,r],[c,r-1],[c,r+1]);
+    }
+    this.undo.endStroke();
+    this.dirty = true;
+  }
+
+  // ----- Deco -----
+  decoAt(wx, wy) {
+    for (let i = this.map.decorations.length - 1; i >= 0; i--) {
+      const d = this.map.decorations[i];
+      const ds = (d.scale || 3) * TILE / 2;
+      if (Math.abs(wx - d.x) < ds && Math.abs(wy - d.y) < ds) return i;
+    }
+    return -1;
+  }
+
+  // ----- Events -----
+  bindEvents() {
+    // Toolbar: tools
+    document.querySelectorAll('[data-tool]').forEach(btn => {
+      btn.onclick = () => {
+        this.tool = btn.dataset.tool;
+        document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.updateInfo();
+      };
+    });
+    // Toolbar: layers
+    document.querySelectorAll('[data-layer]').forEach(btn => {
+      btn.onclick = () => {
+        this.layer = btn.dataset.layer;
+        document.querySelectorAll('[data-layer]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.selectedDeco = -1;
+        this.dirty = true;
+        this.updateInfo();
+      };
+    });
+    // Toolbar: brush size
+    document.querySelectorAll('[data-size]').forEach(btn => {
+      btn.onclick = () => {
+        this.brushSize = parseInt(btn.dataset.size);
+        document.querySelectorAll('[data-size]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      };
+    });
+    // Undo/Redo
+    document.getElementById('btn-undo').onclick = () => { if(this.undo.undo(this.map)) this.dirty=true; };
+    document.getElementById('btn-redo').onclick = () => { if(this.undo.redo(this.map)) this.dirty=true; };
+    // Import/Export
+    document.getElementById('btn-export').onclick = () => this.exportJSON();
+    document.getElementById('btn-import').onclick = () => this.importJSON();
+    document.getElementById('btn-clear').onclick = () => {
+      if(confirm('Clear entire map?')) { this.map.clear(); this.dirty=true; }
+    };
+
+    // Palette click
+    this.palCanvas.onclick = (e) => {
+      const rect = this.palCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const s = this.palTileSize + 2;
+      const col = Math.floor((x - 2) / s);
+      const row = Math.floor((y - 2) / s);
+      const idx = row * this.palCols + col;
+      const total = this.tsm.totalFrames(this.selectedTileset);
+      if (idx >= 0 && idx < total) {
+        this.selectedFrame = idx;
+        this.renderPalette();
+        this.updateInfo();
+        // Auto-switch to paint tool
+        if (this.tool === 'erase' || this.tool === 'pan') {
+          this.tool = 'paint';
+          document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
+          document.querySelector('[data-tool="paint"]').classList.add('active');
+        }
+      }
+    };
+
+    // Palette hover for frame info
+    this.palCanvas.onmousemove = (e) => {
+      const rect = this.palCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const s = this.palTileSize + 2;
+      const col = Math.floor((x - 2) / s);
+      const row = Math.floor((y - 2) / s);
+      const idx = row * this.palCols + col;
+      const total = this.tsm.totalFrames(this.selectedTileset);
+      const info = TILESETS[this.selectedTileset];
+      if (idx >= 0 && idx < total) {
+        const tr = Math.floor(idx / info.cols);
+        const tc = idx % info.cols;
+        document.getElementById('palette-info').textContent =
+          `Frame ${idx} | Row ${tr}, Col ${tc}`;
+      }
+    };
+
+    // Canvas mouse events
+    const c = this.canvas;
+    c.addEventListener('mousedown', (e) => this.onMouseDown(e));
+    c.addEventListener('mousemove', (e) => this.onMouseMove(e));
+    c.addEventListener('mouseup', (e) => this.onMouseUp(e));
+    c.addEventListener('mouseleave', (e) => this.onMouseUp(e));
+    c.addEventListener('wheel', (e) => this.onWheel(e), {passive:false});
+    c.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // Keyboard
+    window.addEventListener('keydown', (e) => this.onKeyDown(e));
+    window.addEventListener('keyup', (e) => this.onKeyUp(e));
+
+    // Resize
+    window.addEventListener('resize', () => this.resize());
+  }
+
+  onMouseDown(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // Middle mouse or space+left = pan
+    if (e.button === 1 || (this.spaceHeld && e.button === 0) || this.tool === 'pan') {
+      this.isPanning = true;
+      this.panStartX = e.clientX;
+      this.panStartY = e.clientY;
+      this.panStartPanX = this.panX;
+      this.panStartPanY = this.panY;
+      e.preventDefault();
+      return;
+    }
+
+    if (this.layer === 'deco') {
+      const w = this.screenToWorld(mx, my);
+      if (e.button === 0) {
+        const hit = this.decoAt(w.x, w.y);
+        if (hit >= 0) {
+          this.selectedDeco = hit;
+          this.draggingDeco = true;
+        } else if (this.selectedFrame !== null) {
+          // Place new decoration
+          this.map.decorations.push({
+            x: w.x, y: w.y,
+            tileset: this.selectedTileset,
+            frame: this.selectedFrame,
+            scale: this.decoScale,
+            alpha: this.decoAlpha,
+          });
+          this.selectedDeco = this.map.decorations.length - 1;
+        }
+        this.dirty = true;
+      } else if (e.button === 2) {
+        const hit = this.decoAt(w.x, w.y);
+        if (hit >= 0) {
+          this.map.decorations.splice(hit, 1);
+          this.selectedDeco = -1;
+          this.dirty = true;
+        }
+      }
+      return;
+    }
+
+    // Floor layer
+    const g = this.screenToGrid(mx, my);
+
+    if (e.button === 2) {
+      // Right-click: always erase
+      this.isPainting = true;
+      this.paintedThisStroke = new Set();
+      this.undo.beginStroke();
+      this.eraseAt(g.col, g.row);
+      return;
+    }
+
+    if (e.button === 0) {
+      if (this.tool === 'fill') {
+        this.fillAt(g.col, g.row);
+        return;
+      }
+      this.isPainting = true;
+      this.paintedThisStroke = new Set();
+      this.undo.beginStroke();
+      if (this.tool === 'erase') this.eraseAt(g.col, g.row);
+      else this.paintAt(g.col, g.row);
+    }
+  }
+
+  onMouseMove(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (this.isPanning) {
+      this.panX = this.panStartPanX + (e.clientX - this.panStartX);
+      this.panY = this.panStartPanY + (e.clientY - this.panStartY);
+      this.dirty = true;
+      return;
+    }
+
+    if (this.layer === 'deco' && this.draggingDeco && this.selectedDeco >= 0) {
+      const w = this.screenToWorld(mx, my);
+      this.map.decorations[this.selectedDeco].x = w.x;
+      this.map.decorations[this.selectedDeco].y = w.y;
+      this.dirty = true;
+      return;
+    }
+
+    const g = this.screenToGrid(mx, my);
+    if (g.col !== this.hoverCol || g.row !== this.hoverRow) {
+      this.hoverCol = g.col;
+      this.hoverRow = g.row;
+      this.dirty = true;
+    }
+
+    if (this.isPainting && this.layer === 'floor') {
+      if (this.tool === 'erase' || e.buttons === 2) this.eraseAt(g.col, g.row);
+      else this.paintAt(g.col, g.row);
+    }
+
+    // Update status
+    const w = this.screenToWorld(mx, my);
+    document.getElementById('st-grid').textContent = `${g.col}, ${g.row}`;
+    document.getElementById('st-world').textContent = `${Math.round(w.x)}, ${Math.round(w.y)}`;
+    document.getElementById('st-count').textContent = this.map.tileCount();
+  }
+
+  onMouseUp(e) {
+    if (this.isPainting) {
+      this.undo.endStroke();
+      this.isPainting = false;
+    }
+    this.isPanning = false;
+    this.draggingDeco = false;
+  }
+
+  onWheel(e) {
+    e.preventDefault();
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const oldZoom = this.zoom;
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    this.zoom = Math.max(0.15, Math.min(5, this.zoom * factor));
+
+    // Zoom toward cursor
+    this.panX = mx - (mx - this.panX) * (this.zoom / oldZoom);
+    this.panY = my - (my - this.panY) * (this.zoom / oldZoom);
+
+    document.getElementById('zoom-label').textContent = `${Math.round(this.zoom * 100)}%`;
+    this.dirty = true;
+  }
+
+  onKeyDown(e) {
+    if (e.code === 'Space') { this.spaceHeld = true; e.preventDefault(); return; }
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 's') { e.preventDefault(); this.exportJSON(); return; }
+      if (e.key === 'o') { e.preventDefault(); this.importJSON(); return; }
+      if (e.key === 'z') { e.preventDefault(); if(this.undo.undo(this.map)) this.dirty=true; return; }
+      if (e.key === 'y') { e.preventDefault(); if(this.undo.redo(this.map)) this.dirty=true; return; }
+    }
+    if (e.key === 'b') this.setToolByKey('paint');
+    if (e.key === 'e') this.setToolByKey('erase');
+    if (e.key === 'g') this.setToolByKey('fill');
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (this.layer === 'deco' && this.selectedDeco >= 0) {
+        this.map.decorations.splice(this.selectedDeco, 1);
+        this.selectedDeco = -1;
+        this.dirty = true;
+      }
+    }
+  }
+  onKeyUp(e) {
+    if (e.code === 'Space') this.spaceHeld = false;
+  }
+  setToolByKey(t) {
+    this.tool = t;
+    document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
+    document.querySelector(`[data-tool="${t}"]`)?.classList.add('active');
+    this.updateInfo();
+  }
+
+  updateInfo() {
+    document.getElementById('st-tool').textContent = this.tool;
+    const info = TILESETS[this.selectedTileset];
+    if (this.selectedFrame !== null) {
+      const r = Math.floor(this.selectedFrame / info.cols);
+      const c = this.selectedFrame % info.cols;
+      document.getElementById('st-tile').textContent =
+        `${TILESET_LABELS[this.selectedTileset]} #${this.selectedFrame} (r${r}c${c})`;
+    } else {
+      document.getElementById('st-tile').textContent = 'none';
+    }
+    document.getElementById('palette-info').textContent =
+      this.selectedFrame !== null
+        ? `Selected: ${TILESET_LABELS[this.selectedTileset]} frame ${this.selectedFrame}`
+        : 'Click a tile to select';
+  }
+
+  // ----- Export / Import -----
+  exportJSON() {
+    const json = this.map.toJSON();
+    const str = JSON.stringify(json, null, 2);
+    const blob = new Blob([str], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'arena-default.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  importJSON() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const json = JSON.parse(ev.target.result);
+          this.map.fromJSON(json);
+          this.dirty = true;
+        } catch(err) {
+          alert('Invalid JSON file: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }
+
+  // ----- Render Loop -----
+  loop() {
+    if (this.dirty) {
+      this.dirty = false;
+      this.render();
+    }
+    requestAnimationFrame(() => this.loop());
+  }
+}
+
+// =========================================================
+// Boot
+// =========================================================
+const editor = new Editor();
+editor.init().catch(err => {
+  document.body.innerHTML = `<div style="padding:40px;color:red;font-size:16px;">
+    <h2>Editor failed to load</h2><p>${err}</p>
+    <p>Make sure you're running this from the Vite dev server (http://localhost:3000/editor.html) or the built preview.</p>
+  </div>`;
+});
+</script>
+</body>
+</html>
