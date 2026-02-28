@@ -104,6 +104,7 @@ export const SKILL_TREE = {
       piercing: false,
       slowAmount: 0.5,        // was 0.4 — stronger slow for edge traps
       slowDuration: 2000,     // was 1500 — longer setup window
+      rootDuration: 400,      // 0.4s base root — brief freeze on hit
     },
     branches: {
       A: {
@@ -113,8 +114,8 @@ export const SKILL_TREE = {
         tiers: [
           { cost: 3, name: 'Permafrost', description: 'Longer and stronger slow', mods: { slowDuration: 500, slowAmount: 0.1 } },
           { cost: 3, name: 'Ice Lance', description: 'More push, faster bolt', mods: { knockbackForce: 0.01, speed: 2, range: 50 } },
-          { cost: 3, name: 'Frozen Solid', description: 'Root enemies in place — easy ring-out setup', mods: { rootDuration: 1000 } },
-          { cost: 4, name: 'Absolute Zero', description: 'Deep freeze: long root, heavy slow', mods: { damage: 2, slowAmount: 0.1, rootDuration: 500, knockbackForce: 0.01 } },
+          { cost: 3, name: 'Frozen Solid', description: 'Much longer root — easy ring-out setup', mods: { rootDuration: 400 } },
+          { cost: 4, name: 'Absolute Zero', description: 'Deep freeze: long root, heavy slow', mods: { damage: 2, slowAmount: 0.1, rootDuration: 300, knockbackForce: 0.01 } },
         ],
       },
       B: {
@@ -150,25 +151,25 @@ export const SKILL_TREE = {
     },
     branches: {
       A: {
-        name: 'Chain Pull',
-        description: 'Drag enemies across the arena — set up ring-outs for your team',
+        name: 'Swing & Release',
+        description: 'Hook enemies and swing them around — fling them out of the ring',
         icon: 'spell-BookDeath',
         tiers: [
-          { cost: 3, name: 'Barbed Hook', description: 'Stronger pull', mods: { damage: 1, pullForce: 0.02 } },
+          { cost: 3, name: 'Barbed Hook', description: 'Stronger release force', mods: { damage: 1, pullForce: 0.02 } },
           { cost: 3, name: 'Quick Release', description: 'Faster hook, reduced cooldown', mods: { cooldown: -2000, speed: 2 } },
-          { cost: 3, name: 'Serrated Chain', description: 'Stuns on hit — they can\'t escape the pull', mods: { damage: 1, stunDuration: 500 } },
-          { cost: 4, name: 'Death Grip', description: 'Massive pull force and range', mods: { pullForce: 0.03, damage: 1, range: 60 } },
+          { cost: 3, name: 'Longer Chain', description: 'Extended swing — more windup, bigger fling', mods: { damage: 1, swingDuration: 200 } },
+          { cost: 4, name: 'Death Grip', description: 'Devastating swing force and range', mods: { pullForce: 0.03, damage: 1, range: 60 } },
         ],
       },
       B: {
-        name: 'Grapple',
-        description: 'Pull yourself to safety or slam into enemies at the edge',
+        name: 'Slingshot',
+        description: 'Hook the ground and sling yourself at enemies — high risk, high reward',
         icon: 'spell-BookDarkness',
         tiers: [
-          { cost: 3, name: 'Quick Hook', description: 'Pull yourself to target, reduced cooldown', mods: { pullSelf: true, cooldown: -2000 } },
-          { cost: 3, name: 'Extended Cable', description: 'Longer range, faster travel', mods: { range: 80, speed: 3 } },
-          { cost: 3, name: 'Slingshot', description: 'AoE push on arrival — slam enemies away', mods: { arrivalKnockback: 0.04, arrivalRadius: 50 } },
-          { cost: 4, name: 'Meteor Strike', description: 'Devastating landing push', mods: { arrivalDamage: 3, arrivalKnockback: 0.03, arrivalRadius: 20 } },
+          { cost: 3, name: 'Sling Anchor', description: 'Slingshot yourself to target, reduced cooldown', mods: { pullSelf: true, cooldown: -2000 } },
+          { cost: 3, name: 'Long Chain', description: 'Longer anchor range, faster hook travel', mods: { range: 80, speed: 3 } },
+          { cost: 3, name: 'Wrecking Ball', description: 'Massive impact on enemy hit', mods: { impactKnockback: 0.06, impactDamage: 3 } },
+          { cost: 4, name: 'Human Slingshot', description: 'Longer windup, even bigger launch', mods: { impactKnockback: 0.04, impactDamage: 2, swingDuration: 200 } },
         ],
       },
     },

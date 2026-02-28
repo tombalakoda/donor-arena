@@ -254,6 +254,11 @@ export class BootScene extends Phaser.Scene {
   create() {
     if (this._sceneStarted) return;
     this._sceneStarted = true;
+
+    // Restore sound mute preference
+    const muted = localStorage.getItem('soundMuted') === 'true';
+    this.sound.mute = muted;
+
     this.createAnimations();
     // Fade out then transition to menu
     this.cameras.main.fadeOut(400, 0, 0, 0);

@@ -100,11 +100,39 @@ export class MenuScene extends Phaser.Scene {
       },
     });
 
+    // --- Sound Toggle ---
+    this.createSoundToggle(camW);
+
     // Select default character
     this.selectCharacter(0);
 
     // --- Start menu music ---
     this.startMenuMusic();
+  }
+
+  createSoundToggle(camW) {
+    const isMuted = this.sound.mute;
+    const btnSize = 36;
+    const x = camW - 28;
+    const y = 28;
+
+    const bg = this.add.rectangle(x, y, btnSize, btnSize, 0x1a1428, 0.9)
+      .setStrokeStyle(2, 0x3d2e1e);
+
+    const icon = this.add.text(x, y, isMuted ? '🔇' : '🔊', {
+      fontSize: '18px',
+    }).setOrigin(0.5);
+
+    const hitArea = this.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
+      .setInteractive({ useHandCursor: true });
+
+    hitArea.on('pointerover', () => bg.setStrokeStyle(2, 0xffdd44));
+    hitArea.on('pointerout', () => bg.setStrokeStyle(2, 0x3d2e1e));
+    hitArea.on('pointerdown', () => {
+      this.sound.mute = !this.sound.mute;
+      localStorage.setItem('soundMuted', this.sound.mute);
+      icon.setText(this.sound.mute ? '🔇' : '🔊');
+    });
   }
 
   createBackgroundStars(camW, camH) {

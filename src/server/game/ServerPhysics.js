@@ -164,11 +164,14 @@ export class ServerPhysics {
   getPlayerState(playerId) {
     const body = this.playerBodies.get(playerId);
     if (!body) return null;
+    const kbUntil = this.knockbackUntil.get(playerId) || 0;
+    const kbRemaining = Math.max(0, kbUntil - Date.now());
     return {
       x: Math.round(body.position.x * 100) / 100,
       y: Math.round(body.position.y * 100) / 100,
       vx: Math.round(body.velocity.x * 1000) / 1000,
       vy: Math.round(body.velocity.y * 1000) / 1000,
+      kb: kbRemaining > 0 ? kbRemaining : 0,
     };
   }
 

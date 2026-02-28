@@ -29,6 +29,7 @@ export class GameScene extends Phaser.Scene {
     this.facingDir = 'down';
     this.isMoving = false;
     this.speedTrail = [];  // Array of { x, y, alpha } for knockback speed lines
+    this.knockbackUntil = 0;  // performance.now() timestamp when knockback ends
     this.localHp = 100;
     this.localMaxHp = 100;
 
@@ -485,14 +486,26 @@ export class GameScene extends Phaser.Scene {
   reconcileLocalPlayer(serverState) {
     if (!this.playerBody) return;
 
+    // Update knockback state from server
+    if (serverState.kb > 0) {
+      const newKbUntil = performance.now() + serverState.kb;
+      // Only extend, never shorten — avoids jitter from tick timing
+      if (newKbUntil > this.knockbackUntil) {
+        this.knockbackUntil = newKbUntil;
+      }
+    }
+
+    const inKnockback = performance.now() < this.knockbackUntil;
+
     const pos = this.playerBody.position;
     const dx = serverState.x - pos.x;
     const dy = serverState.y - pos.y;
     const distSq = dx * dx + dy * dy;
 
-    // Always blend toward server position — server is authoritative
-    // Stronger correction = less rubberbanding, slightly less smooth
-    const correctionStrength = distSq > 2500 ? 0.5 : distSq > 400 ? 0.3 : 0.15;
+    // During knockback: trust server much more (player is flying fast, divergence grows quickly)
+    const correctionStrength = inKnockback
+      ? (distSq > 2500 ? 0.8 : 0.5)
+      : (distSq > 2500 ? 0.5 : distSq > 400 ? 0.3 : 0.15);
 
     if (distSq > 4) {
       MatterBody.setPosition(this.playerBody, {
@@ -501,9 +514,9 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    // Always blend velocity toward server
+    // During knockback: near-fully trust server velocity (0.8 blend vs normal 0.2)
     const vel = this.playerBody.velocity;
-    const velBlend = 0.2;
+    const velBlend = inKnockback ? 0.8 : 0.2;
     MatterBody.setVelocity(this.playerBody, {
       x: vel.x + (serverState.vx - vel.x) * velBlend,
       y: vel.y + (serverState.vy - vel.y) * velBlend,
@@ -949,23 +962,43 @@ export class GameScene extends Phaser.Scene {
 
         if (spell.hooked && !visual.hooked) {
           visual.hooked = true;
-          // Stop client-side movement — server now controls position
           visual.vx = 0;
           visual.vy = 0;
         }
 
-        // Lerp hook position to server (whether traveling or following hooked target)
+        // Lerp hook position to server
         const lerpFactor = 0.3;
         visual.sprite.x += (spell.x - visual.sprite.x) * lerpFactor;
         visual.sprite.y += (spell.y - visual.sprite.y) * lerpFactor;
 
-        // Redraw chain from caster to hook/target
+        // For Branch B slingshot: chain goes from anchor to caster (not caster to hook)
+        // For Branch A swing: chain goes from caster to hooked enemy
+        let chainFromX, chainFromY, chainToX, chainToY;
+        if (spell.pullSelf && spell.hooked) {
+          // Slingshot: chain from anchor point to caster
+          chainFromX = spell.anchorX || visual.sprite.x;
+          chainFromY = spell.anchorY || visual.sprite.y;
+          chainToX = visual.originX;
+          chainToY = visual.originY;
+        } else {
+          // Normal / Branch A: chain from caster to hook/enemy
+          chainFromX = visual.originX;
+          chainFromY = visual.originY;
+          chainToX = visual.sprite.x;
+          chainToY = visual.sprite.y;
+        }
+
+        // Hide hook sprite during swing (the swinging player IS the visual)
+        if (spell.hooked && !spell.released) {
+          visual.sprite.setVisible(false);
+        }
+
         if (visual.chain && !visual.chain.destroyed) {
           visual.chain.clear();
           visual.chain.lineStyle(3, visual.chainColor || 0xaaaaaa, 0.7);
           visual.chain.beginPath();
-          visual.chain.moveTo(visual.originX, visual.originY);
-          visual.chain.lineTo(visual.sprite.x, visual.sprite.y);
+          visual.chain.moveTo(chainFromX, chainFromY);
+          visual.chain.lineTo(chainToX, chainToY);
           visual.chain.strokePath();
         }
       }
@@ -1401,6 +1434,8 @@ export class GameScene extends Phaser.Scene {
     // Block movement when paused or match-end
     if (this.pauseMenu && this.pauseMenu.visible) return;
     if (this.matchEndOverlay && this.matchEndOverlay.visible) return;
+    // Block movement during knockback stagger — player is flying
+    if (performance.now() < this.knockbackUntil) return;
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     this.moveTarget = { x: worldPoint.x, y: worldPoint.y };
 
@@ -1494,6 +1529,34 @@ export class GameScene extends Phaser.Scene {
       stroke: '#000000',
       strokeThickness: 6,
     }).setScrollFactor(0).setDepth(250).setOrigin(0.5).setVisible(false);
+
+    // Sound toggle (top-right, below timer)
+    this.createSoundToggle(camW);
+  }
+
+  createSoundToggle(camW) {
+    const isMuted = this.sound.mute;
+    const btnSize = 28;
+    const x = camW - 24;
+    const y = 52;
+
+    const bg = this.add.rectangle(x, y, btnSize, btnSize, 0x1a1428, 0.8)
+      .setScrollFactor(0).setDepth(100).setStrokeStyle(1, 0x3d2e1e);
+
+    const icon = this.add.text(x, y, isMuted ? '🔇' : '🔊', {
+      fontSize: '14px',
+    }).setScrollFactor(0).setDepth(101).setOrigin(0.5);
+
+    const hitArea = this.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
+      .setScrollFactor(0).setDepth(102).setInteractive({ useHandCursor: true });
+
+    hitArea.on('pointerover', () => bg.setStrokeStyle(1, 0xffdd44));
+    hitArea.on('pointerout', () => bg.setStrokeStyle(1, 0x3d2e1e));
+    hitArea.on('pointerdown', () => {
+      this.sound.mute = !this.sound.mute;
+      localStorage.setItem('soundMuted', this.sound.mute);
+      icon.setText(this.sound.mute ? '🔇' : '🔊');
+    });
   }
 
   createSpellHUD() {
@@ -1625,6 +1688,9 @@ export class GameScene extends Phaser.Scene {
     if (this.matchEndOverlay && this.matchEndOverlay.visible) return;
     if (!this.playerBody || !this.moveTarget) return;
 
+    // During knockback: no movement forces, no speed cap — let the player fly
+    if (performance.now() < this.knockbackUntil) return;
+
     const pos = this.playerBody.position;
     const dx = this.moveTarget.x - pos.x;
     const dy = this.moveTarget.y - pos.y;
@@ -1667,6 +1733,8 @@ export class GameScene extends Phaser.Scene {
 
   sendInputToServer() {
     if (!this.network || !this.network.connected || !this.moveTarget) return;
+    // Don't send input during knockback — server ignores it anyway
+    if (performance.now() < this.knockbackUntil) return;
     this.network.sendInput({
       targetX: this.moveTarget.x,
       targetY: this.moveTarget.y,
