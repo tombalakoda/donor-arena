@@ -30,6 +30,16 @@ export class GameScene extends Phaser.Scene {
     this.isMoving = false;
     this.speedTrail = [];  // Array of { x, y, alpha } for knockback speed lines
     this.knockbackUntil = 0;  // performance.now() timestamp when knockback ends
+
+    // Slingshot orbital prediction state
+    this.slingshotActive = false;
+    this.slingshotAnchorX = 0;
+    this.slingshotAnchorY = 0;
+    this.slingshotAngle = 0;
+    this.slingshotRadius = 0;
+    this.slingshotElapsed = 0;
+    this.slingshotDuration = 0;
+    this.slingshotLastServerTick = 0;
     this.localHp = 100;
     this.localMaxHp = 100;
 
@@ -282,7 +292,8 @@ export class GameScene extends Phaser.Scene {
     if (snapshot.progression) this.progression = snapshot.progression;
 
     // Sync active spells from server state
-    this.syncSpellVisuals(snapshot.spells || []);
+    this.lastServerSpells = snapshot.spells || [];
+    this.syncSpellVisuals(this.lastServerSpells);
   }
 
   // --- Round Events ---
@@ -486,6 +497,9 @@ export class GameScene extends Phaser.Scene {
   reconcileLocalPlayer(serverState) {
     if (!this.playerBody) return;
 
+    // During slingshot swing: orbital prediction handles position, skip reconciliation
+    if (this.slingshotActive) return;
+
     // Update knockback state from server
     if (serverState.kb > 0) {
       const newKbUntil = performance.now() + serverState.kb;
@@ -584,6 +598,7 @@ export class GameScene extends Phaser.Scene {
     rp.targetY = serverState.y;
     rp.vx = serverState.vx;
     rp.vy = serverState.vy;
+    rp.lastUpdateTime = performance.now();
     const prevHp = rp.hp;
     rp.hp = serverState.hp;
     rp.maxHp = serverState.maxHp;
@@ -618,8 +633,60 @@ export class GameScene extends Phaser.Scene {
     const lerpFactor = 0.15;
 
     for (const [id, rp] of this.remotePlayers) {
-      rp.x += (rp.targetX - rp.x) * lerpFactor;
-      rp.y += (rp.targetY - rp.y) * lerpFactor;
+      // Check if this remote player is mid-orbit (slingshot or being swung) — use orbital prediction
+      let usedOrbitalPrediction = false;
+      if (this.lastServerSpells) {
+        // Branch B: this player is the caster doing a slingshot (orbits anchor point)
+        const slingshotSpell = this.lastServerSpells.find(
+          s => s.pullSelf && s.hooked && !s.released && s.ownerId === id && s.swingDuration > 0
+        );
+        if (slingshotSpell) {
+          const timeSinceUpdate = (performance.now() - (rp.lastUpdateTime || performance.now())) / 1000;
+          const localElapsed = slingshotSpell.swingElapsed + timeSinceUpdate * 1000;
+          if (localElapsed < slingshotSpell.swingDuration) {
+            const t = localElapsed / slingshotSpell.swingDuration;
+            const angularSpeed = 4 + t * 6;
+            const predictedAngle = slingshotSpell.swingAngle + angularSpeed * timeSinceUpdate;
+            rp.x = slingshotSpell.anchorX + Math.cos(predictedAngle) * slingshotSpell.orbitRadius;
+            rp.y = slingshotSpell.anchorY + Math.sin(predictedAngle) * slingshotSpell.orbitRadius;
+            usedOrbitalPrediction = true;
+          }
+        }
+
+        // Branch A: this player is being swung by someone (orbits around the caster)
+        if (!usedOrbitalPrediction) {
+          const swingSpell = this.lastServerSpells.find(
+            s => !s.pullSelf && s.hooked && !s.released && s.hookedPlayerId === id && s.swingDuration > 0
+          );
+          if (swingSpell) {
+            // Orbit center is the caster's position
+            let centerX, centerY;
+            if (swingSpell.ownerId === this.localPlayerId && this.playerBody) {
+              centerX = this.playerBody.position.x;
+              centerY = this.playerBody.position.y;
+            } else {
+              const casterRp = this.remotePlayers.get(swingSpell.ownerId);
+              centerX = casterRp ? casterRp.x : swingSpell.x;
+              centerY = casterRp ? casterRp.y : swingSpell.y;
+            }
+            const timeSinceUpdate = (performance.now() - (rp.lastUpdateTime || performance.now())) / 1000;
+            const localElapsed = swingSpell.swingElapsed + timeSinceUpdate * 1000;
+            if (localElapsed < swingSpell.swingDuration) {
+              const t = localElapsed / swingSpell.swingDuration;
+              const angularSpeed = 4 + t * 6;
+              const predictedAngle = swingSpell.swingAngle + angularSpeed * timeSinceUpdate;
+              rp.x = centerX + Math.cos(predictedAngle) * swingSpell.orbitRadius;
+              rp.y = centerY + Math.sin(predictedAngle) * swingSpell.orbitRadius;
+              usedOrbitalPrediction = true;
+            }
+          }
+        }
+      }
+
+      if (!usedOrbitalPrediction) {
+        rp.x += (rp.targetX - rp.x) * lerpFactor;
+        rp.y += (rp.targetY - rp.y) * lerpFactor;
+      }
 
       rp.sprite.setPosition(rp.x, rp.y - 4);
       rp.shadow.setPosition(rp.x, rp.y + PLAYER.RADIUS * 0.5);
@@ -710,6 +777,7 @@ export class GameScene extends Phaser.Scene {
       type: effectiveType,
       lifetime: spell.lifetime || 2000,
       elapsed: 0,
+      ownerId: spell.ownerId,
     };
 
     switch (effectiveType) {
@@ -928,6 +996,10 @@ export class GameScene extends Phaser.Scene {
     // Remove visuals for spells no longer on server
     for (const [id, visual] of this.spellVisuals) {
       if (!activeIds.has(id) && visual.elapsed > 200) {
+        // Deactivate slingshot if the removed spell was providing slingshot state
+        if (visual.pullSelf && visual.ownerId === this.localPlayerId && this.slingshotActive) {
+          this.slingshotActive = false;
+        }
         this.destroySpellVisual(visual);
         this.spellVisuals.delete(id);
       }
@@ -964,6 +1036,30 @@ export class GameScene extends Phaser.Scene {
           visual.hooked = true;
           visual.vx = 0;
           visual.vy = 0;
+        }
+
+        // Store metadata on visual for 60fps chain rendering in updateSpellVisuals
+        visual.pullSelf = spell.pullSelf;
+        visual.serverAnchorX = spell.anchorX || 0;
+        visual.serverAnchorY = spell.anchorY || 0;
+        visual.serverReleased = spell.released;
+
+        // --- Slingshot orbital prediction: detect activation for local player ---
+        if (spell.pullSelf && spell.hooked && !spell.released && spell.ownerId === this.localPlayerId) {
+          this.slingshotActive = true;
+          this.slingshotAnchorX = spell.anchorX;
+          this.slingshotAnchorY = spell.anchorY;
+          this.slingshotAngle = spell.swingAngle;
+          this.slingshotRadius = spell.orbitRadius;
+          this.slingshotElapsed = spell.swingElapsed;
+          this.slingshotDuration = spell.swingDuration;
+          this.slingshotLastServerTick = performance.now();
+        }
+        // Deactivate slingshot when released or no longer swinging
+        if (spell.pullSelf && spell.ownerId === this.localPlayerId && (spell.released || !spell.hooked)) {
+          if (this.slingshotActive) {
+            this.slingshotActive = false;
+          }
         }
 
         // Lerp hook position to server
@@ -1663,6 +1759,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.processPendingSpells();
     this.updateLocalMovement(delta);
+    this.updateSlingshotPrediction(delta);
     this.syncLocalVisuals();
     this.interpolateRemotePlayers();
     this.updateSpellInput();
@@ -1688,7 +1785,8 @@ export class GameScene extends Phaser.Scene {
     if (this.matchEndOverlay && this.matchEndOverlay.visible) return;
     if (!this.playerBody || !this.moveTarget) return;
 
-    // During knockback: no movement forces, no speed cap — let the player fly
+    // During slingshot or knockback: no movement forces
+    if (this.slingshotActive) return;
     if (performance.now() < this.knockbackUntil) return;
 
     const pos = this.playerBody.position;
@@ -1731,9 +1829,41 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  updateSlingshotPrediction(delta) {
+    if (!this.slingshotActive || !this.playerBody) return;
+    if (this.slingshotDuration <= 0) return;
+
+    // Calculate how far into the swing we are (server elapsed + time since last server tick)
+    const timeSinceServerTick = performance.now() - this.slingshotLastServerTick;
+    const localElapsed = this.slingshotElapsed + timeSinceServerTick;
+
+    // If swing is ending, deactivate — let normal reconciliation handle the release
+    if (localElapsed >= this.slingshotDuration) {
+      this.slingshotActive = false;
+      return;
+    }
+
+    // Replicate server's angular speed ramp: 4 → 10 rad/s over swing duration
+    const t = Math.min(localElapsed / this.slingshotDuration, 1);
+    const angularSpeed = 4 + t * 6;
+
+    // Advance angle from last server-synced angle
+    const timeSinceServerSec = timeSinceServerTick / 1000;
+    const predictedAngle = this.slingshotAngle + angularSpeed * timeSinceServerSec;
+
+    // Compute orbital position
+    const orbitX = this.slingshotAnchorX + Math.cos(predictedAngle) * this.slingshotRadius;
+    const orbitY = this.slingshotAnchorY + Math.sin(predictedAngle) * this.slingshotRadius;
+
+    // Set the physics body to the predicted orbital position
+    MatterBody.setPosition(this.playerBody, { x: orbitX, y: orbitY });
+    MatterBody.setVelocity(this.playerBody, { x: 0, y: 0 });
+  }
+
   sendInputToServer() {
     if (!this.network || !this.network.connected || !this.moveTarget) return;
-    // Don't send input during knockback — server ignores it anyway
+    // Don't send input during slingshot or knockback — server ignores it anyway
+    if (this.slingshotActive) return;
     if (performance.now() < this.knockbackUntil) return;
     this.network.sendInput({
       targetX: this.moveTarget.x,
@@ -1776,13 +1906,40 @@ export class GameScene extends Phaser.Scene {
           visual.sprite.x += (visual.vx || 0);
           visual.sprite.y += (visual.vy || 0);
         }
-        // Redraw chain from origin to current position
+
+        // Update chain origin from current player position (for smooth 60fps tracking)
+        if (visual.ownerId === this.localPlayerId && this.playerBody) {
+          visual.originX = this.playerBody.position.x;
+          visual.originY = this.playerBody.position.y;
+        } else {
+          const rp = this.remotePlayers.get(visual.ownerId);
+          if (rp) {
+            visual.originX = rp.x;
+            visual.originY = rp.y;
+          }
+        }
+
+        // Redraw chain every frame with proper slingshot support
         if (visual.chain && !visual.chain.destroyed) {
+          let chainFromX, chainFromY, chainToX, chainToY;
+          if (visual.pullSelf && visual.hooked) {
+            // Slingshot: chain from anchor to caster (updated at 60fps)
+            chainFromX = visual.serverAnchorX || visual.sprite.x;
+            chainFromY = visual.serverAnchorY || visual.sprite.y;
+            chainToX = visual.originX;
+            chainToY = visual.originY;
+          } else {
+            // Normal / Branch A: chain from caster to hook/enemy
+            chainFromX = visual.originX;
+            chainFromY = visual.originY;
+            chainToX = visual.sprite.x;
+            chainToY = visual.sprite.y;
+          }
           visual.chain.clear();
           visual.chain.lineStyle(3, visual.chainColor || 0xaaaaaa, 0.7);
           visual.chain.beginPath();
-          visual.chain.moveTo(visual.originX, visual.originY);
-          visual.chain.lineTo(visual.sprite.x, visual.sprite.y);
+          visual.chain.moveTo(chainFromX, chainFromY);
+          visual.chain.lineTo(chainToX, chainToY);
           visual.chain.strokePath();
         }
       } else if (visual.type === SPELL_TYPES.BLINK || visual.type === SPELL_TYPES.DASH) {

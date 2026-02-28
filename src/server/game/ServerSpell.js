@@ -854,6 +854,11 @@ export class ServerSpell {
       released: s.released || false,
       anchorX: s.anchorX || 0,
       anchorY: s.anchorY || 0,
+      // Orbit params for smooth client-side prediction
+      swingAngle: s.swingAngle || 0,
+      swingElapsed: s.swingElapsed || 0,
+      swingDuration: s.swingDuration || 0,
+      orbitRadius: s.orbitRadius || 0,
     }));
   }
 
