@@ -28,6 +28,7 @@ export class GameScene extends Phaser.Scene {
     this.moveTargetMarker = null;
     this.facingDir = 'down';
     this.isMoving = false;
+    this.speedTrail = [];  // Array of { x, y, alpha } for knockback speed lines
     this.localHp = 100;
     this.localMaxHp = 100;
 
@@ -227,8 +228,30 @@ export class GameScene extends Phaser.Scene {
     for (const ps of snapshot.players) {
       if (ps.id === this.localPlayerId) {
         this.reconcileLocalPlayer(ps);
+        const prevHp = this.localHp;
         this.localHp = ps.hp;
         this.localMaxHp = ps.maxHp;
+        // Screen shake and hit flash on damage
+        if (prevHp > this.localHp) {
+          const hpLost = prevHp - this.localHp;
+          this.cameras.main.shake(150, Math.min(0.02, hpLost * 0.003));
+          // Hit flash on local player sprite
+          if (this.playerSprite && hpLost > 0) {
+            this.playerSprite.setTintFill(0xffffff);
+            this.time.delayedCall(80, () => {
+              if (this.playerSprite) {
+                this.playerSprite.setTintFill(0xff4444);
+                this.time.delayedCall(80, () => {
+                  if (this.playerSprite) this.playerSprite.clearTint();
+                });
+              }
+            });
+          }
+          // Floating damage number
+          if (hpLost > 0 && this.playerBody) {
+            this.showDamageNumber(this.playerBody.position.x, this.playerBody.position.y, hpLost);
+          }
+        }
         this.localEliminated = ps.eliminated || false;
       } else {
         this.updateRemotePlayer(ps);
@@ -286,10 +309,56 @@ export class GameScene extends Phaser.Scene {
 
   handleElimination(data) {
     console.log('[ELIM]', data.playerName, 'eliminated by', data.eliminatorName, 'via', data.method);
-    const msg = data.eliminatorName
-      ? `${data.eliminatorName} eliminated ${data.playerName}`
-      : `${data.playerName} fell out of the ring`;
-    this.addKillFeed(msg);
+
+    // Ring-out celebration — the core sumo moment!
+    if (data.method === 'ring') {
+      // Find victim position
+      const rp = this.remotePlayers.get(data.playerId);
+      const isLocal = data.playerId === this.localPlayerId;
+      const pos = rp ? { x: rp.x, y: rp.y } :
+                  isLocal && this.playerBody ? { x: this.playerBody.position.x, y: this.playerBody.position.y } : null;
+
+      if (pos) {
+        // Burst effect at elimination point
+        const burst = this.add.circle(pos.x, pos.y, 30, 0xff4444, 0.8);
+        burst.setDepth(20);
+        this.tweens.add({
+          targets: burst,
+          scaleX: 4, scaleY: 4, alpha: 0,
+          duration: 600,
+          onComplete: () => burst.destroy(),
+        });
+
+        // Secondary ring burst
+        const ring = this.add.circle(pos.x, pos.y, 20, 0, 0);
+        ring.setStrokeStyle(3, 0xff6644, 0.9);
+        ring.setDepth(20);
+        this.tweens.add({
+          targets: ring,
+          scaleX: 5, scaleY: 5, alpha: 0,
+          duration: 800,
+          onComplete: () => ring.destroy(),
+        });
+      }
+
+      // Camera shake for everyone
+      this.cameras.main.shake(200, 0.012);
+
+      // Big "RING OUT!" announcement
+      this.showAnnouncement('RING OUT!', 1500);
+
+      // Kill feed with special prefix
+      const msg = data.eliminatorName
+        ? `${data.eliminatorName} knocked out ${data.playerName}!`
+        : `${data.playerName} fell out of the ring!`;
+      this.addKillFeed(msg);
+    } else {
+      // Regular spell kill (should be rare now)
+      const msg = data.eliminatorName
+        ? `${data.eliminatorName} eliminated ${data.playerName}`
+        : `${data.playerName} was eliminated`;
+      this.addKillFeed(msg);
+    }
 
     // Fade eliminated remote player sprite
     const rp = this.remotePlayers.get(data.playerId);
@@ -356,6 +425,25 @@ export class GameScene extends Phaser.Scene {
           this.announcementText = null;
         }
       },
+    });
+  }
+
+  showDamageNumber(x, y, amount) {
+    const text = this.add.text(x, y - 20, `-${Math.ceil(amount)}`, {
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      color: '#ff4444',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setDepth(200).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 55,
+      alpha: 0,
+      duration: 900,
+      onComplete: () => text.destroy(),
     });
   }
 
@@ -483,8 +571,23 @@ export class GameScene extends Phaser.Scene {
     rp.targetY = serverState.y;
     rp.vx = serverState.vx;
     rp.vy = serverState.vy;
+    const prevHp = rp.hp;
     rp.hp = serverState.hp;
     rp.maxHp = serverState.maxHp;
+
+    // Hit flash and damage number on remote player damage
+    if (prevHp > rp.hp && rp.sprite) {
+      rp.sprite.setTintFill(0xffffff);
+      this.time.delayedCall(80, () => {
+        if (rp.sprite && !rp.sprite.destroyed) {
+          rp.sprite.setTintFill(0xff4444);
+          this.time.delayedCall(80, () => {
+            if (rp.sprite && !rp.sprite.destroyed) rp.sprite.clearTint();
+          });
+        }
+      });
+      this.showDamageNumber(rp.targetX, rp.targetY, prevHp - rp.hp);
+    }
 
     // Update name from server if provided
     if (serverState.name && !rp.name) {
@@ -514,7 +617,15 @@ export class GameScene extends Phaser.Scene {
       const hpRatio = Math.max(0, rp.hp / rp.maxHp);
       rp.hpFill.setPosition(rp.x - 18, rp.y - 22);
       rp.hpFill.width = 36 * hpRatio;
-      rp.hpFill.fillColor = hpRatio > 0.5 ? 0x44dd44 : hpRatio > 0.25 ? 0xdddd44 : 0xdd4444;
+      if (hpRatio > 0.75) {
+        rp.hpFill.fillColor = 0x44bbff;
+      } else if (hpRatio > 0.5) {
+        rp.hpFill.fillColor = 0xdddd44;
+      } else if (hpRatio > 0.25) {
+        rp.hpFill.fillColor = 0xff8833;
+      } else {
+        rp.hpFill.fillColor = 0xff3333;
+      }
 
       const speed = Math.sqrt(rp.vx * rp.vx + rp.vy * rp.vy);
       const wasMoving = rp.isMoving;
@@ -1202,24 +1313,63 @@ export class GameScene extends Phaser.Scene {
 
   updateRingGraphics() {
     const r = Math.round(this.ringRadius);
-    if (r === this.lastDrawnRingRadius) return;
-    this.lastDrawnRingRadius = r;
-
+    // Redraw every frame for pulse animation
     const g = this.ringGraphics;
     g.clear();
 
-    // Ring border (danger line) — keep red for gameplay clarity
-    g.lineStyle(4, 0xff4444, 0.25);
-    g.strokeCircle(0, 0, r + 3);
+    // Pulse factor for animated danger feel
+    const pulse = 0.5 + 0.5 * Math.sin(this.time.now * 0.004);
 
-    g.lineStyle(2, 0xff6666, 0.7);
+    // Inner glow (safe side hint)
+    g.lineStyle(2, 0xff6666, 0.1 + pulse * 0.05);
+    g.strokeCircle(0, 0, r - 8);
+
+    // Main ring border — thick and bright
+    g.lineStyle(3, 0xff4444, 0.6 + pulse * 0.3);
     g.strokeCircle(0, 0, r);
 
-    // Outer danger zone rings — subtle on white snow
-    g.lineStyle(1, 0xcc4444, 0.08);
-    for (let dr = r + 50; dr < ARENA.FLOOR_SIZE / 2; dr += 50) {
+    // Danger band — graduated rings outside boundary
+    const bandSteps = 5;
+    for (let i = 1; i <= bandSteps; i++) {
+      const t = i / bandSteps;
+      const alpha = (0.35 - t * 0.3) * (0.7 + pulse * 0.3);
+      g.lineStyle(4, 0xff2222, Math.max(0, alpha));
+      g.strokeCircle(0, 0, r + i * 8);
+    }
+
+    // Outer faint rings
+    g.lineStyle(1, 0xcc4444, 0.06);
+    for (let dr = r + 60; dr < ARENA.FLOOR_SIZE / 2; dr += 60) {
       g.strokeCircle(0, 0, dr);
     }
+
+    // Screen-edge vignette when player is near ring edge
+    if (this.playerBody) {
+      const px = this.playerBody.position.x;
+      const py = this.playerBody.position.y;
+      const distFromCenter = Math.sqrt(px * px + py * py);
+      const distToEdge = r - distFromCenter;
+
+      if (!this.edgeVignette) {
+        this.edgeVignette = this.add.rectangle(
+          this.cameras.main.width / 2, this.cameras.main.height / 2,
+          this.cameras.main.width, this.cameras.main.height,
+          0xff0000, 0
+        ).setScrollFactor(0).setDepth(99).setOrigin(0.5);
+      }
+
+      if (distToEdge < 80 && distToEdge > -50) {
+        const danger = 1 - Math.max(0, distToEdge) / 80;
+        this.edgeVignette.setAlpha(danger * 0.15 * (0.7 + pulse * 0.3));
+      } else if (distToEdge <= -50) {
+        // Deep outside — strong red flash
+        this.edgeVignette.setAlpha(0.2 + pulse * 0.1);
+      } else {
+        this.edgeVignette.setAlpha(0);
+      }
+    }
+
+    this.lastDrawnRingRadius = r;
   }
 
   // --- Input ---
@@ -1612,6 +1762,41 @@ export class GameScene extends Phaser.Scene {
     } else if (wasMoving) {
       this.playerSprite.play(`${this.characterId}-idle-${this.facingDir}`);
     }
+
+    // Speed trail for knockback flights
+    if (this.playerBody) {
+      const trailVel = this.playerBody.velocity;
+      const trailSpeed = Math.sqrt(trailVel.x * trailVel.x + trailVel.y * trailVel.y);
+      const maxSpeed = PLAYER.SPEED * 0.05;
+
+      if (trailSpeed > maxSpeed * 1.5) {
+        // Player is flying from knockback — add trail point
+        this.speedTrail.push({
+          x: this.playerBody.position.x,
+          y: this.playerBody.position.y,
+          alpha: 0.6,
+        });
+        if (this.speedTrail.length > 8) this.speedTrail.shift();
+      }
+
+      // Draw and fade trail
+      if (!this.trailGraphics) {
+        this.trailGraphics = this.add.graphics().setDepth(5);
+      }
+      this.trailGraphics.clear();
+      for (let i = 0; i < this.speedTrail.length; i++) {
+        const t = this.speedTrail[i];
+        t.alpha -= 0.06;
+        if (t.alpha <= 0) {
+          this.speedTrail.splice(i, 1);
+          i--;
+          continue;
+        }
+        const size = 6 + (i / this.speedTrail.length) * 8;
+        this.trailGraphics.fillStyle(0xffffff, t.alpha * 0.5);
+        this.trailGraphics.fillCircle(t.x, t.y, size);
+      }
+    }
   }
 
   updateCamera() {
@@ -1634,8 +1819,25 @@ export class GameScene extends Phaser.Scene {
     if (this.hpBarFill) {
       const hpRatio = Math.max(0, this.localHp / this.localMaxHp);
       this.hpBarFill.width = 200 * hpRatio;
-      this.hpBarFill.fillColor = hpRatio > 0.5 ? 0x44dd44 : hpRatio > 0.25 ? 0xdddd44 : 0xdd4444;
-      this.hpText.setText(`${Math.ceil(this.localHp)}/${this.localMaxHp}`);
+      // Colors communicate knockback vulnerability (Smash Bros style)
+      if (hpRatio > 0.75) {
+        this.hpBarFill.fillColor = 0x44bbff;  // Blue — safe, normal knockback
+      } else if (hpRatio > 0.5) {
+        this.hpBarFill.fillColor = 0xdddd44;  // Yellow — moderate vulnerability
+      } else if (hpRatio > 0.25) {
+        this.hpBarFill.fillColor = 0xff8833;  // Orange — high vulnerability
+      } else {
+        this.hpBarFill.fillColor = 0xff3333;  // Red — extreme, one hit = ring-out
+      }
+      // Pulse effect at high vulnerability
+      if (hpRatio <= 0.5 && hpRatio > 0) {
+        const pulse = 0.7 + 0.3 * Math.sin(this.time.now * (hpRatio <= 0.25 ? 0.012 : 0.006));
+        this.hpBarFill.setAlpha(pulse);
+      } else {
+        this.hpBarFill.setAlpha(1);
+      }
+      const vulnPercent = Math.round((1 - hpRatio) * 100);
+      this.hpText.setText(`${Math.ceil(this.localHp)} HP  (${vulnPercent}% vuln)`);
     }
   }
 

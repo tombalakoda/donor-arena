@@ -8,8 +8,13 @@ const { Bodies, Body, World, Composite } = Matter;
 let nextSpellId = 1;
 
 export class ServerSpell {
-  constructor(physics) {
+  /**
+   * @param {object} physics - ServerPhysics instance
+   * @param {function} getDamageTaken - callback (playerId) => damageTaken (0 = full HP)
+   */
+  constructor(physics, getDamageTaken = () => 0) {
     this.physics = physics;
+    this.getDamageTaken = getDamageTaken; // Smash Bros-style: lookup target vulnerability for knockback scaling
     this.activeSpells = [];   // All active spell entities
     this.cooldowns = new Map(); // playerId -> { spellId: remainingMs }
     this.statusEffects = new Map(); // playerId -> { slow: { amount, until }, root: { until }, stun: { until } }
@@ -271,8 +276,9 @@ export class ServerSpell {
         this.physics.applyKnockback(id,
           (hitNx * 0.6 + nx * 0.4) * knockback,
           (hitNy * 0.6 + ny * 0.4) * knockback,
+          this.getDamageTaken(id),
         );
-        hits.push({ id, damage: stats.dashDamage || 6 });
+        hits.push({ id, damage: stats.dashDamage || 3 });
       }
     }
 
@@ -352,7 +358,7 @@ export class ServerSpell {
         const nx = dist > 0 ? dx / dist : 0;
         const ny = dist > 0 ? dy / dist : 1;
         const force = (stats.knockbackForce || 0.03) * (1 - dist / radius);
-        this.physics.applyKnockback(id, nx * force, ny * force);
+        this.physics.applyKnockback(id, nx * force, ny * force, this.getDamageTaken(id));
         hits.push({ id, damage: stats.damage || 12 });
       }
     }
@@ -439,6 +445,7 @@ export class ServerSpell {
             this.physics.applyKnockback(playerId,
               nx * spell.knockbackForce,
               ny * spell.knockbackForce,
+              this.getDamageTaken(playerId),
             );
 
             // Queue damage for Room.js to process
@@ -621,6 +628,7 @@ export class ServerSpell {
                     this.physics.applyKnockback(pid,
                       anx * (spell.arrivalKnockback || 0),
                       any * (spell.arrivalKnockback || 0),
+                      this.getDamageTaken(pid),
                     );
                     if (spell.arrivalDamage > 0) {
                       hits.push({ id: pid, damage: spell.arrivalDamage });
@@ -704,6 +712,7 @@ export class ServerSpell {
         this.physics.applyKnockback(playerId,
           nx * Math.max(force, spell.knockbackForce * 0.3),
           ny * Math.max(force, spell.knockbackForce * 0.3),
+          this.getDamageTaken(playerId),
         );
         // AoE damage from explosion is handled in the same hit
       }

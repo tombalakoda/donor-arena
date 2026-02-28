@@ -12,9 +12,9 @@ export const SKILL_TREE = {
     icon: 'spell-BookFire',
     base: {
       type: 'projectile',
-      damage: 10,
-      knockbackForce: 0.04,
-      cooldown: 2500,
+      damage: 4,              // was 10 — chip damage, not kill tool
+      knockbackForce: 0.06,   // was 0.04 — more push, vulnerability scaling does the rest
+      cooldown: 2200,         // was 2500 — primary tool, slightly faster
       speed: 8,
       range: 400,
       radius: 12,
@@ -24,24 +24,24 @@ export const SKILL_TREE = {
     branches: {
       A: {
         name: 'Rapid Fire',
-        description: 'Fast-firing fireballs: lower damage per hit, much faster cooldown',
+        description: 'Relentless barrage: many small pushes that build vulnerability fast',
         icon: 'spell-Fireball',
         tiers: [
-          { cost: 3, name: 'Quick Shot', description: 'Faster cooldown, slightly less damage', mods: { cooldown: -600, damage: -2 } },
-          { cost: 3, name: 'Trigger Happy', description: 'Even faster cooldown, more speed', mods: { cooldown: -500, speed: 1 } },
-          { cost: 3, name: 'Suppressing Fire', description: 'Rapid fire with reduced knockback per hit', mods: { cooldown: -400, damage: -1, knockbackForce: -0.01 } },
-          { cost: 4, name: 'Machine Gun', description: 'Extreme fire rate, piercing shots', mods: { cooldown: -200, piercing: true } },
+          { cost: 3, name: 'Quick Shot', description: 'Faster cooldown', mods: { cooldown: -500, damage: -1 } },
+          { cost: 3, name: 'Trigger Happy', description: 'Even faster cooldown, more speed', mods: { cooldown: -400, speed: 1 } },
+          { cost: 3, name: 'Suppressing Fire', description: 'Rapid push barrage', mods: { cooldown: -300, knockbackForce: 0.005 } },
+          { cost: 4, name: 'Machine Gun', description: 'Extreme fire rate, piercing shots', mods: { cooldown: -200, piercing: true, knockbackForce: 0.005 } },
         ],
       },
       B: {
         name: 'Meteor',
-        description: 'Huge single impact: massive damage and knockback',
+        description: 'Massive single push: sends enemies flying across the arena',
         icon: 'spell-Explosion',
         tiers: [
-          { cost: 3, name: 'Heavy Impact', description: 'More damage and knockback, slightly slower', mods: { damage: 5, knockbackForce: 0.01, speed: -1 } },
-          { cost: 3, name: 'Blast Radius', description: 'Explodes on impact, dealing AoE damage', mods: { explosionRadius: 60, damage: 3 } },
-          { cost: 3, name: 'Scorched Earth', description: 'Leaves burning ground on impact', mods: { burnDuration: 2000, burnDamage: 3 } },
-          { cost: 4, name: 'Cataclysm', description: 'Devastating impact with huge knockback', mods: { damage: 8, knockbackForce: 0.015, explosionRadius: 30 } },
+          { cost: 3, name: 'Heavy Impact', description: 'Bigger push, slightly slower', mods: { damage: 2, knockbackForce: 0.02, speed: -1 } },
+          { cost: 3, name: 'Blast Radius', description: 'Explodes on impact — pushes everyone nearby', mods: { explosionRadius: 70, knockbackForce: 0.01 } },
+          { cost: 3, name: 'Shockwave', description: 'Even more knockback, larger blast', mods: { knockbackForce: 0.02, explosionRadius: 20 } },
+          { cost: 4, name: 'Cataclysm', description: 'Devastating push — guaranteed ring-out at high vulnerability', mods: { damage: 3, knockbackForce: 0.03, explosionRadius: 10 } },
         ],
       },
     },
@@ -55,32 +55,32 @@ export const SKILL_TREE = {
     icon: 'spell-BookLight',
     base: {
       type: 'blink',
-      cooldown: 6000,
-      range: 200,
+      cooldown: 5000,        // was 6000 — mobility matters more in sumo
+      range: 220,             // was 200 — slightly longer escape
       damage: 0,
       knockbackForce: 0,
     },
     branches: {
       A: {
         name: 'Phase Shift',
-        description: 'Longer range teleport with more charges',
+        description: 'Escape artist: blink away from the edge with multiple charges',
         icon: 'spell-BookLight',
         tiers: [
           { cost: 3, name: 'Extended Range', description: 'Blink further', mods: { range: 60 } },
           { cost: 3, name: 'Quick Phase', description: 'Reduced cooldown', mods: { cooldown: -1000 } },
           { cost: 3, name: 'Double Blink', description: 'Two charges before cooldown', mods: { charges: 2 } },
-          { cost: 4, name: 'Warp', description: 'Much further range, brief invulnerability', mods: { range: 80, cooldown: -500, invulnFrames: 200 } },
+          { cost: 4, name: 'Warp', description: 'Much further range, brief invulnerability', mods: { range: 80, cooldown: -500, invulnFrames: 300 } },
         ],
       },
       B: {
-        name: 'Impact Dash',
-        description: 'Short-range dash that damages and pushes enemies',
+        name: 'Shoulder Slam',
+        description: 'Dash into enemies and send them flying — the sumo charge',
         icon: 'spell-BookWind',
         tiers: [
-          { cost: 3, name: 'Shoulder Check', description: 'Dash deals damage and pushes enemies', mods: { dashDamage: 6, dashKnockback: 0.02, range: -60 } },
-          { cost: 3, name: 'Momentum', description: 'More knockback, reduced cooldown', mods: { dashKnockback: 0.01, cooldown: -800 } },
-          { cost: 3, name: 'Battering Ram', description: 'More damage, wider dash hitbox', mods: { dashDamage: 4, dashWidth: 20 } },
-          { cost: 4, name: 'Unstoppable', description: 'Devastating dash with short cooldown', mods: { dashDamage: 5, dashKnockback: 0.015, cooldown: -700 } },
+          { cost: 3, name: 'Shoulder Check', description: 'Dash pushes enemies hard', mods: { dashDamage: 3, dashKnockback: 0.04, range: -60 } },
+          { cost: 3, name: 'Momentum', description: 'Even more push, reduced cooldown', mods: { dashKnockback: 0.02, cooldown: -800 } },
+          { cost: 3, name: 'Battering Ram', description: 'Wider dash, more push', mods: { dashDamage: 2, dashKnockback: 0.01, dashWidth: 25 } },
+          { cost: 4, name: 'Unstoppable', description: 'Devastating slam — launches enemies', mods: { dashDamage: 3, dashKnockback: 0.03, cooldown: -700 } },
         ],
       },
     },
@@ -94,38 +94,38 @@ export const SKILL_TREE = {
     icon: 'spell-BookIce',
     base: {
       type: 'projectile',
-      damage: 5,
-      knockbackForce: 0.008,
-      cooldown: 4000,
+      damage: 2,              // was 5 — pure utility/setup spell
+      knockbackForce: 0.02,   // was 0.008 — meaningful push now
+      cooldown: 3500,         // was 4000 — utility should be available
       speed: 7,
       range: 350,
       radius: 10,
       lifetime: 2000,
       piercing: false,
-      slowAmount: 0.4,
-      slowDuration: 1500,
+      slowAmount: 0.5,        // was 0.4 — stronger slow for edge traps
+      slowDuration: 2000,     // was 1500 — longer setup window
     },
     branches: {
       A: {
         name: 'Deep Freeze',
-        description: 'Stronger slow and damage, can root enemies',
+        description: 'Root enemies at the ring edge — then push them out',
         icon: 'spell-BookIce',
         tiers: [
           { cost: 3, name: 'Permafrost', description: 'Longer and stronger slow', mods: { slowDuration: 500, slowAmount: 0.1 } },
-          { cost: 3, name: 'Ice Lance', description: 'More damage, faster and longer range', mods: { damage: 4, speed: 2, range: 50 } },
-          { cost: 3, name: 'Frozen Solid', description: 'Can root enemies in place briefly', mods: { rootDuration: 800 } },
-          { cost: 4, name: 'Absolute Zero', description: 'Devastating freeze: high damage, deep slow, root', mods: { damage: 6, slowAmount: 0.15, rootDuration: 400 } },
+          { cost: 3, name: 'Ice Lance', description: 'More push, faster bolt', mods: { knockbackForce: 0.01, speed: 2, range: 50 } },
+          { cost: 3, name: 'Frozen Solid', description: 'Root enemies in place — easy ring-out setup', mods: { rootDuration: 1000 } },
+          { cost: 4, name: 'Absolute Zero', description: 'Deep freeze: long root, heavy slow', mods: { damage: 2, slowAmount: 0.1, rootDuration: 500, knockbackForce: 0.01 } },
         ],
       },
       B: {
         name: 'Blizzard',
-        description: 'Converts into AoE slow zone dropped on the ground',
+        description: 'Drop a slow zone at the ring edge — trap enemies in the danger zone',
         icon: 'spell-Mist',
         tiers: [
-          { cost: 3, name: 'Frost Ring', description: 'Drop a frost zone instead of firing a bolt', mods: { convertToZone: true, zoneRadius: 60, zoneDuration: 3000 } },
-          { cost: 3, name: 'Expanding Cold', description: 'Larger zone, lasts longer', mods: { zoneRadius: 20, zoneDuration: 1000 } },
-          { cost: 3, name: 'Hypothermia', description: 'Zone deals damage and slows more', mods: { zoneDamage: 2, slowAmount: 0.1 } },
-          { cost: 4, name: 'Ice Age', description: 'Massive zone with strong slow and damage', mods: { zoneRadius: 30, zoneDuration: 1500, zoneDamage: 2, slowAmount: 0.1 } },
+          { cost: 3, name: 'Frost Ring', description: 'Drop a frost zone instead of firing a bolt', mods: { convertToZone: true, zoneRadius: 70, zoneDuration: 3500 } },
+          { cost: 3, name: 'Expanding Cold', description: 'Larger zone, lasts longer', mods: { zoneRadius: 25, zoneDuration: 1000 } },
+          { cost: 3, name: 'Hypothermia', description: 'Zone slows much more — enemies can barely move', mods: { zoneDamage: 1, slowAmount: 0.15 } },
+          { cost: 4, name: 'Ice Age', description: 'Massive slow zone — covers the ring edge', mods: { zoneRadius: 30, zoneDuration: 1500, zoneDamage: 1, slowAmount: 0.1 } },
         ],
       },
     },
@@ -139,36 +139,36 @@ export const SKILL_TREE = {
     icon: 'spell-BookDeath',
     base: {
       type: 'hook',
-      damage: 5,
+      damage: 2,              // was 5 — displacement tool, not DPS
       knockbackForce: 0,
-      cooldown: 10000,
+      cooldown: 8000,         // was 10000 — faster sumo pacing
       speed: 12,
-      range: 300,
+      range: 320,             // was 300 — slightly longer reach
       radius: 14,
       lifetime: 1500,
-      pullForce: 0.04,
+      pullForce: 0.06,        // was 0.04 — stronger displacement
     },
     branches: {
       A: {
         name: 'Chain Pull',
-        description: 'Pulls enemy toward you — perfect for dragging them off the edge',
+        description: 'Drag enemies across the arena — set up ring-outs for your team',
         icon: 'spell-BookDeath',
         tiers: [
-          { cost: 3, name: 'Barbed Hook', description: 'More damage and pull strength', mods: { damage: 3, pullForce: 0.01 } },
+          { cost: 3, name: 'Barbed Hook', description: 'Stronger pull', mods: { damage: 1, pullForce: 0.02 } },
           { cost: 3, name: 'Quick Release', description: 'Faster hook, reduced cooldown', mods: { cooldown: -2000, speed: 2 } },
-          { cost: 3, name: 'Serrated Chain', description: 'More damage, briefly stuns on hit', mods: { damage: 4, stunDuration: 500 } },
-          { cost: 4, name: 'Death Grip', description: 'Massive pull, more damage and range', mods: { pullForce: 0.02, damage: 5, range: 50 } },
+          { cost: 3, name: 'Serrated Chain', description: 'Stuns on hit — they can\'t escape the pull', mods: { damage: 1, stunDuration: 500 } },
+          { cost: 4, name: 'Death Grip', description: 'Massive pull force and range', mods: { pullForce: 0.03, damage: 1, range: 60 } },
         ],
       },
       B: {
         name: 'Grapple',
-        description: 'Pulls yourself to the target point — mobility tool',
+        description: 'Pull yourself to safety or slam into enemies at the edge',
         icon: 'spell-BookDarkness',
         tiers: [
           { cost: 3, name: 'Quick Hook', description: 'Pull yourself to target, reduced cooldown', mods: { pullSelf: true, cooldown: -2000 } },
           { cost: 3, name: 'Extended Cable', description: 'Longer range, faster travel', mods: { range: 80, speed: 3 } },
-          { cost: 3, name: 'Slingshot', description: 'AoE knockback on arrival', mods: { arrivalKnockback: 0.02, arrivalRadius: 40 } },
-          { cost: 4, name: 'Meteor Strike', description: 'Devastating impact on landing', mods: { arrivalDamage: 10, arrivalKnockback: 0.015, arrivalRadius: 20 } },
+          { cost: 3, name: 'Slingshot', description: 'AoE push on arrival — slam enemies away', mods: { arrivalKnockback: 0.04, arrivalRadius: 50 } },
+          { cost: 4, name: 'Meteor Strike', description: 'Devastating landing push', mods: { arrivalDamage: 3, arrivalKnockback: 0.03, arrivalRadius: 20 } },
         ],
       },
     },

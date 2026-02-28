@@ -43,12 +43,30 @@ export class ServerPhysics {
    * Apply knockback force to a player and start a grace period where
    * the speed cap is lifted and voluntary movement is blocked.
    * This makes knockback feel powerful — players FLY when hit.
+   *
+   * Smash Bros-style vulnerability: the more damage a player has taken,
+   * the further they fly. At full HP, knockback is 1×. At low HP, up to 3.5×.
+   *
+   * @param {string} playerId
+   * @param {number} forceX - raw knockback force X
+   * @param {number} forceY - raw knockback force Y
+   * @param {number} damageTaken - how much HP the target has lost (0 = full HP)
    */
-  applyKnockback(playerId, forceX, forceY) {
+  applyKnockback(playerId, forceX, forceY, damageTaken = 0) {
     const body = this.playerBodies.get(playerId);
     if (!body) return;
-    Body.applyForce(body, body.position, { x: forceX, y: forceY });
-    const graceDuration = PLAYER.KNOCKBACK_GRACE_MS || 300;
+
+    // Vulnerability multiplier: more damage taken = more knockback
+    const baseMult = PLAYER.KNOCKBACK_BASE_MULT || 1.0;
+    const scale = PLAYER.KNOCKBACK_SCALE || 2.5;
+    const maxHp = PLAYER.MAX_HP || 100;
+    const vulnerability = baseMult + (damageTaken / maxHp) * scale;
+
+    Body.applyForce(body, body.position, {
+      x: forceX * vulnerability,
+      y: forceY * vulnerability,
+    });
+    const graceDuration = PLAYER.KNOCKBACK_GRACE_MS || 500;
     this.knockbackUntil.set(playerId, Date.now() + graceDuration);
   }
 

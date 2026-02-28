@@ -25,7 +25,15 @@ export class Room {
     this.sandbox = options.sandbox || false;
     this.players = new Map();
     this.physics = new ServerPhysics();
-    this.spells = new ServerSpell(this.physics);
+    // Pass HP lookup so spells can scale knockback by vulnerability (Smash Bros %)
+    this.spells = new ServerSpell(this.physics, (playerId) => {
+      const p = this.players.get(playerId);
+      if (p) return PLAYER.MAX_HP - p.hp;
+      // Check dummies too (sandbox mode)
+      const d = this.dummies.get(playerId);
+      if (d) return d.maxHp - d.hp;
+      return 0;
+    });
     this.rounds = new RoundManager();
     this.progressions = new Map(); // playerId -> PlayerProgression
     this.tickInterval = null;
