@@ -202,8 +202,8 @@ export class ServerSpell {
       spells.push(spell);
     }
 
-    // Return the first spell for the broadcast (client will handle multi-projectile visually)
-    return spells[0];
+    // Return all projectiles so each gets broadcast and rendered on client
+    return spells;
   }
 
   spawnZone(playerId, spellId, stats, targetX, targetY) {
@@ -302,6 +302,7 @@ export class ServerSpell {
           (hitNx * 0.6 + nx * 0.4) * knockback,
           (hitNy * 0.6 + ny * 0.4) * knockback,
           this.getDamageTaken(id),
+          playerId,
         );
         hits.push({ id, damage: stats.dashDamage || 3 });
       }
@@ -415,7 +416,7 @@ export class ServerSpell {
         const nx = dist > 0 ? dx / dist : 0;
         const ny = dist > 0 ? dy / dist : 1;
         const force = (stats.knockbackForce || 0.03) * (1 - dist / radius);
-        this.physics.applyKnockback(id, nx * force, ny * force, this.getDamageTaken(id));
+        this.physics.applyKnockback(id, nx * force, ny * force, this.getDamageTaken(id), playerId);
         hits.push({ id, damage: stats.damage || 12 });
       }
     }
@@ -510,6 +511,7 @@ export class ServerSpell {
               nx * spell.knockbackForce,
               ny * spell.knockbackForce,
               this.getDamageTaken(playerId),
+              spell.ownerId,
             );
 
             // Queue damage for Room.js to process
@@ -528,9 +530,9 @@ export class ServerSpell {
               });
             }
 
-            // Explosion on impact (Meteor branch)
+            // Explosion on impact (Meteor branch) — exclude direct-hit target to avoid double-knockback
             if (spell.explosionRadius > 0) {
-              this.handleExplosion(spell, body.position.x, body.position.y);
+              this.handleExplosion(spell, body.position.x, body.position.y, playerId);
             }
 
             if (!spell.piercing) {
@@ -624,6 +626,7 @@ export class ServerSpell {
               tangentX * releaseForce,
               tangentY * releaseForce,
               this.getDamageTaken(spell.hookedPlayerId),
+              spell.ownerId,
             );
 
             spell.released = true;
@@ -685,6 +688,7 @@ export class ServerSpell {
                   enx * (spell.flightKnockback || 0.02),
                   eny * (spell.flightKnockback || 0.02),
                   this.getDamageTaken(playerId),
+                  spell.ownerId,
                 );
                 if (spell.flightDamage > 0) {
                   this.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.flightDamage });
@@ -751,6 +755,7 @@ export class ServerSpell {
                   nx * (spell.flightKnockback || 0.02),
                   ny * (spell.flightKnockback || 0.02),
                   this.getDamageTaken(playerId),
+                  spell.ownerId,
                 );
                 if (spell.flightDamage > 0) {
                   this.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.flightDamage });
@@ -886,9 +891,11 @@ export class ServerSpell {
 
   // --- Explosion Handler (Meteor branch) ---
 
-  handleExplosion(spell, impactX, impactY) {
+  handleExplosion(spell, impactX, impactY, directHitId = null) {
     for (const [playerId, body] of this.physics.playerBodies) {
       if (playerId === spell.ownerId) continue;
+      // Skip the direct-hit target — they already received knockback from the projectile impact
+      if (playerId === directHitId) continue;
       const dx = body.position.x - impactX;
       const dy = body.position.y - impactY;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -901,6 +908,7 @@ export class ServerSpell {
           nx * Math.max(force, spell.knockbackForce * 0.3),
           ny * Math.max(force, spell.knockbackForce * 0.3),
           this.getDamageTaken(playerId),
+          spell.ownerId,
         );
         // AoE damage from explosion is handled in the same hit
       }

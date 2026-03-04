@@ -11,6 +11,7 @@ export class ServerPhysics {
     this.world = this.engine.world;
     this.playerBodies = new Map(); // playerId -> Matter.Body
     this.knockbackUntil = new Map(); // playerId -> timestamp when knockback grace ends
+    this.lastKnockbackFrom = new Map(); // playerId -> { attackerId, timestamp } — for ring-out kill credit
   }
 
   addPlayer(playerId, x, y) {
@@ -27,6 +28,7 @@ export class ServerPhysics {
     World.add(this.world, body);
     this.playerBodies.set(playerId, body);
     this.knockbackUntil.set(playerId, 0);
+    this.lastKnockbackFrom.delete(playerId);
     return body;
   }
 
@@ -36,6 +38,7 @@ export class ServerPhysics {
       World.remove(this.world, body);
       this.playerBodies.delete(playerId);
       this.knockbackUntil.delete(playerId);
+      this.lastKnockbackFrom.delete(playerId);
     }
   }
 
@@ -51,8 +54,9 @@ export class ServerPhysics {
    * @param {number} forceX - raw knockback force X
    * @param {number} forceY - raw knockback force Y
    * @param {number} damageTaken - how much HP the target has lost (0 = full HP)
+   * @param {string} [attackerId] - who applied the knockback (for ring-out kill credit)
    */
-  applyKnockback(playerId, forceX, forceY, damageTaken = 0) {
+  applyKnockback(playerId, forceX, forceY, damageTaken = 0, attackerId = null) {
     const body = this.playerBodies.get(playerId);
     if (!body) return;
 
@@ -68,6 +72,22 @@ export class ServerPhysics {
     });
     const graceDuration = PLAYER.KNOCKBACK_GRACE_MS || 500;
     this.knockbackUntil.set(playerId, Date.now() + graceDuration);
+
+    // Track who knocked this player — used for ring-out kill credit (5s window)
+    if (attackerId && attackerId !== playerId) {
+      this.lastKnockbackFrom.set(playerId, { attackerId, timestamp: Date.now() });
+    }
+  }
+
+  /**
+   * Get the last attacker who knocked this player (within timeout window).
+   * Used to credit ring-out kills to the player who pushed them out.
+   */
+  getLastKnockbackAttacker(playerId, timeoutMs = 5000) {
+    const info = this.lastKnockbackFrom.get(playerId);
+    if (!info) return null;
+    if (Date.now() - info.timestamp > timeoutMs) return null;
+    return info.attackerId;
   }
 
   /**

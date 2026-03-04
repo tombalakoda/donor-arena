@@ -1,5 +1,6 @@
 import { Room } from './Room.js';
 import { MATCH } from '../../shared/constants.js';
+import { PHASE } from '../game/RoundManager.js';
 
 export class RoomManager {
   constructor() {
@@ -9,9 +10,10 @@ export class RoomManager {
 
   // Find a room with space, or create a new one
   findOrCreateRoom() {
-    // Look for a room that isn't full (skip sandbox rooms)
+    // Look for a room that isn't full and hasn't ended (skip sandbox rooms)
     for (const [id, room] of this.rooms) {
       if (room.sandbox) continue;
+      if (room.rounds.phase === PHASE.MATCH_END) continue;
       if (room.playerCount < MATCH.MAX_PLAYERS) {
         return room;
       }

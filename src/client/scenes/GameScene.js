@@ -100,10 +100,82 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * Reset all scene state for clean 2nd+ game sessions.
+   * Constructor only runs once (Phaser reuses Scene instances),
+   * so create() must reset everything.
+   */
+  resetSceneState() {
+    this.network = null;
+    this.localPlayerId = null;
+    this.playerBody = null;
+    this.playerSprite = null;
+    this.playerShadow = null;
+    this.moveTarget = null;
+    this.moveTargetMarker = null;
+    this.facingDir = 'down';
+    this.isMoving = false;
+    this.speedTrail = [];
+    this.knockbackUntil = 0;
+    this.grapplingActive = false;
+    this.localHp = 100;
+    this.localMaxHp = 100;
+    this.remotePlayers = new Map();
+    this.spellVisuals = new Map();
+    this.pendingSpellCasts = [];
+    this.cooldowns = {};
+    this.charges = {};
+    this.spellKeys = {};
+    this.arenaGraphics = null;
+    this.ringRadius = ARENA.RADIUS;
+    this.pingText = null;
+    this.playerCountText = null;
+    this.hpBarBg = null;
+    this.hpBarFill = null;
+    this.spellSlots = [];
+    this.roundNumber = 0;
+    this.totalRounds = 20;
+    this.phase = 'waiting';
+    this.timeRemaining = 0;
+    this.countdownRemaining = 0;
+    this.localEliminated = false;
+    this.roundText = null;
+    this.timerText = null;
+    this.phaseText = null;
+    this.countdownOverlay = null;
+    this.countdownText = null;
+    this.killFeedTexts = [];
+    this.killFeedTimeouts = [];
+    this.ringGraphics = null;
+    this.outerRingGraphics = null;
+    this.lastDrawnRingRadius = -1;
+    this.shopOverlay = null;
+    this.progression = null;
+    this.shopTimeRemaining = 0;
+    this.spText = null;
+    this.pauseMenu = null;
+    this.matchEndOverlay = null;
+    this.lobbyOverlay = null;
+    this.lastPhase = null;
+    this.obstacleSprites = [];
+    this.currentMapIndex = -1;
+    this.lastServerSpells = [];
+    this.announcementText = null;
+    this.trailGraphics = null;
+    this.edgeVignette = null;
+    this.hpText = null;
+  }
+
   create() {
     // Track scene instances for debugging
     window.__gameSceneCount = (window.__gameSceneCount || 0) + 1;
     console.log('[SCENE] create() called, instance count:', window.__gameSceneCount, 'mode:', this.gameMode);
+
+    // Reset all state for clean 2nd+ game sessions (constructor only runs once)
+    this.resetSceneState();
+
+    // Register Phaser shutdown event so cleanup actually runs
+    this.events.once('shutdown', this.shutdown, this);
 
     // Fade in from black
     this.cameras.main.fadeIn(500, 0, 0, 0);
@@ -1026,6 +1098,28 @@ export class GameScene extends Phaser.Scene {
         }
         this.destroySpellVisual(visual);
         this.spellVisuals.delete(id);
+      }
+    }
+
+    // Create visuals for server spells that have no client visual yet
+    // (handles late-join, multi-projectile sync, and race conditions)
+    for (const spell of serverSpells) {
+      if (!this.spellVisuals.has(spell.id) && spell.active !== false) {
+        this.handleSpellCast({
+          id: spell.id,
+          type: spell.type,
+          spellType: spell.spellType,
+          ownerId: spell.ownerId,
+          x: spell.x,
+          y: spell.y,
+          vx: spell.vx || 0,
+          vy: spell.vy || 0,
+          radius: spell.radius,
+          lifetime: spell.lifetime,
+          targetX: spell.targetX,
+          targetY: spell.targetY,
+          pullSelf: spell.pullSelf,
+        });
       }
     }
 

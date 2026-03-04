@@ -180,6 +180,17 @@ export class Room {
   }
 
   removePlayer(playerId) {
+    // Clean up socket listeners added in addPlayer()
+    const player = this.players.get(playerId);
+    if (player && player.socket) {
+      player.socket.removeAllListeners('c:spell');
+      player.socket.removeAllListeners(MSG.CLIENT_HOOK_RELEASE);
+      player.socket.removeAllListeners(MSG.CLIENT_SHOP_UNLOCK_SLOT);
+      player.socket.removeAllListeners(MSG.CLIENT_SHOP_CHOOSE_BRANCH);
+      player.socket.removeAllListeners(MSG.CLIENT_SHOP_UPGRADE_TIER);
+      player.socket.removeAllListeners('c:sandboxShopToggle');
+    }
+
     this.players.delete(playerId);
     this.physics.removePlayer(playerId);
     this.spells.removePlayer(playerId);
@@ -217,13 +228,21 @@ export class Room {
     if (!player || player.eliminated) return;
     // Only allow spells during playing phase
     if (this.rounds.phase !== PHASE.PLAYING) return;
+    // Validate spell data
+    if (!data || typeof data.spellId !== 'string') return;
+    if (!Number.isFinite(data.targetX) || !Number.isFinite(data.targetY)) return;
 
     // Check if player has this spell slot unlocked
     const progression = this.progressions.get(playerId);
     if (progression && !progression.canCastSpell(data.spellId)) return;
 
-    const spell = this.spells.processCast(playerId, data.spellId, data.targetX, data.targetY, progression);
-    if (spell) {
+    const result = this.spells.processCast(playerId, data.spellId, data.targetX, data.targetY, progression);
+    if (!result) return;
+
+    // processCast returns an array for multi-projectile spells, single spell otherwise
+    const spells = Array.isArray(result) ? result : [result];
+
+    for (const spell of spells) {
       for (const [id, p] of this.players) {
         p.socket.emit('s:spellCast', {
           id: spell.id,
@@ -766,7 +785,9 @@ export class Room {
 
         if (player.hp <= 0 && !player.eliminated) {
           player.eliminated = true;
-          this.onPlayerEliminated(playerId, null, 'ring');
+          // Credit the last player who knocked us (within 5s window)
+          const lastAttacker = this.physics.getLastKnockbackAttacker(playerId, 5000);
+          this.onPlayerEliminated(playerId, lastAttacker, 'ring');
         }
       }
     }
