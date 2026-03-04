@@ -71,7 +71,11 @@ app.get('/health', (req, res) => {
 });
 
 // SPA fallback — serve index.html for any non-API/non-asset route
+// Skip if the request looks like a file (has an extension)
 app.get('/{*splat}', (req, res) => {
+  if (req.path !== '/' && path.extname(req.path)) {
+    return res.status(404).send('Not found');
+  }
   res.sendFile(path.join(__dirname, '../../dist/index.html'));
 });
 
