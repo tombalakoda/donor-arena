@@ -612,11 +612,12 @@ export class ServerSpell {
             // Save and reduce frictionAir for speed buildup
             spell.originalFrictionAir = casterBody.frictionAir;
             casterBody.frictionAir = 0.003;
-            // Stun caster for commitment window only (not the whole swing)
-            this.applyStatusEffect(spell.ownerId, 'stun', {
-              until: now + spell.swingCommitMs,
-            });
           }
+
+          // Use knockback grace for the ENTIRE swing — this bypasses velocity capping
+          // in applyInput() so pendulum momentum can actually build up.
+          // Stun would cap velocity to maxSpeed every tick, killing the swing.
+          this.physics.knockbackUntil.set(spell.ownerId, now + PHYSICS.TICK_MS + 10);
 
           spell.swingElapsed += PHYSICS.TICK_MS;
 

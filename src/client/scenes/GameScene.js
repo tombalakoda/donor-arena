@@ -1001,6 +1001,9 @@ export class GameScene extends Phaser.Scene {
         // Deactivate grappling if the removed spell was providing grappling state
         if (visual.pullSelf && visual.ownerId === this.localPlayerId && this.grapplingActive) {
           this.grapplingActive = false;
+          if (this.playerBody) {
+            this.playerBody.frictionAir = PLAYER.FRICTION_AIR;
+          }
         }
         this.destroySpellVisual(visual);
         this.spellVisuals.delete(id);
@@ -1048,6 +1051,12 @@ export class GameScene extends Phaser.Scene {
 
         // --- Grappling hook: detect activation for local player ---
         if (spell.pullSelf && spell.hooked && spell.swingActive && !spell.released && spell.ownerId === this.localPlayerId) {
+          if (!this.grapplingActive) {
+            // First activation: reduce client-side friction to match server (0.003)
+            if (this.playerBody) {
+              this.playerBody.frictionAir = 0.003;
+            }
+          }
           this.grapplingActive = true;
           this.grapplingAnchorX = spell.anchorX;
           this.grapplingAnchorY = spell.anchorY;
@@ -1058,6 +1067,10 @@ export class GameScene extends Phaser.Scene {
         if (spell.pullSelf && spell.ownerId === this.localPlayerId && (spell.released || !spell.hooked || !spell.swingActive)) {
           if (this.grapplingActive) {
             this.grapplingActive = false;
+            // Restore client-side friction to normal
+            if (this.playerBody) {
+              this.playerBody.frictionAir = PLAYER.FRICTION_AIR;
+            }
           }
         }
 
