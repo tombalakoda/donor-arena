@@ -31,12 +31,8 @@ export class GameScene extends Phaser.Scene {
     this.speedTrail = [];  // Array of { x, y, alpha } for knockback speed lines
     this.knockbackUntil = 0;  // performance.now() timestamp when knockback ends
 
-    // Grappling hook pendulum state (Branch B)
+    // Grappling hook state (Branch B) — server-controlled, no client prediction
     this.grapplingActive = false;
-    this.grapplingAnchorX = 0;
-    this.grapplingAnchorY = 0;
-    this.grapplingTetherLength = 0;
-    this.grapplingPullForce = 0;
     this.localHp = 100;
     this.localMaxHp = 100;
 
@@ -500,18 +496,24 @@ export class GameScene extends Phaser.Scene {
   reconcileLocalPlayer(serverState) {
     if (!this.playerBody) return;
 
-    // During grappling swing: force-based prediction handles position, use soft reconciliation
+    // During grappling: FULLY trust server — no client prediction, smooth follow
     if (this.grapplingActive) {
-      // Soft blend (0.3) instead of full skip — force prediction drifts naturally
       const pos = this.playerBody.position;
       const dx = serverState.x - pos.x;
       const dy = serverState.y - pos.y;
-      const distSq = dx * dx + dy * dy;
-      if (distSq > 4) {
-        MatterBody.setPosition(this.playerBody, {
-          x: pos.x + dx * 0.3,
-          y: pos.y + dy * 0.3,
-        });
+      // 0.7 blend: aggressive trust, but not hard-snap (avoids 20Hz stutter)
+      MatterBody.setPosition(this.playerBody, {
+        x: pos.x + dx * 0.7,
+        y: pos.y + dy * 0.7,
+      });
+      // Fully trust server velocity — enables smooth extrapolation between ticks
+      MatterBody.setVelocity(this.playerBody, {
+        x: serverState.vx,
+        y: serverState.vy,
+      });
+      // Update knockback state so post-launch flight also trusts server
+      if (serverState.kb > 0) {
+        this.knockbackUntil = performance.now() + serverState.kb;
       }
       return;
     }
@@ -652,9 +654,11 @@ export class GameScene extends Phaser.Scene {
       // Check if this remote player is mid-hook-swing — use orbital/aggressive lerp
       let usedOrbitalPrediction = false;
       if (this.lastServerSpells) {
-        // Branch B grappling: use aggressive lerp (force prediction impractical for remote)
+        // Branch B grappling or flight: use aggressive lerp
         const grapplingSpell = this.lastServerSpells.find(
-          s => s.pullSelf && s.hooked && s.swingActive && !s.released && s.ownerId === id
+          s => s.pullSelf && s.ownerId === id && (
+            (s.hooked && s.pullActive && !s.released) || s.flightActive
+          )
         );
         if (grapplingSpell) {
           rp.x += (rp.targetX - rp.x) * 0.4; // aggressive lerp
@@ -1007,9 +1011,6 @@ export class GameScene extends Phaser.Scene {
         // Deactivate grappling if the removed spell was providing grappling state
         if (visual.pullSelf && visual.ownerId === this.localPlayerId && this.grapplingActive) {
           this.grapplingActive = false;
-          if (this.playerBody) {
-            this.playerBody.frictionAir = PLAYER.FRICTION_AIR;
-          }
         }
         this.destroySpellVisual(visual);
         this.spellVisuals.delete(id);
@@ -1056,27 +1057,13 @@ export class GameScene extends Phaser.Scene {
         visual.serverReleased = spell.released;
 
         // --- Grappling hook: detect activation for local player ---
-        if (spell.pullSelf && spell.hooked && spell.swingActive && !spell.released && spell.ownerId === this.localPlayerId) {
-          if (!this.grapplingActive) {
-            // First activation: reduce client-side friction to match server (0.003)
-            if (this.playerBody) {
-              this.playerBody.frictionAir = 0.003;
-            }
-          }
+        if (spell.pullSelf && spell.hooked && spell.pullActive && !spell.released && spell.ownerId === this.localPlayerId) {
           this.grapplingActive = true;
-          this.grapplingAnchorX = spell.anchorX;
-          this.grapplingAnchorY = spell.anchorY;
-          this.grapplingTetherLength = spell.tetherLength;
-          this.grapplingPullForce = spell.grapplingPullForce;
         }
-        // Deactivate grappling when released or no longer swinging
-        if (spell.pullSelf && spell.ownerId === this.localPlayerId && (spell.released || !spell.hooked || !spell.swingActive)) {
+        // Deactivate grappling when released or no longer pulling
+        if (spell.pullSelf && spell.ownerId === this.localPlayerId && (spell.released || !spell.hooked || !spell.pullActive)) {
           if (this.grapplingActive) {
             this.grapplingActive = false;
-            // Restore client-side friction to normal
-            if (this.playerBody) {
-              this.playerBody.frictionAir = PLAYER.FRICTION_AIR;
-            }
           }
         }
 
@@ -1784,7 +1771,6 @@ export class GameScene extends Phaser.Scene {
     }
     this.processPendingSpells();
     this.updateLocalMovement(delta);
-    this.updateGrapplingPrediction(delta);
     this.syncLocalVisuals();
     this.interpolateRemotePlayers();
     this.updateSpellInput();
@@ -1854,45 +1840,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  updateGrapplingPrediction(delta) {
-    if (!this.grapplingActive || !this.playerBody) return;
-
-    const pos = this.playerBody.position;
-    const dx = this.grapplingAnchorX - pos.x;
-    const dy = this.grapplingAnchorY - pos.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < 1) return;
-
-    const nx = dx / dist;
-    const ny = dy / dist;
-
-    // Apply centripetal pull toward anchor (scaled by delta for frame-rate independence)
-    const timeScale = delta / 50; // match server tick rate
-    const force = this.grapplingPullForce * timeScale;
-    MatterBody.applyForce(this.playerBody, this.playerBody.position, {
-      x: nx * force,
-      y: ny * force,
-    });
-
-    // Tether constraint: can't go further than tether + 10% slack
-    const maxTether = this.grapplingTetherLength * 1.1;
-    if (dist > maxTether) {
-      const clampX = this.grapplingAnchorX - nx * maxTether;
-      const clampY = this.grapplingAnchorY - ny * maxTether;
-      MatterBody.setPosition(this.playerBody, { x: clampX, y: clampY });
-      // Remove radial velocity component (keep only tangential)
-      const vel = this.playerBody.velocity;
-      const radialComponent = vel.x * nx + vel.y * ny;
-      if (radialComponent < 0) {
-        MatterBody.setVelocity(this.playerBody, {
-          x: vel.x - radialComponent * nx,
-          y: vel.y - radialComponent * ny,
-        });
-      }
-    }
-
-    // No speed cap during grappling — the whole point is building speed
-  }
 
   sendInputToServer() {
     if (!this.network || !this.network.connected || !this.moveTarget) return;

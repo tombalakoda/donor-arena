@@ -437,13 +437,16 @@ export class Room {
       }
     }
 
-    // Step physics
+    if (isPlaying) {
+      // Update spells BEFORE physics step so forces (e.g. grappling pull)
+      // are resolved in the same tick they're applied
+      this.spells.update(PHYSICS.TICK_MS);
+    }
+
+    // Step physics — resolves all forces from applyInput + spells.update
     this.physics.step(PHYSICS.TICK_MS);
 
     if (isPlaying) {
-      // Update spells
-      this.spells.update(PHYSICS.TICK_MS);
-
       // Process deferred spell hits (projectile/hook collisions from this tick)
       const spellHits = this.spells.drainHits();
       for (const hit of spellHits) {

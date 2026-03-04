@@ -163,13 +163,13 @@ export const SKILL_TREE = {
       },
       B: {
         name: 'Grappling Hook',
-        description: 'Hook a point and swing through enemies — become the projectile',
+        description: 'Hook a point, get pulled to it, then launch through — become the projectile',
         icon: 'spell-BookDarkness',
         tiers: [
-          { cost: 3, name: 'Grapple Anchor', description: 'Hook pulls you toward the anchor. Press R to release.', mods: { pullSelf: true, cooldown: -1500 } },
-          { cost: 3, name: 'Long Chain', description: 'Longer range, faster hook travel', mods: { range: 80, speed: 4 } },
-          { cost: 3, name: 'Wrecking Ball', description: 'Massive impact. Swing-through hits enemies.', mods: { impactKnockback: 0.04, impactDamage: 3, swingCollision: true } },
-          { cost: 4, name: 'Human Cannonball', description: 'Longer swing, bigger burst, devastating launch', mods: { swingMaxDuration: 400, releaseBurstMult: 0.3, impactKnockback: 0.03, impactDamage: 2, flightDuration: 200 } },
+          { cost: 3, name: 'Grapple Anchor', description: 'Hook pulls you to the anchor point. Press R for early release.', mods: { pullSelf: true, cooldown: -1500, pullSpeed: 4 } },
+          { cost: 3, name: 'Long Chain', description: 'Longer range, faster hook travel', mods: { range: 80, speed: 4, pullSpeed: 1 } },
+          { cost: 3, name: 'Wrecking Ball', description: 'Collide with enemies during pull and flight', mods: { flightCollision: true, flightDamage: 3, flightKnockback: 0.04, pullSpeed: 1 } },
+          { cost: 4, name: 'Human Cannonball', description: 'Faster pull, longer flight, devastating impact', mods: { pullSpeed: 2, launchSpeedBonus: 2, flightDuration: 200, flightDamage: 2, flightKnockback: 0.03 } },
         ],
       },
     },
