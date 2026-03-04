@@ -1011,6 +1011,7 @@ export class GameScene extends Phaser.Scene {
         // Deactivate grappling if the removed spell was providing grappling state
         if (visual.pullSelf && visual.ownerId === this.localPlayerId && this.grapplingActive) {
           this.grapplingActive = false;
+          this.moveTarget = null; // kill stale movement command
         }
         this.destroySpellVisual(visual);
         this.spellVisuals.delete(id);
@@ -1064,6 +1065,7 @@ export class GameScene extends Phaser.Scene {
         if (spell.pullSelf && spell.ownerId === this.localPlayerId && (spell.released || !spell.hooked || !spell.pullActive)) {
           if (this.grapplingActive) {
             this.grapplingActive = false;
+            this.moveTarget = null; // kill stale movement command
           }
         }
 
