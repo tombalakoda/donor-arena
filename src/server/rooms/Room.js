@@ -1,9 +1,15 @@
+import { readFileSync } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { ServerPhysics } from '../game/ServerPhysics.js';
 import { ServerSpell } from '../game/ServerSpell.js';
+import { ObstacleManager } from '../game/ObstacleManager.js';
 import { RoundManager, PHASE } from '../game/RoundManager.js';
 import { PlayerProgression } from '../game/PlayerProgression.js';
 import { MSG } from '../../shared/messageTypes.js';
 import { PHYSICS, MATCH, ARENA, DAMAGE, PLAYER, SANDBOX } from '../../shared/constants.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function getSpawnPositions(count, radius = 200) {
   const positions = [];
@@ -25,6 +31,20 @@ export class Room {
     this.sandbox = options.sandbox || false;
     this.players = new Map();
     this.physics = new ServerPhysics();
+
+    // Load map data for obstacles
+    this.obstacleManager = new ObstacleManager(this.physics.world);
+    try {
+      const mapPath = path.join(__dirname, '../../../public/assets/maps/arena-default.json');
+      const mapJson = JSON.parse(readFileSync(mapPath, 'utf-8'));
+      this.obstacleManager.loadFromMap(mapJson);
+      if (mapJson.obstacles && mapJson.obstacles.length > 0) {
+        console.log(`[Room ${id}] Loaded ${mapJson.obstacles.length} obstacles from map`);
+      }
+    } catch (e) {
+      console.warn(`[Room ${id}] Could not load map data:`, e.message);
+    }
+
     // Pass HP lookup so spells can scale knockback by vulnerability (Smash Bros %)
     this.spells = new ServerSpell(this.physics, (playerId) => {
       const p = this.players.get(playerId);
@@ -33,7 +53,7 @@ export class Room {
       const d = this.dummies.get(playerId);
       if (d) return d.maxHp - d.hp;
       return 0;
-    });
+    }, this.obstacleManager);
     this.rounds = new RoundManager();
     this.progressions = new Map(); // playerId -> PlayerProgression
     this.tickInterval = null;
@@ -738,6 +758,7 @@ export class Room {
 
   destroy() {
     this.stop();
+    if (this.obstacleManager) this.obstacleManager.destroy();
     this.physics.destroy();
     this.players.clear();
     this.progressions.clear();

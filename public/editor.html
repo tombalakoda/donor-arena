@@ -100,6 +100,7 @@ html, body { height:100vh; overflow:hidden; background:#1a1a2e; color:#ccc; font
     <label>Layer:</label>
     <button class="btn active" data-layer="floor">Floor</button>
     <button class="btn" data-layer="deco">Deco</button>
+    <button class="btn" data-layer="obstacle">Pillars</button>
     <div class="sep"></div>
     <label>Brush:</label>
     <button class="btn active" data-size="1">1x1</button>
@@ -137,6 +138,8 @@ html, body { height:100vh; overflow:hidden; background:#1a1a2e; color:#ccc; font
     <div>Tool: <span id="st-tool">paint</span></div>
     <div>Tile: <span id="st-tile">none</span></div>
     <div>Tiles placed: <span id="st-count">0</span></div>
+    <div>Obstacles: <span id="st-obstacles">0</span></div>
+    <div id="st-radius-wrap" style="display:none">Radius: <span id="st-radius">24</span></div>
   </div>
 </div>
 
@@ -196,6 +199,7 @@ class MapData {
     // floor: Map<"col,row" -> {tileset, frame}>
     this.floor = new Map();
     this.decorations = [];
+    this.obstacles = [];
   }
   key(c,r) { return `${c},${r}`; }
   setTile(c,r,tileset,frame) { this.floor.set(this.key(c,r), {tileset,frame}); }
@@ -210,10 +214,11 @@ class MapData {
       tiles.push({col:c, row:r, tileset:v.tileset, frame:v.frame});
     }
     return {
-      version: 1,
+      version: 2,
       meta: { tileSize:TILE, gridCols:GRID, gridRows:GRID, arenaSize:ARENA_SIZE, arenaRadius:ARENA_R },
       floor: { tiles },
       decorations: this.decorations.map(d => ({...d})),
+      obstacles: this.obstacles.map(o => ({...o})),
     };
   }
   fromJSON(json) {
@@ -223,6 +228,7 @@ class MapData {
       this.setTile(t.col, t.row, t.tileset, t.frame);
     }
     this.decorations = (json.decorations || []).map(d => ({...d}));
+    this.obstacles = (json.obstacles || []).map(o => ({...o}));
   }
 }
 
@@ -308,6 +314,12 @@ class Editor {
     this.draggingDeco = false;
     this.decoScale = 3;
     this.decoAlpha = 0.65;
+
+    // Obstacle state
+    this.selectedObstacle = -1;
+    this.draggingObstacle = false;
+    this.obstacleRadius = 24;
+    this.obstacleScale = 3;
 
     // DOM
     this.canvas = document.getElementById('main-canvas');
@@ -466,6 +478,51 @@ class Editor {
       ctx.restore();
     }
 
+    // Obstacles
+    for (let i = 0; i < this.map.obstacles.length; i++) {
+      const o = this.map.obstacles[i];
+      const r = o.radius || 24;
+      const s = o.scale || 3;
+      ctx.save();
+      // Draw tile sprite centered
+      const ds = s * TILE;
+      this.tsm.drawTile(ctx, o.tileset, o.frame, o.x - ds/2, o.y - ds/2, s);
+      // Draw physics radius circle
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, r, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(0,200,255,0.5)';
+      ctx.lineWidth = 1.5 / this.zoom;
+      ctx.stroke();
+      // Fill semi-transparent
+      ctx.fillStyle = 'rgba(0,200,255,0.08)';
+      ctx.fill();
+      // Selection highlight
+      if (i === this.selectedObstacle && this.layer === 'obstacle') {
+        ctx.strokeStyle = '#ffaa00';
+        ctx.lineWidth = 2 / this.zoom;
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Obstacle placement ghost
+    if (this.layer === 'obstacle' && this.selectedFrame !== null && !this.draggingObstacle && this.hoverCol >= 0) {
+      const rect = this.canvas.getBoundingClientRect();
+      // Use last known mouse pos via hover grid (approximate center)
+      const w = this.screenToWorld(
+        (this.hoverCol * TILE + TILE/2) * 1, // just use grid center as hint
+        (this.hoverRow * TILE + TILE/2) * 1
+      );
+      ctx.save();
+      ctx.globalAlpha = 0.3;
+      ctx.beginPath();
+      ctx.arc(this.hoverCol * TILE + TILE/2, this.hoverRow * TILE + TILE/2, this.obstacleRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = '#00c8ff';
+      ctx.lineWidth = 1.5 / this.zoom;
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // Hover highlight
     if (this.layer === 'floor' && this.hoverCol >= 0 && this.hoverCol < GRID && this.hoverRow >= 0 && this.hoverRow < GRID) {
       ctx.fillStyle = this.tool === 'erase' ? 'rgba(255,60,60,0.25)' : 'rgba(255,255,100,0.2)';
@@ -584,6 +641,16 @@ class Editor {
     return -1;
   }
 
+  // ----- Obstacles -----
+  obstacleAt(wx, wy) {
+    for (let i = this.map.obstacles.length - 1; i >= 0; i--) {
+      const o = this.map.obstacles[i];
+      const dx = wx - o.x, dy = wy - o.y;
+      if (Math.sqrt(dx * dx + dy * dy) < (o.radius || 24)) return i;
+    }
+    return -1;
+  }
+
   // ----- Events -----
   bindEvents() {
     // Toolbar: tools
@@ -602,6 +669,7 @@ class Editor {
         document.querySelectorAll('[data-layer]').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.selectedDeco = -1;
+        this.selectedObstacle = -1;
         this.dirty = true;
         this.updateInfo();
       };
@@ -729,6 +797,36 @@ class Editor {
       return;
     }
 
+    if (this.layer === 'obstacle') {
+      const w = this.screenToWorld(mx, my);
+      if (e.button === 0) {
+        const hit = this.obstacleAt(w.x, w.y);
+        if (hit >= 0) {
+          this.selectedObstacle = hit;
+          this.draggingObstacle = true;
+        } else if (this.selectedFrame !== null) {
+          // Place new obstacle
+          this.map.obstacles.push({
+            x: w.x, y: w.y,
+            radius: this.obstacleRadius,
+            tileset: this.selectedTileset,
+            frame: this.selectedFrame,
+            scale: this.obstacleScale,
+          });
+          this.selectedObstacle = this.map.obstacles.length - 1;
+        }
+        this.dirty = true;
+      } else if (e.button === 2) {
+        const hit = this.obstacleAt(w.x, w.y);
+        if (hit >= 0) {
+          this.map.obstacles.splice(hit, 1);
+          this.selectedObstacle = -1;
+          this.dirty = true;
+        }
+      }
+      return;
+    }
+
     // Floor layer
     const g = this.screenToGrid(mx, my);
 
@@ -774,6 +872,14 @@ class Editor {
       return;
     }
 
+    if (this.layer === 'obstacle' && this.draggingObstacle && this.selectedObstacle >= 0) {
+      const w = this.screenToWorld(mx, my);
+      this.map.obstacles[this.selectedObstacle].x = w.x;
+      this.map.obstacles[this.selectedObstacle].y = w.y;
+      this.dirty = true;
+      return;
+    }
+
     const g = this.screenToGrid(mx, my);
     if (g.col !== this.hoverCol || g.row !== this.hoverRow) {
       this.hoverCol = g.col;
@@ -800,10 +906,22 @@ class Editor {
     }
     this.isPanning = false;
     this.draggingDeco = false;
+    this.draggingObstacle = false;
   }
 
   onWheel(e) {
     e.preventDefault();
+
+    // Shift+scroll adjusts obstacle radius
+    if (e.shiftKey && this.layer === 'obstacle' && this.selectedObstacle >= 0) {
+      const obs = this.map.obstacles[this.selectedObstacle];
+      const delta = e.deltaY < 0 ? 4 : -4;
+      obs.radius = Math.max(12, Math.min(64, (obs.radius || 24) + delta));
+      this.obstacleRadius = obs.radius; // remember for next placement
+      this.dirty = true;
+      return;
+    }
+
     const rect = this.canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
@@ -837,6 +955,11 @@ class Editor {
         this.selectedDeco = -1;
         this.dirty = true;
       }
+      if (this.layer === 'obstacle' && this.selectedObstacle >= 0) {
+        this.map.obstacles.splice(this.selectedObstacle, 1);
+        this.selectedObstacle = -1;
+        this.dirty = true;
+      }
     }
   }
   onKeyUp(e) {
@@ -864,6 +987,19 @@ class Editor {
       this.selectedFrame !== null
         ? `Selected: ${TILESET_LABELS[this.selectedTileset]} frame ${this.selectedFrame}`
         : 'Click a tile to select';
+    // Obstacle status
+    document.getElementById('st-obstacles').textContent = this.map.obstacles.length;
+    const radiusWrap = document.getElementById('st-radius-wrap');
+    if (this.layer === 'obstacle' && this.selectedObstacle >= 0) {
+      const obs = this.map.obstacles[this.selectedObstacle];
+      radiusWrap.style.display = '';
+      document.getElementById('st-radius').textContent = obs ? obs.radius : this.obstacleRadius;
+    } else if (this.layer === 'obstacle') {
+      radiusWrap.style.display = '';
+      document.getElementById('st-radius').textContent = this.obstacleRadius + ' (new)';
+    } else {
+      radiusWrap.style.display = 'none';
+    }
   }
 
   // ----- Export / Import -----

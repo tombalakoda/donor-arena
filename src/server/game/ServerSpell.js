@@ -10,9 +10,10 @@ export class ServerSpell {
    * @param {object} physics - ServerPhysics instance
    * @param {function} getDamageTaken - callback (playerId) => damageTaken (0 = full HP)
    */
-  constructor(physics, getDamageTaken = () => 0) {
+  constructor(physics, getDamageTaken = () => 0, obstacleManager = null) {
     this.physics = physics;
     this.getDamageTaken = getDamageTaken; // Smash Bros-style: lookup target vulnerability for knockback scaling
+    this.obstacleManager = obstacleManager; // For spell-obstacle collision checks
     this.nextSpellId = 1;      // Per-instance spell ID counter
     this.activeSpells = [];   // All active spell entities
     this.cooldowns = new Map(); // playerId -> { spellId: remainingMs }
@@ -21,6 +22,21 @@ export class ServerSpell {
     // Charge tracking for multi-charge spells (e.g. Double Blink)
     // Map: playerId -> { spellId: { remaining, max, internalCd } }
     this.chargeTracking = new Map();
+  }
+
+  /**
+   * Check if a spell at (x, y) with given radius has hit any obstacle.
+   * Returns the obstacle if hit, null otherwise.
+   */
+  checkObstacleHit(x, y, spellRadius) {
+    if (!this.obstacleManager) return null;
+    for (const obs of this.obstacleManager.getObstacles()) {
+      const dx = x - obs.x;
+      const dy = y - obs.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < spellRadius + obs.radius) return obs;
+    }
+    return null;
   }
 
   static clampSpeed(speed) {
@@ -472,6 +488,13 @@ export class ServerSpell {
         spell.x += spell.vx;
         spell.y += spell.vy;
 
+        // Check collision with obstacles (projectile destroyed on impact)
+        if (this.checkObstacleHit(spell.x, spell.y, spell.radius)) {
+          spell.active = false;
+          this.removeSpell(i);
+          continue;
+        }
+
         // Check collision with players
         for (const [playerId, body] of this.physics.playerBodies) {
           if (playerId === spell.ownerId) continue;
@@ -749,6 +772,13 @@ export class ServerSpell {
       if (spell.spellType === SPELL_TYPES.HOOK && spell.active && !spell.hooked) {
         spell.x += spell.vx;
         spell.y += spell.vy;
+
+        // Check collision with obstacles (hook destroyed on impact)
+        if (this.checkObstacleHit(spell.x, spell.y, spell.radius)) {
+          spell.active = false;
+          this.removeSpell(i);
+          continue;
+        }
 
         // Check if hook has traveled too far
         const dx = spell.x - spell.originX;

@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "meta": {
     "tileSize": 16,
     "gridCols": 75,
@@ -34906,5 +34906,6 @@
       "scale": 3,
       "alpha": 0.65
     }
-  ]
+  ],
+  "obstacles": []
 }

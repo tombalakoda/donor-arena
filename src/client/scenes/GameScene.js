@@ -1192,7 +1192,13 @@ export class GameScene extends Phaser.Scene {
       this.createDecorationsFromMap(mapData.decorations);
     }
 
-    // Step 6: Dynamic ring graphics
+    // Step 6: Place obstacles from map data
+    if (mapData.obstacles && mapData.obstacles.length > 0) {
+      this.createObstaclesFromMap(mapData.obstacles);
+      console.log(`[Arena] Placed ${mapData.obstacles.length} obstacles`);
+    }
+
+    // Step 7: Dynamic ring graphics
     this.ringGraphics = this.add.graphics();
     this.ringGraphics.setDepth(1);
     this.outerRingGraphics = this.add.graphics();
@@ -1215,6 +1221,30 @@ export class GameScene extends Phaser.Scene {
       sprite.setOrigin(0.5, 0.5);
       sprite.setAlpha(alpha);
       sprite.setDepth(2);
+    }
+  }
+
+  createObstaclesFromMap(obstacles) {
+    const half = ARENA.FLOOR_SIZE / 2;
+    this.obstacleSprites = [];
+
+    for (const obs of obstacles) {
+      const worldX = obs.x - half;
+      const worldY = obs.y - half;
+      const scale = obs.scale || 3;
+      const radius = obs.radius || 24;
+
+      // Subtle shadow under the pillar
+      const shadow = this.add.ellipse(worldX, worldY + 4, radius * 2, radius, 0x000000, 0.3);
+      shadow.setDepth(4);
+
+      // Main pillar sprite
+      const sprite = this.add.sprite(worldX, worldY, obs.tileset, obs.frame);
+      sprite.setScale(scale);
+      sprite.setOrigin(0.5, 0.5);
+      sprite.setDepth(5); // Above floor (0), ring (1), decos (2); below spells (10+)
+
+      this.obstacleSprites.push({ sprite, shadow });
     }
   }
 
@@ -2226,6 +2256,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
+    // Cleanup obstacle sprites
+    if (this.obstacleSprites) {
+      for (const obs of this.obstacleSprites) {
+        if (obs.sprite && !obs.sprite.destroyed) obs.sprite.destroy();
+        if (obs.shadow && !obs.shadow.destroyed) obs.shadow.destroy();
+      }
+      this.obstacleSprites = [];
+    }
+
     // Cleanup spell visuals
     for (const [id, visual] of this.spellVisuals) {
       this.destroySpellVisual(visual);
