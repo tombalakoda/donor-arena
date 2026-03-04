@@ -428,11 +428,17 @@ export class Room {
     const canMove = isPlaying || this.rounds.phase === PHASE.COUNTDOWN;
     for (const [playerId, player] of this.players) {
       if (player.input && !player.eliminated && canMove) {
-        const effects = this.spells.getStatusEffects(playerId);
-        const reached = this.physics.applyInput(playerId, player.input, effects);
-        if (reached) {
-          // Target reached — clear input so force stops, let ice slide happen
+        // Clear stale input during knockback — prevents walking back to old
+        // target after grapple launch or any knockback hit
+        if (this.physics.isInKnockback(playerId)) {
           player.input = null;
+        } else {
+          const effects = this.spells.getStatusEffects(playerId);
+          const reached = this.physics.applyInput(playerId, player.input, effects);
+          if (reached) {
+            // Target reached — clear input so force stops, let ice slide happen
+            player.input = null;
+          }
         }
       }
     }

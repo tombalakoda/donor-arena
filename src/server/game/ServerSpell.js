@@ -659,8 +659,8 @@ export class ServerSpell {
                 const enx = eDist > 0 ? edx / eDist : 0;
                 const eny = eDist > 0 ? edy / eDist : 1;
                 this.physics.applyKnockback(playerId,
-                  enx * (spell.flightKnockback || 0.04),
-                  eny * (spell.flightKnockback || 0.04),
+                  enx * (spell.flightKnockback || 0.02),
+                  eny * (spell.flightKnockback || 0.02),
                   this.getDamageTaken(playerId),
                 );
                 if (spell.flightDamage > 0) {
@@ -691,8 +691,8 @@ export class ServerSpell {
               y: launchNy * launchSpeed,
             });
 
-            // Knockback grace for flight duration
-            this.physics.knockbackUntil.set(spell.ownerId, now + spell.flightDuration);
+            // Knockback grace for flight + 500ms ice coast after landing
+            this.physics.knockbackUntil.set(spell.ownerId, now + spell.flightDuration + 500);
 
             spell.released = true;
             spell.pullActive = false;
@@ -725,8 +725,8 @@ export class ServerSpell {
                 const nx = dist > 0 ? dx / dist : 0;
                 const ny = dist > 0 ? dy / dist : 1;
                 this.physics.applyKnockback(playerId,
-                  nx * (spell.flightKnockback || 0.04),
-                  ny * (spell.flightKnockback || 0.04),
+                  nx * (spell.flightKnockback || 0.02),
+                  ny * (spell.flightKnockback || 0.02),
                   this.getDamageTaken(playerId),
                 );
                 if (spell.flightDamage > 0) {
