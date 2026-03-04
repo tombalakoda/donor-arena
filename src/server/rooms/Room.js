@@ -32,18 +32,29 @@ export class Room {
     this.players = new Map();
     this.physics = new ServerPhysics();
 
-    // Load map data for obstacles
-    this.obstacleManager = new ObstacleManager(this.physics.world);
-    try {
-      const mapPath = path.join(__dirname, '../../../public/assets/maps/arena-default.json');
-      const mapJson = JSON.parse(readFileSync(mapPath, 'utf-8'));
-      this.obstacleManager.loadFromMap(mapJson);
-      if (mapJson.obstacles && mapJson.obstacles.length > 0) {
-        console.log(`[Room ${id}] Loaded ${mapJson.obstacles.length} obstacles from map`);
+    // Load all arena map variants for per-round obstacle rotation
+    this.arenaMaps = [];
+    for (let i = 0; i <= 9; i++) {
+      try {
+        const mapPath = path.join(__dirname, `../../../public/assets/maps/arena${i}.json`);
+        this.arenaMaps.push(JSON.parse(readFileSync(mapPath, 'utf-8')));
+      } catch (e) {
+        // skip missing map files
       }
-    } catch (e) {
-      console.warn(`[Room ${id}] Could not load map data:`, e.message);
     }
+    // Fallback: load arena-default.json if no numbered maps found
+    if (this.arenaMaps.length === 0) {
+      try {
+        const mapPath = path.join(__dirname, '../../../public/assets/maps/arena-default.json');
+        this.arenaMaps.push(JSON.parse(readFileSync(mapPath, 'utf-8')));
+      } catch (e) {
+        console.warn(`[Room ${id}] No map files found`);
+      }
+    }
+    console.log(`[Room ${id}] Loaded ${this.arenaMaps.length} arena maps`);
+    this.currentMapIndex = -1; // set on first round
+
+    this.obstacleManager = new ObstacleManager(this.physics.world);
 
     // Pass HP lookup so spells can scale knockback by vulnerability (Smash Bros %)
     this.spells = new ServerSpell(this.physics, (playerId) => {
@@ -517,13 +528,21 @@ export class Room {
   handleRoundEvent(event) {
     switch (event.event) {
       case 'roundStart':
+        // Pick a random map for this round's obstacles
+        if (this.arenaMaps.length > 0) {
+          this.currentMapIndex = Math.floor(Math.random() * this.arenaMaps.length);
+          this.obstacleManager.destroy();
+          this.obstacleManager.loadFromMap(this.arenaMaps[this.currentMapIndex]);
+        }
+
         this.resetPlayersForRound();
         this.resetRoundTracking();
         this.broadcast(MSG.SERVER_ROUND_START, {
           round: event.round,
           totalRounds: this.rounds.getState().totalRounds,
+          mapIndex: this.currentMapIndex,
         });
-        console.log(`Room ${this.id}: Round ${event.round} starting`);
+        console.log(`Room ${this.id}: Round ${event.round} starting (map ${this.currentMapIndex})`);
         break;
 
       case 'countdownEnd':
@@ -707,6 +726,7 @@ export class Room {
       round: roundState.round,
       totalRounds: roundState.totalRounds,
       phase: roundState.phase,
+      mapIndex: this.currentMapIndex,
       timeRemaining: roundState.timeRemaining,
       countdownRemaining: roundState.countdownRemaining,
       shopTimeRemaining: roundState.shopTimeRemaining,

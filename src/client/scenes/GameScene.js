@@ -285,6 +285,11 @@ export class GameScene extends Phaser.Scene {
     if (snapshot.shopTimeRemaining !== undefined) this.shopTimeRemaining = snapshot.shopTimeRemaining;
     if (snapshot.progression) this.progression = snapshot.progression;
 
+    // Sync map index for obstacles (handles late join / reconnection)
+    if (snapshot.mapIndex !== undefined && snapshot.mapIndex !== this.currentMapIndex) {
+      this.loadObstaclesForMap(snapshot.mapIndex);
+    }
+
     // Sync active spells from server state
     this.lastServerSpells = snapshot.spells || [];
     this.syncSpellVisuals(this.lastServerSpells);
@@ -293,13 +298,18 @@ export class GameScene extends Phaser.Scene {
   // --- Round Events ---
 
   handleRoundStart(data) {
-    console.log('[ROUND] Round', data.round, 'starting');
+    console.log('[ROUND] Round', data.round, 'starting (map', data.mapIndex, ')');
     this.roundNumber = data.round;
     this.localEliminated = false;
 
     // Clear move target on new round
     this.moveTarget = null;
     if (this.moveTargetMarker) this.moveTargetMarker.setVisible(false);
+
+    // Swap obstacles for this round's map
+    if (data.mapIndex !== undefined) {
+      this.loadObstaclesForMap(data.mapIndex);
+    }
 
     // Show round start announcement
     this.showAnnouncement(`Round ${data.round} / ${data.totalRounds}`);
@@ -1139,10 +1149,19 @@ export class GameScene extends Phaser.Scene {
   // --- Arena ---
 
   createArena() {
-    // Try to load hand-designed map from editor, fall back to procedural
-    const mapData = this.cache.json.get('arena-map');
+    // Load all arena map variants for per-round obstacle rotation
+    this.arenaMaps = [];
+    for (let i = 0; i <= 9; i++) {
+      const m = this.cache.json.get(`arena-map-${i}`);
+      if (m) this.arenaMaps.push(m);
+    }
+    this.currentMapIndex = -1;
+    console.log(`[Arena] Loaded ${this.arenaMaps.length} arena map variants`);
+
+    // Use first available map for floor/decorations (they're shared across all maps)
+    const mapData = this.arenaMaps[0] || this.cache.json.get('arena-map');
     if (mapData && mapData.floor && mapData.floor.tiles && mapData.floor.tiles.length > 0) {
-      console.log(`[Arena] Loading hand-designed map (${mapData.floor.tiles.length} tiles, ${(mapData.decorations || []).length} decorations)`);
+      console.log(`[Arena] Loading floor & decorations (${mapData.floor.tiles.length} tiles, ${(mapData.decorations || []).length} decorations)`);
       this.createArenaFromMap(mapData);
     } else {
       console.log('[Arena] No map data found, using procedural generation');
@@ -1192,11 +1211,7 @@ export class GameScene extends Phaser.Scene {
       this.createDecorationsFromMap(mapData.decorations);
     }
 
-    // Step 6: Place obstacles from map data
-    if (mapData.obstacles && mapData.obstacles.length > 0) {
-      this.createObstaclesFromMap(mapData.obstacles);
-      console.log(`[Arena] Placed ${mapData.obstacles.length} obstacles`);
-    }
+    // Step 6: Obstacles are loaded dynamically per round (see loadObstaclesForMap)
 
     // Step 7: Dynamic ring graphics
     this.ringGraphics = this.add.graphics();
@@ -1245,6 +1260,34 @@ export class GameScene extends Phaser.Scene {
       sprite.setDepth(5); // Above floor (0), ring (1), decos (2); below spells (10+)
 
       this.obstacleSprites.push({ sprite, shadow });
+    }
+  }
+
+  /**
+   * Swap obstacle visuals for a new round's map.
+   * Destroys old obstacle sprites and creates new ones from the given map index.
+   */
+  loadObstaclesForMap(mapIndex) {
+    // Destroy existing obstacles
+    if (this.obstacleSprites) {
+      for (const obs of this.obstacleSprites) {
+        if (obs.sprite && !obs.sprite.destroyed) obs.sprite.destroy();
+        if (obs.shadow && !obs.shadow.destroyed) obs.shadow.destroy();
+      }
+      this.obstacleSprites = [];
+    }
+
+    this.currentMapIndex = mapIndex;
+
+    // Load new obstacles from the selected map
+    if (mapIndex >= 0 && mapIndex < this.arenaMaps.length) {
+      const mapData = this.arenaMaps[mapIndex];
+      if (mapData && mapData.obstacles && mapData.obstacles.length > 0) {
+        this.createObstaclesFromMap(mapData.obstacles);
+        console.log(`[Arena] Round map ${mapIndex}: ${mapData.obstacles.length} obstacles`);
+      } else {
+        console.log(`[Arena] Round map ${mapIndex}: no obstacles`);
+      }
     }
   }
 

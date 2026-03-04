@@ -211,7 +211,12 @@ export class BootScene extends Phaser.Scene {
       frameWidth: 16, frameHeight: 16,
     });
 
-    // --- Load Arena Map (hand-designed in editor.html) ---
+    // --- Load Arena Maps (hand-designed in editor.html) ---
+    // Load all arena variants for per-round obstacle rotation
+    for (let i = 0; i <= 9; i++) {
+      this.load.json(`arena-map-${i}`, `assets/maps/arena${i}.json`);
+    }
+    // Fallback default map
     this.load.json('arena-map', 'assets/maps/arena-default.json');
 
     // --- Load UI ---
