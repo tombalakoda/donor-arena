@@ -8,6 +8,7 @@ import { RoundManager, PHASE } from '../game/RoundManager.js';
 import { PlayerProgression } from '../game/PlayerProgression.js';
 import { MSG } from '../../shared/messageTypes.js';
 import { PHYSICS, MATCH, ARENA, DAMAGE, PLAYER, SANDBOX } from '../../shared/constants.js';
+import { getPassive } from '../../shared/characterPassives.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -59,7 +60,7 @@ export class Room {
     // Pass HP lookup so spells can scale knockback by vulnerability (Smash Bros %)
     this.spells = new ServerSpell(this.physics, (playerId) => {
       const p = this.players.get(playerId);
-      if (p) return PLAYER.MAX_HP - p.hp;
+      if (p) return p.maxHp - p.hp;
       // Check dummies too (sandbox mode)
       const d = this.dummies.get(playerId);
       if (d) return d.maxHp - d.hp;
@@ -71,6 +72,10 @@ export class Room {
       const d = this.dummies.get(playerId);
       if (d) return d.eliminated;
       return false;
+    }, (playerId) => {
+      // Get character ID for passive lookups in ServerSpell
+      const p = this.players.get(playerId);
+      return p ? p.characterId : null;
     });
     this.rounds = new RoundManager();
     this.progressions = new Map(); // playerId -> PlayerProgression
@@ -93,12 +98,16 @@ export class Room {
     const spawnIdx = this.players.size;
     const spawn = spawnPositions[spawnIdx] || { x: 0, y: 0 };
 
+    const charId = characterId || 'boy';
+    const passive = getPassive(charId);
+    const maxHp = PLAYER.MAX_HP + (passive.bonusHp || 0);
+
     this.players.set(playerId, {
       socket,
       name: playerName || `Player ${this.players.size + 1}`,
-      characterId: characterId || 'boy',
-      hp: PLAYER.MAX_HP,
-      maxHp: PLAYER.MAX_HP,
+      characterId: charId,
+      hp: maxHp,
+      maxHp,
       score: 0,
       input: null,
       eliminated: false,
@@ -276,9 +285,20 @@ export class Room {
         for (const hit of spell.hits) {
           const target = this.players.get(hit.id);
           if (target) {
-            target.hp = Math.max(0, target.hp - hit.damage);
+            let finalDamage = hit.damage;
+
+            // Apply character passive damage reduction
+            const targetPassive = getPassive(target.characterId);
+            if (targetPassive.damageReduction) {
+              finalDamage *= (1 - targetPassive.damageReduction);
+            }
+            if (targetPassive.fireResist && (spell.type === 'fireball')) {
+              finalDamage *= (1 - targetPassive.fireResist);
+            }
+
+            target.hp = Math.max(0, target.hp - finalDamage);
             // Track damage for SP
-            this.trackDamage(playerId, hit.damage);
+            this.trackDamage(playerId, finalDamage);
 
             if (target.hp <= 0 && !target.eliminated) {
               target.eliminated = true;
@@ -516,8 +536,20 @@ export class Room {
         // Check player targets
         const target = this.players.get(hit.targetId);
         if (target && !target.eliminated) {
-          target.hp = Math.max(0, target.hp - hit.damage);
-          this.trackDamage(hit.attackerId, hit.damage);
+          let finalDamage = hit.damage;
+
+          // Apply character passive damage reduction
+          const targetPassive = getPassive(target.characterId);
+          if (targetPassive.damageReduction) {
+            finalDamage *= (1 - targetPassive.damageReduction);
+          }
+          // Fire resistance (stacks multiplicatively with armor)
+          if (targetPassive.fireResist && hit.spellId === 'fireball') {
+            finalDamage *= (1 - targetPassive.fireResist);
+          }
+
+          target.hp = Math.max(0, target.hp - finalDamage);
+          this.trackDamage(hit.attackerId, finalDamage);
           if (target.hp <= 0) {
             target.eliminated = true;
             this.onPlayerEliminated(hit.targetId, hit.attackerId, 'spell');
@@ -679,7 +711,7 @@ export class Room {
     const spawnPositions = getSpawnPositions(this.players.size);
     let idx = 0;
     for (const [playerId, player] of this.players) {
-      player.hp = PLAYER.MAX_HP;
+      player.hp = player.maxHp;
       player.eliminated = false;
       const spawn = spawnPositions[idx++] || { x: 0, y: 0 };
       this.physics.setPlayerPosition(playerId, spawn.x, spawn.y);

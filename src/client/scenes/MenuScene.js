@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CHARACTERS } from './BootScene.js';
+import { getPassive } from '../../shared/characterPassives.js';
 
 const SPRITE_SCALE = 3;
 
@@ -278,12 +279,26 @@ export class MenuScene extends Phaser.Scene {
       .setScale(5);
 
     // Selected character name (larger)
-    this.previewName = this.add.text(camW / 2, previewY + 80, 'Boy', {
+    this.previewName = this.add.text(camW / 2, previewY + 76, 'Boy', {
       fontSize: '22px',
       fontFamily: 'monospace',
       fill: '#ffdd44',
       stroke: '#000000',
       strokeThickness: 2,
+    }).setOrigin(0.5);
+
+    // Passive ability display
+    this.passiveName = this.add.text(camW / 2, previewY + 100, '', {
+      fontSize: '13px',
+      fontFamily: 'monospace',
+      fill: '#88ddff',
+    }).setOrigin(0.5);
+
+    this.passiveDesc = this.add.text(camW / 2, previewY + 116, '', {
+      fontSize: '11px',
+      fontFamily: 'monospace',
+      fill: '#8888aa',
+      fontStyle: 'italic',
     }).setOrigin(0.5);
   }
 
@@ -407,6 +422,15 @@ export class MenuScene extends Phaser.Scene {
     }
     if (this.previewName) {
       this.previewName.setText(char.name);
+    }
+
+    // Update passive display
+    const passive = getPassive(char.id);
+    if (this.passiveName) {
+      this.passiveName.setText(passive.name || '');
+    }
+    if (this.passiveDesc) {
+      this.passiveDesc.setText(passive.description || '');
     }
   }
 

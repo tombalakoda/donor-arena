@@ -2,6 +2,7 @@ import Matter from 'matter-js';
 import { SPELLS, SPELL_TYPES } from '../../shared/spellData.js';
 import { SKILL_TREE, computeSpellStats } from '../../shared/skillTreeData.js';
 import { PLAYER, PHYSICS } from '../../shared/constants.js';
+import { getPassive } from '../../shared/characterPassives.js';
 
 const { Bodies, Body, World, Composite } = Matter;
 
@@ -11,12 +12,14 @@ export class ServerSpell {
    * @param {function} getDamageTaken - callback (playerId) => damageTaken (0 = full HP)
    * @param {object} obstacleManager - ObstacleManager instance
    * @param {function} isEliminated - callback (playerId) => boolean — skip eliminated targets
+   * @param {function} getCharacterId - callback (playerId) => characterId — for passive lookups
    */
-  constructor(physics, getDamageTaken = () => 0, obstacleManager = null, isEliminated = () => false) {
+  constructor(physics, getDamageTaken = () => 0, obstacleManager = null, isEliminated = () => false, getCharacterId = () => null) {
     this.physics = physics;
     this.getDamageTaken = getDamageTaken; // Smash Bros-style: lookup target vulnerability for knockback scaling
     this.obstacleManager = obstacleManager; // For spell-obstacle collision checks
     this.isEliminated = isEliminated; // Skip eliminated players in collision checks
+    this.getCharacterId = getCharacterId; // Lookup character for passive ability checks
     this.nextSpellId = 1;      // Per-instance spell ID counter
     this.activeSpells = [];   // All active spell entities
     this.cooldowns = new Map(); // playerId -> { spellId: remainingMs }
@@ -95,6 +98,10 @@ export class ServerSpell {
     const cd = this.cooldowns.get(playerId);
     const maxCharges = stats.charges || 1;
 
+    // Character passive: cooldown reduction (e.g. Boy -15%)
+    const casterPassive = getPassive(this.getCharacterId(playerId));
+    const cdMultiplier = 1 - (casterPassive.cdReduction || 0);
+
     if (maxCharges > 1) {
       // Multi-charge spell (e.g. Double Blink)
       const charges = this.chargeTracking.get(playerId);
@@ -109,15 +116,15 @@ export class ServerSpell {
       ct.remaining--;
       if (ct.remaining <= 0) {
         // All charges spent — full cooldown, then refill all charges
-        cd[spellId] = ServerSpell.clampCooldown(stats.cooldown);
+        cd[spellId] = ServerSpell.clampCooldown(stats.cooldown * cdMultiplier);
         ct.remaining = 0; // will be reset when cooldown expires (in update)
       } else {
         // Still have charges — short internal cooldown (500ms between blinks)
-        cd[spellId] = 500;
+        cd[spellId] = 500 * cdMultiplier;
       }
     } else {
       // Standard single-charge spell — full cooldown immediately
-      cd[spellId] = ServerSpell.clampCooldown(stats.cooldown);
+      cd[spellId] = ServerSpell.clampCooldown(stats.cooldown * cdMultiplier);
     }
 
     const originX = playerBody.position.x;
@@ -234,7 +241,9 @@ export class ServerSpell {
     const dx = targetX - originX;
     const dy = targetY - originY;
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-    const maxRange = stats.range || 200;
+    // Character passive: blink range bonus (e.g. Green Ninja +25%)
+    const blinkPassive = getPassive(this.getCharacterId(playerId));
+    const maxRange = (stats.range || 200) * (1 + (blinkPassive.blinkRangeBonus || 0));
     const blinkDist = Math.min(dist, maxRange);
 
     const nx = dx / dist;
@@ -272,7 +281,9 @@ export class ServerSpell {
     const dx = targetX - originX;
     const dy = targetY - originY;
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-    const maxRange = stats.range || 140;
+    // Character passive: dash range bonus (e.g. Fighter +25%)
+    const dashPassive = getPassive(this.getCharacterId(playerId));
+    const maxRange = (stats.range || 140) * (1 + (dashPassive.dashRangeBonus || 0));
     let dashDist = Math.min(dist, maxRange);
 
     const nx = dx / dist;
@@ -324,7 +335,7 @@ export class ServerSpell {
 
       if (distToPath < dashWidth + PLAYER.RADIUS) {
         // Hit! Apply knockback perpendicular to dash direction + forward
-        const knockback = stats.dashKnockback || 0.02;
+        const knockback = (stats.dashKnockback || 0.02) * this._getKnockbackMultiplier(playerId);
         const hitNx = ddx / (distToPath || 1);
         const hitNy = ddy / (distToPath || 1);
         this.physics.applyKnockback(id,
@@ -445,7 +456,8 @@ export class ServerSpell {
       if (dist < radius) {
         const nx = dist > 0 ? dx / dist : 0;
         const ny = dist > 0 ? dy / dist : 1;
-        const force = (stats.knockbackForce || 0.03) * (1 - dist / radius);
+        const kbMult = this._getKnockbackMultiplier(playerId);
+        const force = (stats.knockbackForce || 0.03) * (1 - dist / radius) * kbMult;
         this.physics.applyKnockback(id, nx * force, ny * force, this.getDamageTaken(id), playerId);
         hits.push({ id, damage: stats.damage || 12 });
       }
@@ -538,27 +550,28 @@ export class ServerSpell {
             // Hit! Apply knockback with stagger grace
             const nx = dist > 0 ? dx / dist : 0;
             const ny = dist > 0 ? dy / dist : 1;
+            const kbMult = this._getKnockbackMultiplier(spell.ownerId);
             this.physics.applyKnockback(playerId,
-              nx * spell.knockbackForce,
-              ny * spell.knockbackForce,
+              nx * spell.knockbackForce * kbMult,
+              ny * spell.knockbackForce * kbMult,
               this.getDamageTaken(playerId),
               spell.ownerId,
             );
 
             // Queue damage for Room.js to process
-            this.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.damage });
+            this.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.damage, spellId: spell.type });
 
             // Apply status effects
             if (spell.slowAmount > 0 && spell.slowDuration > 0) {
               this.applyStatusEffect(playerId, 'slow', {
                 amount: spell.slowAmount,
                 until: now + spell.slowDuration,
-              });
+              }, spell.type);
             }
             if (spell.rootDuration > 0) {
               this.applyStatusEffect(playerId, 'root', {
                 until: now + spell.rootDuration,
-              });
+              }, spell.type);
             }
 
             // Explosion on impact (Meteor branch) — exclude direct-hit target to avoid double-knockback
@@ -595,7 +608,7 @@ export class ServerSpell {
               this.applyStatusEffect(playerId, 'slow', {
                 amount: spell.slowAmount,
                 until: now + (spell.slowDuration || 500),
-              });
+              }, spell.type);
             }
             // Apply zone damage per tick (damage is per second, convert to per tick)
             if (spell.damage > 0) {
@@ -604,6 +617,7 @@ export class ServerSpell {
                 attackerId: spell.ownerId,
                 targetId: playerId,
                 damage: tickDamage,
+                spellId: spell.type,
               });
             }
           }
@@ -651,7 +665,7 @@ export class ServerSpell {
             // Release! Fling tangentially
             const tangentX = -Math.sin(spell.swingAngle);
             const tangentY = Math.cos(spell.swingAngle);
-            const releaseForce = spell.pullForce * 2.5;
+            const releaseForce = spell.pullForce * 2.5 * this._getKnockbackMultiplier(spell.ownerId);
 
             this.physics.applyKnockback(
               spell.hookedPlayerId,
@@ -717,14 +731,15 @@ export class ServerSpell {
               if (eDist < PLAYER.RADIUS * 2.5) {
                 const enx = eDist > 0 ? edx / eDist : 0;
                 const eny = eDist > 0 ? edy / eDist : 1;
+                const pullKbMult = this._getKnockbackMultiplier(spell.ownerId);
                 this.physics.applyKnockback(playerId,
-                  enx * (spell.flightKnockback || 0.02),
-                  eny * (spell.flightKnockback || 0.02),
+                  enx * (spell.flightKnockback || 0.02) * pullKbMult,
+                  eny * (spell.flightKnockback || 0.02) * pullKbMult,
                   this.getDamageTaken(playerId),
                   spell.ownerId,
                 );
                 if (spell.flightDamage > 0) {
-                  this.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.flightDamage });
+                  this.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.flightDamage, spellId: spell.type });
                 }
                 spell.flightHitIds.push(playerId);
               }
@@ -785,14 +800,15 @@ export class ServerSpell {
               if (dist < PLAYER.RADIUS * 2.5) {
                 const nx = dist > 0 ? dx / dist : 0;
                 const ny = dist > 0 ? dy / dist : 1;
+                const flightKbMult = this._getKnockbackMultiplier(spell.ownerId);
                 this.physics.applyKnockback(playerId,
-                  nx * (spell.flightKnockback || 0.02),
-                  ny * (spell.flightKnockback || 0.02),
+                  nx * (spell.flightKnockback || 0.02) * flightKbMult,
+                  ny * (spell.flightKnockback || 0.02) * flightKbMult,
                   this.getDamageTaken(playerId),
                   spell.ownerId,
                 );
                 if (spell.flightDamage > 0) {
-                  this.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.flightDamage });
+                  this.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.flightDamage, spellId: spell.type });
                 }
                 spell.flightHitIds.push(playerId);
               }
@@ -846,7 +862,7 @@ export class ServerSpell {
               spell.swingElapsed = 0;
 
               // Queue damage for Room.js to process
-              this.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.damage });
+              this.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.damage, spellId: spell.type });
 
               // Extend lifetime for swing + release + cleanup
               spell.lifetime = spell.elapsed + spell.swingDuration + 500;
@@ -901,11 +917,29 @@ export class ServerSpell {
     }
   }
 
+  // --- Character Passive Helpers ---
+
+  /** Knockback multiplier for caster's passive (e.g. Racoon +15%) */
+  _getKnockbackMultiplier(ownerId) {
+    const passive = getPassive(this.getCharacterId(ownerId));
+    return 1 + (passive.knockbackBonus || 0);
+  }
+
   // --- Status Effects ---
 
-  applyStatusEffect(playerId, type, data) {
+  applyStatusEffect(playerId, type, data, sourceSpellId = null) {
     const effects = this.statusEffects.get(playerId);
     if (!effects) return;
+
+    // Character passive: frost resistance reduces slow/root from frostBolt
+    if (sourceSpellId === 'frostBolt' && (type === 'slow' || type === 'root')) {
+      const targetPassive = getPassive(this.getCharacterId(playerId));
+      if (targetPassive.frostResist) {
+        const now = Date.now();
+        const originalDuration = data.until - now;
+        data.until = now + originalDuration * (1 - targetPassive.frostResist);
+      }
+    }
 
     if (type === 'slow') {
       // Use the stronger slow if already slowed
@@ -939,10 +973,11 @@ export class ServerSpell {
       if (dist < spell.explosionRadius + PLAYER.RADIUS) {
         const nx = dist > 0 ? dx / dist : 0;
         const ny = dist > 0 ? dy / dist : 1;
+        const expKbMult = this._getKnockbackMultiplier(spell.ownerId);
         const force = spell.knockbackForce * (1 - dist / (spell.explosionRadius + PLAYER.RADIUS));
         this.physics.applyKnockback(playerId,
-          nx * Math.max(force, spell.knockbackForce * 0.3),
-          ny * Math.max(force, spell.knockbackForce * 0.3),
+          nx * Math.max(force, spell.knockbackForce * 0.3) * expKbMult,
+          ny * Math.max(force, spell.knockbackForce * 0.3) * expKbMult,
           this.getDamageTaken(playerId),
           spell.ownerId,
         );
