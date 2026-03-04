@@ -75,7 +75,8 @@ export class RoundManager {
       case PHASE.PLAYING: {
         // Shrink ring (disabled in sandbox)
         if (!this.sandboxMode) {
-          const shrinkRate = ARENA.RING_SHRINK_BASE + this.currentRound * ARENA.RING_SHRINK_SCALE;
+          const rawRate = ARENA.RING_SHRINK_BASE + this.currentRound * ARENA.RING_SHRINK_SCALE;
+          const shrinkRate = Math.min(rawRate, 6); // Cap at 6 px/sec to keep late rounds playable
           this.ringRadius -= shrinkRate * (deltaMs / 1000);
           if (this.ringRadius < ARENA.MIN_RING_RADIUS) {
             this.ringRadius = ARENA.MIN_RING_RADIUS;

@@ -101,6 +101,7 @@ export class ServerPhysics {
     }
 
     if (input.targetX == null || input.targetY == null) return false;
+    if (!Number.isFinite(input.targetX) || !Number.isFinite(input.targetY)) return false;
 
     const dx = input.targetX - body.position.x;
     const dy = input.targetY - body.position.y;

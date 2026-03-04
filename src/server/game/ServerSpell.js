@@ -5,8 +5,6 @@ import { PLAYER, PHYSICS } from '../../shared/constants.js';
 
 const { Bodies, Body, World, Composite } = Matter;
 
-let nextSpellId = 1;
-
 export class ServerSpell {
   /**
    * @param {object} physics - ServerPhysics instance
@@ -15,6 +13,7 @@ export class ServerSpell {
   constructor(physics, getDamageTaken = () => 0) {
     this.physics = physics;
     this.getDamageTaken = getDamageTaken; // Smash Bros-style: lookup target vulnerability for knockback scaling
+    this.nextSpellId = 1;      // Per-instance spell ID counter
     this.activeSpells = [];   // All active spell entities
     this.cooldowns = new Map(); // playerId -> { spellId: remainingMs }
     this.statusEffects = new Map(); // playerId -> { slow: { amount, until }, root: { until }, stun: { until } }
@@ -22,6 +21,14 @@ export class ServerSpell {
     // Charge tracking for multi-charge spells (e.g. Double Blink)
     // Map: playerId -> { spellId: { remaining, max, internalCd } }
     this.chargeTracking = new Map();
+  }
+
+  static clampSpeed(speed) {
+    return Math.min(20, Math.max(1, speed || 5));
+  }
+
+  static clampCooldown(cooldown) {
+    return Math.min(30000, Math.max(100, cooldown || 3000));
   }
 
   initPlayer(playerId) {
@@ -83,7 +90,7 @@ export class ServerSpell {
       ct.remaining--;
       if (ct.remaining <= 0) {
         // All charges spent — full cooldown, then refill all charges
-        cd[spellId] = stats.cooldown || 3000;
+        cd[spellId] = ServerSpell.clampCooldown(stats.cooldown);
         ct.remaining = 0; // will be reset when cooldown expires (in update)
       } else {
         // Still have charges — short internal cooldown (500ms between blinks)
@@ -91,7 +98,7 @@ export class ServerSpell {
       }
     } else {
       // Standard single-charge spell — full cooldown immediately
-      cd[spellId] = stats.cooldown || 3000;
+      cd[spellId] = ServerSpell.clampCooldown(stats.cooldown);
     }
 
     const originX = playerBody.position.x;
@@ -133,8 +140,10 @@ export class ServerSpell {
     const nx = dx / dist;
     const ny = dy / dist;
 
-    const projectileCount = stats.projectileCount || 1;
+    const rawCount = stats.projectileCount || 1;
+    const projectileCount = Math.min(5, Math.max(1, Math.floor(rawCount)));
     const spreadAngle = projectileCount > 1 ? 0.15 : 0; // radians spread per projectile
+    const clampedSpeed = ServerSpell.clampSpeed(stats.speed);
 
     const spells = [];
     for (let i = 0; i < projectileCount; i++) {
@@ -145,11 +154,11 @@ export class ServerSpell {
         angle += offset;
       }
 
-      const vx = Math.cos(angle) * stats.speed;
-      const vy = Math.sin(angle) * stats.speed;
+      const vx = Math.cos(angle) * clampedSpeed;
+      const vy = Math.sin(angle) * clampedSpeed;
 
       const spell = {
-        id: nextSpellId++,
+        id: this.nextSpellId++,
         type: spellId,
         spellType: SPELL_TYPES.PROJECTILE,
         ownerId: playerId,
@@ -183,7 +192,7 @@ export class ServerSpell {
 
   spawnZone(playerId, spellId, stats, targetX, targetY) {
     const spell = {
-      id: nextSpellId++,
+      id: this.nextSpellId++,
       type: spellId,
       spellType: SPELL_TYPES.ZONE,
       ownerId: playerId,
@@ -223,7 +232,7 @@ export class ServerSpell {
 
     // Create visual-only spell entity
     const spell = {
-      id: nextSpellId++,
+      id: this.nextSpellId++,
       type: spellId,
       spellType: SPELL_TYPES.BLINK,
       ownerId: playerId,
@@ -290,7 +299,7 @@ export class ServerSpell {
     }
 
     const spell = {
-      id: nextSpellId++,
+      id: this.nextSpellId++,
       type: spellId,
       spellType: SPELL_TYPES.DASH,
       ownerId: playerId,
@@ -315,7 +324,8 @@ export class ServerSpell {
     const isPullSelf = stats.pullSelf || false;
 
     // Branch B travels faster (1.5x) for snappier feel
-    const hookSpeed = isPullSelf ? stats.speed * 1.5 : stats.speed;
+    const baseSpeed = ServerSpell.clampSpeed(stats.speed);
+    const hookSpeed = isPullSelf ? baseSpeed * 1.5 : baseSpeed;
     const vx = (dx / dist) * hookSpeed;
     const vy = (dy / dist) * hookSpeed;
 
@@ -325,7 +335,7 @@ export class ServerSpell {
     const hookTargetY = originY + (dy / dist) * travelDist;
 
     const spell = {
-      id: nextSpellId++,
+      id: this.nextSpellId++,
       type: spellId,
       spellType: SPELL_TYPES.HOOK,
       ownerId: playerId,
@@ -397,7 +407,7 @@ export class ServerSpell {
     }
 
     const spell = {
-      id: nextSpellId++,
+      id: this.nextSpellId++,
       type: spellId,
       spellType: SPELL_TYPES.INSTANT,
       ownerId: playerId,
@@ -532,10 +542,14 @@ export class ServerSpell {
                 until: now + (spell.slowDuration || 500),
               });
             }
-            // Apply zone damage per tick
+            // Apply zone damage per tick (damage is per second, convert to per tick)
             if (spell.damage > 0) {
-              // damage is per second, convert to per tick
-              // (handled by Room.js spell hit tracking, but we'll note it here)
+              const tickDamage = spell.damage * (PHYSICS.TICK_MS / 1000);
+              this.pendingHits.push({
+                attackerId: spell.ownerId,
+                targetId: playerId,
+                damage: tickDamage,
+              });
             }
           }
         }

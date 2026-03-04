@@ -76,10 +76,11 @@ export class GameScene extends Phaser.Scene {
     this.countdownOverlay = null;
     this.countdownText = null;
     this.killFeedTexts = [];
-    this.killFeedTimeout = null;
+    this.killFeedTimeouts = [];
 
     // Ring graphics (dynamic, redrawn as ring shrinks)
     this.ringGraphics = null;
+    this.outerRingGraphics = null;
     this.lastDrawnRingRadius = -1;
 
     // Progression / Shop
@@ -479,7 +480,11 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Auto-remove after 4s
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
+      // Remove this timeout from tracking
+      const tIdx = this.killFeedTimeouts.indexOf(timeoutId);
+      if (tIdx !== -1) this.killFeedTimeouts.splice(tIdx, 1);
+
       const idx = this.killFeedTexts.indexOf(feedText);
       if (idx !== -1) {
         this.killFeedTexts.splice(idx, 1);
@@ -489,6 +494,7 @@ export class GameScene extends Phaser.Scene {
         });
       }
     }, 4000);
+    this.killFeedTimeouts.push(timeoutId);
   }
 
   reconcileLocalPlayer(serverState) {
@@ -549,7 +555,7 @@ export class GameScene extends Phaser.Scene {
 
   // --- Remote Players ---
 
-  addRemotePlayer(playerId, characterId, x, y, playerName) {
+  addRemotePlayer(playerId, characterId, x, y, playerName, maxHp) {
     if (this.remotePlayers.has(playerId)) return;
 
     const shadow = this.add.ellipse(x, y + PLAYER.RADIUS * 0.5, PLAYER.RADIUS * 2.5, PLAYER.RADIUS * 1.2, 0x000000, 0.25);
@@ -578,7 +584,7 @@ export class GameScene extends Phaser.Scene {
       x, y,
       targetX: x, targetY: y,
       vx: 0, vy: 0,
-      hp: 100, maxHp: 100,
+      hp: maxHp || PLAYER.MAX_HP, maxHp: maxHp || PLAYER.MAX_HP,
       facingDir: 'down',
       isMoving: false,
     });
@@ -599,7 +605,7 @@ export class GameScene extends Phaser.Scene {
   updateRemotePlayer(serverState) {
     let rp = this.remotePlayers.get(serverState.id);
     if (!rp) {
-      this.addRemotePlayer(serverState.id, serverState.characterId || 'ninja-green', serverState.x, serverState.y, serverState.name);
+      this.addRemotePlayer(serverState.id, serverState.characterId || 'ninja-green', serverState.x, serverState.y, serverState.name, serverState.maxHp);
       rp = this.remotePlayers.get(serverState.id);
       if (!rp) return;
     }
@@ -1200,6 +1206,8 @@ export class GameScene extends Phaser.Scene {
     // Step 6: Dynamic ring graphics
     this.ringGraphics = this.add.graphics();
     this.ringGraphics.setDepth(1);
+    this.outerRingGraphics = this.add.graphics();
+    this.outerRingGraphics.setDepth(1);
     this.lastDrawnRingRadius = -1;
   }
 
@@ -1360,6 +1368,8 @@ export class GameScene extends Phaser.Scene {
     // Step 4: Dynamic ring graphics
     this.ringGraphics = this.add.graphics();
     this.ringGraphics.setDepth(1);
+    this.outerRingGraphics = this.add.graphics();
+    this.outerRingGraphics.setDepth(1);
     this.lastDrawnRingRadius = -1;
   }
 
@@ -1478,10 +1488,13 @@ export class GameScene extends Phaser.Scene {
       g.strokeCircle(0, 0, r + i * 8);
     }
 
-    // Outer faint rings
-    g.lineStyle(1, 0xcc4444, 0.06);
-    for (let dr = r + 60; dr < ARENA.FLOOR_SIZE / 2; dr += 60) {
-      g.strokeCircle(0, 0, dr);
+    // Outer faint rings — only redraw when radius changes (expensive: ~9 strokeCircle calls)
+    if (r !== this.lastDrawnRingRadius && this.outerRingGraphics) {
+      this.outerRingGraphics.clear();
+      this.outerRingGraphics.lineStyle(1, 0xcc4444, 0.06);
+      for (let dr = r + 60; dr < ARENA.FLOOR_SIZE / 2; dr += 60) {
+        this.outerRingGraphics.strokeCircle(0, 0, dr);
+      }
     }
 
     // Screen-edge vignette when player is near ring edge
@@ -2052,14 +2065,16 @@ export class GameScene extends Phaser.Scene {
         this.trailGraphics = this.add.graphics().setDepth(5);
       }
       this.trailGraphics.clear();
+      // Fade and remove expired trail points (backward for safe splice)
+      for (let i = this.speedTrail.length - 1; i >= 0; i--) {
+        this.speedTrail[i].alpha -= 0.06;
+        if (this.speedTrail[i].alpha <= 0) {
+          this.speedTrail.splice(i, 1);
+        }
+      }
+      // Draw remaining trail points (forward for correct visual ordering)
       for (let i = 0; i < this.speedTrail.length; i++) {
         const t = this.speedTrail[i];
-        t.alpha -= 0.06;
-        if (t.alpha <= 0) {
-          this.speedTrail.splice(i, 1);
-          i--;
-          continue;
-        }
         const size = 6 + (i / this.speedTrail.length) * 8;
         this.trailGraphics.fillStyle(0xffffff, t.alpha * 0.5);
         this.trailGraphics.fillCircle(t.x, t.y, size);
@@ -2268,6 +2283,65 @@ export class GameScene extends Phaser.Scene {
     }
     this.spellVisuals.clear();
 
+    // Cleanup remote player sprites, shadows, labels, HP bars
+    for (const [id, rp] of this.remotePlayers) {
+      if (rp.sprite && !rp.sprite.destroyed) rp.sprite.destroy();
+      if (rp.shadow && !rp.shadow.destroyed) rp.shadow.destroy();
+      if (rp.nameLabel && !rp.nameLabel.destroyed) rp.nameLabel.destroy();
+      if (rp.hpBg && !rp.hpBg.destroyed) rp.hpBg.destroy();
+      if (rp.hpFill && !rp.hpFill.destroyed) rp.hpFill.destroy();
+    }
+    this.remotePlayers.clear();
+
+    // Cleanup HUD elements
+    const hudElements = [
+      this.hpBarBg, this.hpBarFill, this.hpText,
+      this.pingText, this.playerCountText,
+      this.roundText, this.timerText, this.phaseText,
+      this.countdownText, this.spText,
+    ];
+    for (const el of hudElements) {
+      if (el && !el.destroyed) el.destroy();
+    }
+
+    // Cleanup spell HUD slots
+    for (const slot of this.spellSlots) {
+      const slotElements = [slot.bg, slot.icon, slot.cdOverlay, slot.cdText,
+                            slot.lockOverlay, slot.lockText, slot.chargeText];
+      for (const el of slotElements) {
+        if (el && !el.destroyed) el.destroy();
+      }
+    }
+    this.spellSlots = [];
+
+    // Cleanup graphics objects
+    if (this.trailGraphics && !this.trailGraphics.destroyed) this.trailGraphics.destroy();
+    if (this.ringGraphics && !this.ringGraphics.destroyed) this.ringGraphics.destroy();
+    if (this.outerRingGraphics && !this.outerRingGraphics.destroyed) this.outerRingGraphics.destroy();
+    if (this.edgeVignette && !this.edgeVignette.destroyed) this.edgeVignette.destroy();
+
+    // Clear kill feed timeouts and texts
+    if (this.killFeedTimeouts) {
+      for (const id of this.killFeedTimeouts) {
+        clearTimeout(id);
+      }
+      this.killFeedTimeouts = [];
+    }
+    for (const t of this.killFeedTexts) {
+      if (t && !t.destroyed) t.destroy();
+    }
+    this.killFeedTexts = [];
+
+    // Destroy overlay systems
+    if (this.shopOverlay) this.shopOverlay.destroy();
+    if (this.pauseMenu) this.pauseMenu.destroy();
+    if (this.matchEndOverlay) this.matchEndOverlay.destroy();
+    if (this.lobbyOverlay) this.lobbyOverlay.destroy();
+
+    // Cleanup speed trail
+    this.speedTrail = [];
+
+    // Disconnect network
     if (this.network) {
       this.network.disconnect();
     }

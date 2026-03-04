@@ -169,8 +169,15 @@ export class Room {
 
   handleInput(playerId, input) {
     const player = this.players.get(playerId);
-    if (player) {
-      player.input = input;
+    if (!player) return;
+    if (!input || typeof input !== 'object') return;
+
+    // Only accept known fields with numeric validation
+    if (input.targetX != null && input.targetY != null
+        && Number.isFinite(input.targetX) && Number.isFinite(input.targetY)) {
+      player.input = { targetX: input.targetX, targetY: input.targetY };
+    } else {
+      player.input = null;
     }
   }
 
@@ -515,6 +522,18 @@ export class Room {
           this.rounds.awardRoundWin(winnerId);
         }
 
+        // Calculate average SP for underdog bonus (catch-up mechanic)
+        let totalSp = 0;
+        let playerCount = 0;
+        for (const [id] of this.players) {
+          const prog = this.progressions.get(id);
+          if (prog) {
+            totalSp += prog.totalSpEarned;
+            playerCount++;
+          }
+        }
+        const averageSp = playerCount > 1 ? totalSp / playerCount : 0;
+
         // Award SP from skill tree system
         const spAwards = {};
         for (const [id, player] of this.players) {
@@ -530,7 +549,17 @@ export class Room {
           };
 
           const earned = progression.awardRoundSP(stats);
-          spAwards[id] = { earned, total: progression.sp, stats };
+
+          // Underdog bonus: players below average total SP get bonus
+          let underdogBonus = 0;
+          if (playerCount > 1 && progression.totalSpEarned < averageSp) {
+            underdogBonus = Math.max(0, Math.floor((averageSp - progression.totalSpEarned) / 5));
+          }
+          if (underdogBonus > 0) {
+            progression.awardSP(underdogBonus);
+          }
+
+          spAwards[id] = { earned: earned + underdogBonus, underdogBonus, total: progression.sp, stats };
         }
 
         const winner = winnerId ? this.players.get(winnerId) : null;

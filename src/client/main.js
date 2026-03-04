@@ -29,7 +29,9 @@ if (!window.__game) {
       }
     };
   `], { type: 'application/javascript' });
-  const tickWorker = new Worker(URL.createObjectURL(workerBlob));
+  const workerUrl = URL.createObjectURL(workerBlob);
+  const tickWorker = new Worker(workerUrl);
+  URL.revokeObjectURL(workerUrl);
   tickWorker.onmessage = () => {
     if (document.hidden && game.loop && game.loop.running) {
       game.loop.step(performance.now());
