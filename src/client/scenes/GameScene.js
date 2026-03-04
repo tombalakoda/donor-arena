@@ -301,6 +301,7 @@ export class GameScene extends Phaser.Scene {
     console.log('[ROUND] Round', data.round, 'starting (map', data.mapIndex, ')');
     this.roundNumber = data.round;
     this.localEliminated = false;
+    if (this.playerSprite) this.playerSprite.setAlpha(1);
 
     // Clear move target on new round
     this.moveTarget = null;
