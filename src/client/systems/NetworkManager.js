@@ -139,6 +139,11 @@ export class NetworkManager {
     this.socket.emit('c:spell', { spellId, targetX, targetY });
   }
 
+  sendHookRelease() {
+    if (!this.connected) return;
+    this.socket.emit(MSG.CLIENT_HOOK_RELEASE);
+  }
+
   sendShopUnlockSlot(slot) {
     if (!this.connected) return;
     this.socket.emit(MSG.CLIENT_SHOP_UNLOCK_SLOT, { slot });

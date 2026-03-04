@@ -312,8 +312,17 @@ export class ServerSpell {
     const dx = targetX - originX;
     const dy = targetY - originY;
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-    const vx = (dx / dist) * stats.speed;
-    const vy = (dy / dist) * stats.speed;
+    const isPullSelf = stats.pullSelf || false;
+
+    // Branch B travels faster (1.5x) for snappier feel
+    const hookSpeed = isPullSelf ? stats.speed * 1.5 : stats.speed;
+    const vx = (dx / dist) * hookSpeed;
+    const vy = (dy / dist) * hookSpeed;
+
+    // For Branch B: calculate exact target position (clamped to range)
+    const travelDist = Math.min(dist, stats.range || 300);
+    const hookTargetX = originX + (dx / dist) * travelDist;
+    const hookTargetY = originY + (dy / dist) * travelDist;
 
     const spell = {
       id: nextSpellId++,
@@ -326,29 +335,43 @@ export class ServerSpell {
       radius: stats.radius || 10,
       damage: stats.damage || 5,
       pullForce: stats.pullForce || 0.04,
-      pullSelf: stats.pullSelf || false,
+      pullSelf: isPullSelf,
       lifetime: stats.lifetime || 1500,
       range: stats.range || 300,
       elapsed: 0,
       active: true,
-      hooked: false, // becomes true when it hits something (Branch A) or anchors (Branch B)
+      hooked: false,
       hookedPlayerId: null,
-      originX, originY, // remember caster position for pull calculation
-      // Swing & Release (Branch A) / Self-Slingshot (Branch B)
+      originX, originY,
+      // Swing & Release (Branch A)
       swingAngle: 0,
       swingElapsed: 0,
-      swingDuration: stats.swingDuration || 600,  // ms to orbit before release
-      orbitRadius: 0,       // set on hook connect
-      released: false,      // true after fling/launch
-      // Branch B slingshot: post-release flight collision
-      flightElapsed: 0,
-      flightHit: false,
-      // Anchor point for Branch B slingshot
+      swingDuration: stats.swingDuration || 600,
+      orbitRadius: 0,
+      released: false,
+      // Branch B: travel-to-target
+      hookTargetX, hookTargetY,
+      travelDist,
+      traveledDist: 0,
+      // Branch B: grappling hook swing
       anchorX: 0,
       anchorY: 0,
-      // Branch B impact stats
+      swingActive: false,
+      swingCommitMs: stats.swingCommitMs || 150,
+      swingMaxDuration: stats.swingMaxDuration || 1200,
+      grapplingPullForce: stats.grapplingPullForce || 0.008,
+      tetherLength: 0,
+      releaseRequested: false,
+      releaseBurstMult: stats.releaseBurstMult || 1.2,
+      originalFrictionAir: 0,
+      // Branch B: flight collision
+      flightElapsed: 0,
+      flightHit: false,
+      flightDuration: stats.flightDuration || 500,
       impactKnockback: stats.impactKnockback || 0,
       impactDamage: stats.impactDamage || 0,
+      swingCollision: stats.swingCollision || false,
+      swingHitIds: [],
     };
 
     this.activeSpells.push(spell);
@@ -576,57 +599,118 @@ export class ServerSpell {
         }
       }
 
-      // --- Hook Branch B: Self-Slingshot (after hook anchors) ---
-      if (spell.spellType === SPELL_TYPES.HOOK && spell.hooked && spell.pullSelf && !spell.released) {
+      // --- Hook Branch B: Grappling Hook pendulum swing ---
+      if (spell.spellType === SPELL_TYPES.HOOK && spell.hooked && spell.pullSelf && spell.swingActive && !spell.released) {
         const casterBody = this.physics.playerBodies.get(spell.ownerId);
 
         if (casterBody) {
-          const dt = PHYSICS.TICK_MS / 1000;
-
-          // First tick: initialize orbit around anchor
+          // First tick: initialize pendulum
           if (spell.swingElapsed === 0) {
-            spell.anchorX = spell.x;
-            spell.anchorY = spell.y;
             const dx = casterBody.position.x - spell.anchorX;
             const dy = casterBody.position.y - spell.anchorY;
-            spell.swingAngle = Math.atan2(dy, dx);
-            spell.orbitRadius = Math.min(Math.sqrt(dx * dx + dy * dy), 150);
-            // Stun caster during swing (committed to the move)
+            spell.tetherLength = Math.min(Math.sqrt(dx * dx + dy * dy), 200);
+            // Save and reduce frictionAir for speed buildup
+            spell.originalFrictionAir = casterBody.frictionAir;
+            casterBody.frictionAir = 0.003;
+            // Stun caster for commitment window only (not the whole swing)
             this.applyStatusEffect(spell.ownerId, 'stun', {
-              until: now + spell.swingDuration + 100,
+              until: now + spell.swingCommitMs,
             });
           }
 
           spell.swingElapsed += PHYSICS.TICK_MS;
 
-          if (spell.swingElapsed < spell.swingDuration) {
-            // Orbit caster around anchor point
-            const t = spell.swingElapsed / spell.swingDuration;
-            const angularSpeed = 4 + t * 6;
-            spell.swingAngle += angularSpeed * dt;
+          // --- Pendulum-pull physics: apply force toward anchor ---
+          const dx = spell.anchorX - casterBody.position.x;
+          const dy = spell.anchorY - casterBody.position.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
 
-            const orbitX = spell.anchorX + Math.cos(spell.swingAngle) * spell.orbitRadius;
-            const orbitY = spell.anchorY + Math.sin(spell.swingAngle) * spell.orbitRadius;
-            Body.setPosition(casterBody, { x: orbitX, y: orbitY });
-            Body.setVelocity(casterBody, { x: 0, y: 0 });
+          if (dist > 1) {
+            const nx = dx / dist;
+            const ny = dy / dist;
 
-            // Sync spell position to caster (chain: anchor → caster)
-            spell.x = orbitX;
-            spell.y = orbitY;
-          } else {
-            // Release! Launch caster tangentially
-            const tangentX = -Math.sin(spell.swingAngle);
-            const tangentY = Math.cos(spell.swingAngle);
-            const releaseSpeed = (spell.pullForce || 0.06) * 50; // convert force to velocity
-
-            Body.setVelocity(casterBody, {
-              x: tangentX * releaseSpeed,
-              y: tangentY * releaseSpeed,
+            // Centripetal pull toward anchor
+            Body.applyForce(casterBody, casterBody.position, {
+              x: nx * spell.grapplingPullForce,
+              y: ny * spell.grapplingPullForce,
             });
 
+            // Tether constraint: can't go further than tether + 10% slack
+            const maxTether = spell.tetherLength * 1.1;
+            if (dist > maxTether) {
+              // Clamp position to max tether radius
+              const clampX = spell.anchorX - nx * maxTether;
+              const clampY = spell.anchorY - ny * maxTether;
+              Body.setPosition(casterBody, { x: clampX, y: clampY });
+              // Remove radial velocity component (keep only tangential)
+              const vel = casterBody.velocity;
+              const radialComponent = vel.x * nx + vel.y * ny;
+              if (radialComponent < 0) { // only if moving away from anchor
+                Body.setVelocity(casterBody, {
+                  x: vel.x - radialComponent * nx,
+                  y: vel.y - radialComponent * ny,
+                });
+              }
+            }
+          }
+
+          // Sync spell position to caster for chain visual
+          spell.x = casterBody.position.x;
+          spell.y = casterBody.position.y;
+
+          // --- Swing-through collision (tier 3+) ---
+          if (spell.swingCollision) {
+            const casterVel = casterBody.velocity;
+            const casterSpeed = Math.sqrt(casterVel.x * casterVel.x + casterVel.y * casterVel.y);
+            const normalMaxSpeed = PLAYER.SPEED * 0.05;
+            if (casterSpeed > normalMaxSpeed * 2) {
+              for (const [playerId, body] of this.physics.playerBodies) {
+                if (playerId === spell.ownerId) continue;
+                if (spell.swingHitIds.includes(playerId)) continue;
+                const edx = body.position.x - casterBody.position.x;
+                const edy = body.position.y - casterBody.position.y;
+                const eDist = Math.sqrt(edx * edx + edy * edy);
+                if (eDist < PLAYER.RADIUS * 2.2) {
+                  // Swing-through hit! (60% of flight impact force, 50% damage)
+                  const enx = eDist > 0 ? edx / eDist : 0;
+                  const eny = eDist > 0 ? edy / eDist : 1;
+                  const speedRatio = casterSpeed / normalMaxSpeed;
+                  const swingForce = (spell.impactKnockback || 0.04) * speedRatio * 0.6;
+                  this.physics.applyKnockback(playerId,
+                    enx * swingForce, eny * swingForce,
+                    this.getDamageTaken(playerId),
+                  );
+                  const swingDmg = Math.round((spell.impactDamage || spell.damage) * Math.min(speedRatio, 3) * 0.5);
+                  if (swingDmg > 0) {
+                    this.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: swingDmg });
+                  }
+                  spell.swingHitIds.push(playerId);
+                }
+              }
+            }
+          }
+
+          // --- Release check ---
+          const shouldRelease = (spell.releaseRequested && spell.swingElapsed >= spell.swingCommitMs)
+            || spell.swingElapsed >= spell.swingMaxDuration;
+
+          if (shouldRelease) {
+            // Restore frictionAir
+            casterBody.frictionAir = spell.originalFrictionAir || PLAYER.FRICTION_AIR;
+            // Apply velocity burst
+            const vel = casterBody.velocity;
+            const burst = spell.releaseBurstMult;
+            Body.setVelocity(casterBody, {
+              x: vel.x * burst,
+              y: vel.y * burst,
+            });
+            // Set knockback grace period so speed cap doesn't kick in
+            this.physics.knockbackUntil.set(spell.ownerId, now + spell.flightDuration);
+
             spell.released = true;
+            spell.swingActive = false;
             spell.flightElapsed = 0;
-            spell.lifetime = spell.elapsed + 500; // flight + cleanup time
+            spell.lifetime = spell.elapsed + spell.flightDuration + 300;
           }
         }
       }
@@ -639,6 +723,10 @@ export class ServerSpell {
           spell.x = casterBody.position.x;
           spell.y = casterBody.position.y;
 
+          const casterVel = casterBody.velocity;
+          const casterSpeed = Math.sqrt(casterVel.x * casterVel.x + casterVel.y * casterVel.y);
+          const normalMaxSpeed = PLAYER.SPEED * 0.05;
+
           // Check collision with enemies during flight
           for (const [playerId, body] of this.physics.playerBodies) {
             if (playerId === spell.ownerId) continue;
@@ -646,30 +734,29 @@ export class ServerSpell {
             const dy = body.position.y - casterBody.position.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist < PLAYER.RADIUS * 2.5) { // generous hitbox during slingshot flight
-              // Impact! Knockback the enemy
+            if (dist < PLAYER.RADIUS * 2.5) {
+              // Impact! Speed-scaled knockback
               const nx = dist > 0 ? dx / dist : 0;
               const ny = dist > 0 ? dy / dist : 1;
-              const impactForce = (spell.impactKnockback || spell.pullForce * 2);
+              const speedRatio = casterSpeed / normalMaxSpeed;
+              const impactForce = (spell.impactKnockback || spell.pullForce * 2) * speedRatio;
               this.physics.applyKnockback(playerId,
-                nx * impactForce,
-                ny * impactForce,
+                nx * impactForce, ny * impactForce,
                 this.getDamageTaken(playerId),
               );
-              const impactDmg = spell.impactDamage || spell.damage;
+              const impactDmg = Math.round((spell.impactDamage || spell.damage) * Math.min(speedRatio, 3));
               if (impactDmg > 0) {
                 this.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: impactDmg });
               }
               spell.flightHit = true;
-              // Stop caster on impact
               Body.setVelocity(casterBody, { x: 0, y: 0 });
               spell.lifetime = spell.elapsed + 200;
               break;
             }
           }
 
-          // End flight after timeout (missed)
-          if (spell.flightElapsed > 400) {
+          // End flight after timeout
+          if (spell.flightElapsed > spell.flightDuration) {
             spell.lifetime = spell.elapsed + 100;
           }
         }
@@ -714,15 +801,19 @@ export class ServerSpell {
             }
           }
         } else {
-          // Branch B: Slingshot — hook anchors at target, caster orbits
-          if (travelDist >= spell.range * 0.9) {
+          // Branch B: Grappling Hook — hook travels to exact clicked position
+          spell.traveledDist += Math.sqrt(spell.vx * spell.vx + spell.vy * spell.vy);
+          if (spell.traveledDist >= spell.travelDist) {
+            // Snap to exact target position
+            spell.x = spell.hookTargetX;
+            spell.y = spell.hookTargetY;
             spell.hooked = true;
             spell.swingElapsed = 0;
-            // Anchor position is where the hook landed
+            spell.swingActive = true;
             spell.anchorX = spell.x;
             spell.anchorY = spell.y;
             // Extend lifetime for swing + flight + cleanup
-            spell.lifetime = spell.elapsed + spell.swingDuration + 600;
+            spell.lifetime = spell.elapsed + spell.swingMaxDuration + spell.flightDuration + 500;
           }
         }
       }
@@ -803,6 +894,16 @@ export class ServerSpell {
     }
   }
 
+  requestHookRelease(playerId) {
+    const spell = this.activeSpells.find(
+      s => s.spellType === SPELL_TYPES.HOOK && s.ownerId === playerId
+        && s.pullSelf && s.hooked && s.swingActive && !s.released
+    );
+    if (!spell) return;
+    if (spell.swingElapsed < spell.swingCommitMs) return; // still in commitment window
+    spell.releaseRequested = true;
+  }
+
   removeSpell(index) {
     const spell = this.activeSpells[index];
     if (spell.body) {
@@ -854,11 +955,18 @@ export class ServerSpell {
       released: s.released || false,
       anchorX: s.anchorX || 0,
       anchorY: s.anchorY || 0,
-      // Orbit params for smooth client-side prediction
+      // Branch A orbit params
       swingAngle: s.swingAngle || 0,
       swingElapsed: s.swingElapsed || 0,
       swingDuration: s.swingDuration || 0,
       orbitRadius: s.orbitRadius || 0,
+      // Branch B grappling hook params
+      swingActive: s.swingActive || false,
+      tetherLength: s.tetherLength || 0,
+      grapplingPullForce: s.grapplingPullForce || 0,
+      swingMaxDuration: s.swingMaxDuration || 0,
+      swingCommitMs: s.swingCommitMs || 0,
+      flightDuration: s.flightDuration || 0,
     }));
   }
 

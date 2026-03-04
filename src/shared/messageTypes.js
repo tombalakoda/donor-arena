@@ -7,6 +7,9 @@ export const MSG = {
   CLIENT_READY: 'c:ready',
   CLIENT_PING: 'c:ping',
 
+  // Client -> Server (spells)
+  CLIENT_HOOK_RELEASE: 'c:hookRelease',
+
   // Client -> Server (shop)
   CLIENT_SHOP_UNLOCK_SLOT: 'c:shopUnlockSlot',
   CLIENT_SHOP_CHOOSE_BRANCH: 'c:shopChooseBranch',

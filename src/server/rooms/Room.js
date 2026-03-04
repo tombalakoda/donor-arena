@@ -110,6 +110,11 @@ export class Room {
       this.handleSpellCast(playerId, data);
     });
 
+    // Listen for hook release (grappling hook Branch B)
+    socket.on(MSG.CLIENT_HOOK_RELEASE, () => {
+      this.spells.requestHookRelease(playerId);
+    });
+
     // Listen for shop purchases
     socket.on(MSG.CLIENT_SHOP_UNLOCK_SLOT, (data) => {
       this.handleShopUnlockSlot(playerId, data);

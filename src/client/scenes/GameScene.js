@@ -31,15 +31,12 @@ export class GameScene extends Phaser.Scene {
     this.speedTrail = [];  // Array of { x, y, alpha } for knockback speed lines
     this.knockbackUntil = 0;  // performance.now() timestamp when knockback ends
 
-    // Slingshot orbital prediction state
-    this.slingshotActive = false;
-    this.slingshotAnchorX = 0;
-    this.slingshotAnchorY = 0;
-    this.slingshotAngle = 0;
-    this.slingshotRadius = 0;
-    this.slingshotElapsed = 0;
-    this.slingshotDuration = 0;
-    this.slingshotLastServerTick = 0;
+    // Grappling hook pendulum state (Branch B)
+    this.grapplingActive = false;
+    this.grapplingAnchorX = 0;
+    this.grapplingAnchorY = 0;
+    this.grapplingTetherLength = 0;
+    this.grapplingPullForce = 0;
     this.localHp = 100;
     this.localMaxHp = 100;
 
@@ -497,8 +494,21 @@ export class GameScene extends Phaser.Scene {
   reconcileLocalPlayer(serverState) {
     if (!this.playerBody) return;
 
-    // During slingshot swing: orbital prediction handles position, skip reconciliation
-    if (this.slingshotActive) return;
+    // During grappling swing: force-based prediction handles position, use soft reconciliation
+    if (this.grapplingActive) {
+      // Soft blend (0.3) instead of full skip — force prediction drifts naturally
+      const pos = this.playerBody.position;
+      const dx = serverState.x - pos.x;
+      const dy = serverState.y - pos.y;
+      const distSq = dx * dx + dy * dy;
+      if (distSq > 4) {
+        MatterBody.setPosition(this.playerBody, {
+          x: pos.x + dx * 0.3,
+          y: pos.y + dy * 0.3,
+        });
+      }
+      return;
+    }
 
     // Update knockback state from server
     if (serverState.kb > 0) {
@@ -633,24 +643,17 @@ export class GameScene extends Phaser.Scene {
     const lerpFactor = 0.15;
 
     for (const [id, rp] of this.remotePlayers) {
-      // Check if this remote player is mid-orbit (slingshot or being swung) — use orbital prediction
+      // Check if this remote player is mid-hook-swing — use orbital/aggressive lerp
       let usedOrbitalPrediction = false;
       if (this.lastServerSpells) {
-        // Branch B: this player is the caster doing a slingshot (orbits anchor point)
-        const slingshotSpell = this.lastServerSpells.find(
-          s => s.pullSelf && s.hooked && !s.released && s.ownerId === id && s.swingDuration > 0
+        // Branch B grappling: use aggressive lerp (force prediction impractical for remote)
+        const grapplingSpell = this.lastServerSpells.find(
+          s => s.pullSelf && s.hooked && s.swingActive && !s.released && s.ownerId === id
         );
-        if (slingshotSpell) {
-          const timeSinceUpdate = (performance.now() - (rp.lastUpdateTime || performance.now())) / 1000;
-          const localElapsed = slingshotSpell.swingElapsed + timeSinceUpdate * 1000;
-          if (localElapsed < slingshotSpell.swingDuration) {
-            const t = localElapsed / slingshotSpell.swingDuration;
-            const angularSpeed = 4 + t * 6;
-            const predictedAngle = slingshotSpell.swingAngle + angularSpeed * timeSinceUpdate;
-            rp.x = slingshotSpell.anchorX + Math.cos(predictedAngle) * slingshotSpell.orbitRadius;
-            rp.y = slingshotSpell.anchorY + Math.sin(predictedAngle) * slingshotSpell.orbitRadius;
-            usedOrbitalPrediction = true;
-          }
+        if (grapplingSpell) {
+          rp.x += (rp.targetX - rp.x) * 0.4; // aggressive lerp
+          rp.y += (rp.targetY - rp.y) * 0.4;
+          usedOrbitalPrediction = true;
         }
 
         // Branch A: this player is being swung by someone (orbits around the caster)
@@ -659,7 +662,6 @@ export class GameScene extends Phaser.Scene {
             s => !s.pullSelf && s.hooked && !s.released && s.hookedPlayerId === id && s.swingDuration > 0
           );
           if (swingSpell) {
-            // Orbit center is the caster's position
             let centerX, centerY;
             if (swingSpell.ownerId === this.localPlayerId && this.playerBody) {
               centerX = this.playerBody.position.x;
@@ -996,9 +998,9 @@ export class GameScene extends Phaser.Scene {
     // Remove visuals for spells no longer on server
     for (const [id, visual] of this.spellVisuals) {
       if (!activeIds.has(id) && visual.elapsed > 200) {
-        // Deactivate slingshot if the removed spell was providing slingshot state
-        if (visual.pullSelf && visual.ownerId === this.localPlayerId && this.slingshotActive) {
-          this.slingshotActive = false;
+        // Deactivate grappling if the removed spell was providing grappling state
+        if (visual.pullSelf && visual.ownerId === this.localPlayerId && this.grapplingActive) {
+          this.grapplingActive = false;
         }
         this.destroySpellVisual(visual);
         this.spellVisuals.delete(id);
@@ -1044,21 +1046,18 @@ export class GameScene extends Phaser.Scene {
         visual.serverAnchorY = spell.anchorY || 0;
         visual.serverReleased = spell.released;
 
-        // --- Slingshot orbital prediction: detect activation for local player ---
-        if (spell.pullSelf && spell.hooked && !spell.released && spell.ownerId === this.localPlayerId) {
-          this.slingshotActive = true;
-          this.slingshotAnchorX = spell.anchorX;
-          this.slingshotAnchorY = spell.anchorY;
-          this.slingshotAngle = spell.swingAngle;
-          this.slingshotRadius = spell.orbitRadius;
-          this.slingshotElapsed = spell.swingElapsed;
-          this.slingshotDuration = spell.swingDuration;
-          this.slingshotLastServerTick = performance.now();
+        // --- Grappling hook: detect activation for local player ---
+        if (spell.pullSelf && spell.hooked && spell.swingActive && !spell.released && spell.ownerId === this.localPlayerId) {
+          this.grapplingActive = true;
+          this.grapplingAnchorX = spell.anchorX;
+          this.grapplingAnchorY = spell.anchorY;
+          this.grapplingTetherLength = spell.tetherLength;
+          this.grapplingPullForce = spell.grapplingPullForce;
         }
-        // Deactivate slingshot when released or no longer swinging
-        if (spell.pullSelf && spell.ownerId === this.localPlayerId && (spell.released || !spell.hooked)) {
-          if (this.slingshotActive) {
-            this.slingshotActive = false;
+        // Deactivate grappling when released or no longer swinging
+        if (spell.pullSelf && spell.ownerId === this.localPlayerId && (spell.released || !spell.hooked || !spell.swingActive)) {
+          if (this.grapplingActive) {
+            this.grapplingActive = false;
           }
         }
 
@@ -1067,11 +1066,11 @@ export class GameScene extends Phaser.Scene {
         visual.sprite.x += (spell.x - visual.sprite.x) * lerpFactor;
         visual.sprite.y += (spell.y - visual.sprite.y) * lerpFactor;
 
-        // For Branch B slingshot: chain goes from anchor to caster (not caster to hook)
+        // For Branch B grapple: chain goes from anchor to caster (not caster to hook)
         // For Branch A swing: chain goes from caster to hooked enemy
         let chainFromX, chainFromY, chainToX, chainToY;
         if (spell.pullSelf && spell.hooked) {
-          // Slingshot: chain from anchor point to caster
+          // Grapple: chain from anchor point to caster
           chainFromX = spell.anchorX || visual.sprite.x;
           chainFromY = spell.anchorY || visual.sprite.y;
           chainToX = visual.originX;
@@ -1759,7 +1758,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.processPendingSpells();
     this.updateLocalMovement(delta);
-    this.updateSlingshotPrediction(delta);
+    this.updateGrapplingPrediction(delta);
     this.syncLocalVisuals();
     this.interpolateRemotePlayers();
     this.updateSpellInput();
@@ -1785,8 +1784,8 @@ export class GameScene extends Phaser.Scene {
     if (this.matchEndOverlay && this.matchEndOverlay.visible) return;
     if (!this.playerBody || !this.moveTarget) return;
 
-    // During slingshot or knockback: no movement forces
-    if (this.slingshotActive) return;
+    // During grappling or knockback: no movement forces
+    if (this.grapplingActive) return;
     if (performance.now() < this.knockbackUntil) return;
 
     const pos = this.playerBody.position;
@@ -1829,41 +1828,50 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  updateSlingshotPrediction(delta) {
-    if (!this.slingshotActive || !this.playerBody) return;
-    if (this.slingshotDuration <= 0) return;
+  updateGrapplingPrediction(delta) {
+    if (!this.grapplingActive || !this.playerBody) return;
 
-    // Calculate how far into the swing we are (server elapsed + time since last server tick)
-    const timeSinceServerTick = performance.now() - this.slingshotLastServerTick;
-    const localElapsed = this.slingshotElapsed + timeSinceServerTick;
+    const pos = this.playerBody.position;
+    const dx = this.grapplingAnchorX - pos.x;
+    const dy = this.grapplingAnchorY - pos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 1) return;
 
-    // If swing is ending, deactivate — let normal reconciliation handle the release
-    if (localElapsed >= this.slingshotDuration) {
-      this.slingshotActive = false;
-      return;
+    const nx = dx / dist;
+    const ny = dy / dist;
+
+    // Apply centripetal pull toward anchor (scaled by delta for frame-rate independence)
+    const timeScale = delta / 50; // match server tick rate
+    const force = this.grapplingPullForce * timeScale;
+    MatterBody.applyForce(this.playerBody, this.playerBody.position, {
+      x: nx * force,
+      y: ny * force,
+    });
+
+    // Tether constraint: can't go further than tether + 10% slack
+    const maxTether = this.grapplingTetherLength * 1.1;
+    if (dist > maxTether) {
+      const clampX = this.grapplingAnchorX - nx * maxTether;
+      const clampY = this.grapplingAnchorY - ny * maxTether;
+      MatterBody.setPosition(this.playerBody, { x: clampX, y: clampY });
+      // Remove radial velocity component (keep only tangential)
+      const vel = this.playerBody.velocity;
+      const radialComponent = vel.x * nx + vel.y * ny;
+      if (radialComponent < 0) {
+        MatterBody.setVelocity(this.playerBody, {
+          x: vel.x - radialComponent * nx,
+          y: vel.y - radialComponent * ny,
+        });
+      }
     }
 
-    // Replicate server's angular speed ramp: 4 → 10 rad/s over swing duration
-    const t = Math.min(localElapsed / this.slingshotDuration, 1);
-    const angularSpeed = 4 + t * 6;
-
-    // Advance angle from last server-synced angle
-    const timeSinceServerSec = timeSinceServerTick / 1000;
-    const predictedAngle = this.slingshotAngle + angularSpeed * timeSinceServerSec;
-
-    // Compute orbital position
-    const orbitX = this.slingshotAnchorX + Math.cos(predictedAngle) * this.slingshotRadius;
-    const orbitY = this.slingshotAnchorY + Math.sin(predictedAngle) * this.slingshotRadius;
-
-    // Set the physics body to the predicted orbital position
-    MatterBody.setPosition(this.playerBody, { x: orbitX, y: orbitY });
-    MatterBody.setVelocity(this.playerBody, { x: 0, y: 0 });
+    // No speed cap during grappling — the whole point is building speed
   }
 
   sendInputToServer() {
     if (!this.network || !this.network.connected || !this.moveTarget) return;
-    // Don't send input during slingshot or knockback — server ignores it anyway
-    if (this.slingshotActive) return;
+    // Don't send input during grappling or knockback — server ignores it anyway
+    if (this.grapplingActive) return;
     if (performance.now() < this.knockbackUntil) return;
     this.network.sendInput({
       targetX: this.moveTarget.x,
@@ -1882,6 +1890,11 @@ export class GameScene extends Phaser.Scene {
       if (Phaser.Input.Keyboard.JustDown(this.spellKeys[key])) {
         // Check if spell slot is locked
         if (this.progression && this.progression.slots[key] === 'locked') continue;
+        // If mid-grapple and pressing R, this is a release, not a new cast
+        if (key === 'R' && this.grapplingActive) {
+          this.network.sendHookRelease();
+          continue;
+        }
         this.castSpell(key);
       }
     }
@@ -1919,28 +1932,45 @@ export class GameScene extends Phaser.Scene {
           }
         }
 
-        // Redraw chain every frame with proper slingshot support
+        // Redraw chain every frame
         if (visual.chain && !visual.chain.destroyed) {
-          let chainFromX, chainFromY, chainToX, chainToY;
-          if (visual.pullSelf && visual.hooked) {
-            // Slingshot: chain from anchor to caster (updated at 60fps)
-            chainFromX = visual.serverAnchorX || visual.sprite.x;
-            chainFromY = visual.serverAnchorY || visual.sprite.y;
-            chainToX = visual.originX;
-            chainToY = visual.originY;
+          // Hide chain during flight phase (released + pullSelf)
+          if (visual.pullSelf && visual.serverReleased) {
+            visual.chain.clear();
           } else {
-            // Normal / Branch A: chain from caster to hook/enemy
-            chainFromX = visual.originX;
-            chainFromY = visual.originY;
-            chainToX = visual.sprite.x;
-            chainToY = visual.sprite.y;
+            let chainFromX, chainFromY, chainToX, chainToY;
+            let lineWidth = 3;
+            let chainColor = visual.chainColor || 0xaaaaaa;
+
+            if (visual.pullSelf && visual.hooked) {
+              // Grappling hook: chain from anchor to caster
+              chainFromX = visual.serverAnchorX || visual.sprite.x;
+              chainFromY = visual.serverAnchorY || visual.sprite.y;
+              chainToX = visual.originX;
+              chainToY = visual.originY;
+              // Thicker chain during swing, color shifts with speed
+              lineWidth = 4;
+              if (visual.ownerId === this.localPlayerId && this.playerBody) {
+                const vel = this.playerBody.velocity;
+                const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+                const normalMax = PLAYER.SPEED * 0.05;
+                if (speed > normalMax * 3) chainColor = 0xff6600;      // orange at high speed
+                else if (speed > normalMax * 1.5) chainColor = 0xddaa44; // yellow-ish
+              }
+            } else {
+              // Normal / Branch A: chain from caster to hook/enemy
+              chainFromX = visual.originX;
+              chainFromY = visual.originY;
+              chainToX = visual.sprite.x;
+              chainToY = visual.sprite.y;
+            }
+            visual.chain.clear();
+            visual.chain.lineStyle(lineWidth, chainColor, 0.7);
+            visual.chain.beginPath();
+            visual.chain.moveTo(chainFromX, chainFromY);
+            visual.chain.lineTo(chainToX, chainToY);
+            visual.chain.strokePath();
           }
-          visual.chain.clear();
-          visual.chain.lineStyle(3, visual.chainColor || 0xaaaaaa, 0.7);
-          visual.chain.beginPath();
-          visual.chain.moveTo(chainFromX, chainFromY);
-          visual.chain.lineTo(chainToX, chainToY);
-          visual.chain.strokePath();
         }
       } else if (visual.type === SPELL_TYPES.BLINK || visual.type === SPELL_TYPES.DASH) {
         // Fade out over lifetime
