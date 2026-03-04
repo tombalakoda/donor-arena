@@ -23,7 +23,7 @@ export const SPELLS = {
     fx: {
       sprite: 'fx-flam',
       animKey: 'fx-flam-play',
-      scale: 1.5,
+      scale: 0.9,
       sound: 'sfx-fireball',
       color: 0xff4400,
       glowColor: 0xff8800,
@@ -39,7 +39,7 @@ export const SPELLS = {
     fx: {
       sprite: 'fx-spirit',
       animKey: 'fx-spirit-play',
-      scale: 2,
+      scale: 1.2,
       sound: 'sfx-blink',
       color: 0x44ddff,
     },
@@ -54,7 +54,7 @@ export const SPELLS = {
     fx: {
       sprite: 'fx-ice',
       animKey: 'fx-ice-play',
-      scale: 1.5,
+      scale: 0.9,
       sound: 'sfx-ice',
       color: 0x44ddff,
       glowColor: 0x88eeff,
@@ -70,7 +70,7 @@ export const SPELLS = {
     fx: {
       sprite: 'fx-rock',
       animKey: 'fx-rock-play',
-      scale: 1.5,
+      scale: 0.9,
       sound: 'sfx-hook',
       color: 0x886644,
       chainColor: 0xaaaaaa,

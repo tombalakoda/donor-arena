@@ -9,7 +9,7 @@ import { MatchEndOverlay } from '../ui/MatchEndOverlay.js';
 import { LobbyOverlay } from '../ui/LobbyOverlay.js';
 
 const MatterBody = Phaser.Physics.Matter.Matter.Body;
-const SPRITE_SCALE = 3;
+const SPRITE_SCALE = 2.25;
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -889,7 +889,7 @@ export class GameScene extends Phaser.Scene {
         const glowColor = fx.glowColor || color;
 
         // Glow circle behind the projectile
-        const glow = this.add.circle(spell.x, spell.y, (spell.radius || 8) + 10, glowColor, 0.25);
+        const glow = this.add.circle(spell.x, spell.y, (spell.radius || 5) + 6, glowColor, 0.25);
         glow.setDepth(15);
 
         // Animated FX sprite
@@ -1029,12 +1029,12 @@ export class GameScene extends Phaser.Scene {
         const spriteKey = fx.sprite || 'fx-ice';
         const animKey = fx.animKey || 'fx-ice-play';
         const color = fx.color || 0x44ddff;
-        const zoneRadius = spell.radius || 60;
+        const zoneRadius = spell.radius || 35;
 
         // Zone circle
         const zone = this.add.circle(spell.x, spell.y, zoneRadius, color, 0.2);
         zone.setDepth(5);
-        zone.setStrokeStyle(2, color, 0.6);
+        zone.setStrokeStyle(1.5, color, 0.6);
 
         // FX sprite in center
         const sprite = this.add.sprite(spell.x, spell.y, spriteKey);
@@ -1066,7 +1066,7 @@ export class GameScene extends Phaser.Scene {
 
       case SPELL_TYPES.INSTANT: {
         // Shockwave ring that expands briefly
-        const ring = this.add.circle(spell.x, spell.y, spell.radius || 120, 0xffdd44, 0.3);
+        const ring = this.add.circle(spell.x, spell.y, spell.radius || 75, 0xffdd44, 0.3);
         ring.setDepth(5);
         ring.setStrokeStyle(3, 0xffee66, 0.8);
         ring.isFilled = false;
@@ -1344,7 +1344,7 @@ export class GameScene extends Phaser.Scene {
     for (const obs of obstacles) {
       const worldX = obs.x - half;
       const worldY = obs.y - half;
-      const scale = obs.scale || 3;
+      const scale = obs.scale || 2.25;
       const radius = obs.radius || 24;
 
       // Subtle shadow under the pillar

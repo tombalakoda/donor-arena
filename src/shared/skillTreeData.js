@@ -17,7 +17,7 @@ export const SKILL_TREE = {
       cooldown: 2200,         // was 2500 — primary tool, slightly faster
       speed: 8,
       range: 400,
-      radius: 12,
+      radius: 7,
       lifetime: 2000,
       piercing: false,
     },
@@ -39,9 +39,9 @@ export const SKILL_TREE = {
         icon: 'spell-Explosion',
         tiers: [
           { cost: 3, name: 'Heavy Impact', description: 'Bigger push, slightly slower', mods: { damage: 2, knockbackForce: 0.02, speed: -1 } },
-          { cost: 3, name: 'Blast Radius', description: 'Explodes on impact — pushes everyone nearby', mods: { explosionRadius: 70, knockbackForce: 0.01 } },
-          { cost: 3, name: 'Shockwave', description: 'Even more knockback, larger blast', mods: { knockbackForce: 0.02, explosionRadius: 20 } },
-          { cost: 4, name: 'Cataclysm', description: 'Devastating push — guaranteed ring-out at high vulnerability', mods: { damage: 3, knockbackForce: 0.03, explosionRadius: 10 } },
+          { cost: 3, name: 'Blast Radius', description: 'Explodes on impact — pushes everyone nearby', mods: { explosionRadius: 45, knockbackForce: 0.01 } },
+          { cost: 3, name: 'Shockwave', description: 'Even more knockback, larger blast', mods: { knockbackForce: 0.02, explosionRadius: 12 } },
+          { cost: 4, name: 'Cataclysm', description: 'Devastating push — guaranteed ring-out at high vulnerability', mods: { damage: 3, knockbackForce: 0.03, explosionRadius: 6 } },
         ],
       },
     },
@@ -79,7 +79,7 @@ export const SKILL_TREE = {
         tiers: [
           { cost: 3, name: 'Shoulder Check', description: 'Dash pushes enemies hard', mods: { dashDamage: 3, dashKnockback: 0.04, range: -60 } },
           { cost: 3, name: 'Momentum', description: 'Even more push, reduced cooldown', mods: { dashKnockback: 0.02, cooldown: -800 } },
-          { cost: 3, name: 'Battering Ram', description: 'Wider dash, more push', mods: { dashDamage: 2, dashKnockback: 0.01, dashWidth: 25 } },
+          { cost: 3, name: 'Battering Ram', description: 'Wider dash, more push', mods: { dashDamage: 2, dashKnockback: 0.01, dashWidth: 15 } },
           { cost: 4, name: 'Unstoppable', description: 'Devastating slam — launches enemies', mods: { dashDamage: 3, dashKnockback: 0.03, cooldown: -700 } },
         ],
       },
@@ -99,7 +99,7 @@ export const SKILL_TREE = {
       cooldown: 3500,         // was 4000 — utility should be available
       speed: 7,
       range: 350,
-      radius: 10,
+      radius: 6,
       lifetime: 2000,
       piercing: false,
       slowAmount: 0.5,        // was 0.4 — stronger slow for edge traps
@@ -123,10 +123,10 @@ export const SKILL_TREE = {
         description: 'Drop a slow zone at the ring edge — trap enemies in the danger zone',
         icon: 'spell-Mist',
         tiers: [
-          { cost: 3, name: 'Frost Ring', description: 'Drop a frost zone instead of firing a bolt', mods: { convertToZone: true, zoneRadius: 70, zoneDuration: 3500 } },
-          { cost: 3, name: 'Expanding Cold', description: 'Larger zone, lasts longer', mods: { zoneRadius: 25, zoneDuration: 1000 } },
+          { cost: 3, name: 'Frost Ring', description: 'Drop a frost zone instead of firing a bolt', mods: { convertToZone: true, zoneRadius: 45, zoneDuration: 3500 } },
+          { cost: 3, name: 'Expanding Cold', description: 'Larger zone, lasts longer', mods: { zoneRadius: 15, zoneDuration: 1000 } },
           { cost: 3, name: 'Hypothermia', description: 'Zone slows much more — enemies can barely move', mods: { zoneDamage: 1, slowAmount: 0.15 } },
-          { cost: 4, name: 'Ice Age', description: 'Massive slow zone — covers the ring edge', mods: { zoneRadius: 30, zoneDuration: 1500, zoneDamage: 1, slowAmount: 0.1 } },
+          { cost: 4, name: 'Ice Age', description: 'Massive slow zone — covers the ring edge', mods: { zoneRadius: 18, zoneDuration: 1500, zoneDamage: 1, slowAmount: 0.1 } },
         ],
       },
     },
@@ -145,7 +145,7 @@ export const SKILL_TREE = {
       cooldown: 8000,         // was 10000 — faster sumo pacing
       speed: 12,
       range: 320,             // was 300 — slightly longer reach
-      radius: 14,
+      radius: 8,
       lifetime: 1500,
       pullForce: 0.06,        // was 0.04 — stronger displacement
     },

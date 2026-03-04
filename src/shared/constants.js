@@ -7,7 +7,7 @@ export const PHYSICS = {
 };
 
 export const PLAYER = {
-  RADIUS: 18,                     // Physics body radius (world pixels)
+  RADIUS: 14,                     // Physics body radius (world pixels) — scaled down for bigger-feeling arena
   MASS: 20,                       // Very heavy — sluggish acceleration, weighty collisions
   SPEED: 22,                      // Slow top speed — projectiles are much faster
   FRICTION: 0.01,                 // Near-zero surface friction — ice
@@ -15,7 +15,7 @@ export const PLAYER = {
   RESTITUTION: 0.8,               // Bounciness — high for satisfying billiard-ball collisions on ice
   FRICTION_STATIC: 0.01,          // Near-zero — easy to slide
   MAX_HP: 100,
-  STOP_RADIUS: 10,                // Stop applying thrust within this distance
+  STOP_RADIUS: 8,                 // Stop applying thrust within this distance
   KNOCKBACK_GRACE_MS: 500,        // After knockback hit, player slides freely (was 300 — longer for sumo drama)
   KNOCKBACK_BASE_MULT: 1.0,       // Minimum knockback multiplier at full HP
   KNOCKBACK_SCALE: 2.5,           // At 0 HP remaining, knockback is (1 + 2.5) = 3.5× base (Smash Bros %)
@@ -26,7 +26,7 @@ export const ARENA = {
   FLOOR_SIZE: 1200,               // Total floor area (square)
   RING_SHRINK_BASE: 2.0,          // Base shrink per second (was 1.5 — faster pressure)
   RING_SHRINK_SCALE: 0.5,         // Additional shrink per round number (was 0.3)
-  MIN_RING_RADIUS: 80,            // Ring never shrinks below this (was 100 — tighter endgame)
+  MIN_RING_RADIUS: 60,            // Ring never shrinks below this — tighter endgame for smaller players
 };
 
 export const ROUND = {
