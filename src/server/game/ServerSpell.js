@@ -273,10 +273,35 @@ export class ServerSpell {
     const dy = targetY - originY;
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
     const maxRange = stats.range || 140;
-    const dashDist = Math.min(dist, maxRange);
+    let dashDist = Math.min(dist, maxRange);
 
     const nx = dx / dist;
     const ny = dy / dist;
+
+    // Check obstacle collision along dash path — stop at obstacle edge
+    if (this.obstacleManager) {
+      for (const obs of this.obstacleManager.getObstacles()) {
+        // Project obstacle center onto dash line to find closest approach
+        const opx = obs.x - originX;
+        const opy = obs.y - originY;
+        const t = Math.max(0, (opx * nx + opy * ny));
+        if (t > dashDist) continue; // obstacle is beyond dash endpoint
+        const closestX = originX + nx * t;
+        const closestY = originY + ny * t;
+        const cdx = obs.x - closestX;
+        const cdy = obs.y - closestY;
+        const closestDist = Math.sqrt(cdx * cdx + cdy * cdy);
+        const clearance = obs.radius + PLAYER.RADIUS + 2; // 2px buffer
+        if (closestDist < clearance) {
+          // Obstacle blocks the path — stop just before it
+          const stopT = Math.max(0, t - clearance);
+          if (stopT < dashDist) {
+            dashDist = stopT;
+          }
+        }
+      }
+    }
+
     const destX = originX + nx * dashDist;
     const destY = originY + ny * dashDist;
 
