@@ -678,11 +678,14 @@ export class GameScene extends Phaser.Scene {
   removeRemotePlayer(playerId) {
     const rp = this.remotePlayers.get(playerId);
     if (rp) {
-      rp.sprite.destroy();
-      rp.shadow.destroy();
-      rp.nameLabel.destroy();
-      rp.hpBg.destroy();
-      rp.hpFill.destroy();
+      if (rp.sprite && !rp.sprite.destroyed) {
+        this.tweens.killTweensOf(rp.sprite);
+        rp.sprite.destroy();
+      }
+      if (rp.shadow && !rp.shadow.destroyed) rp.shadow.destroy();
+      if (rp.nameLabel && !rp.nameLabel.destroyed) rp.nameLabel.destroy();
+      if (rp.hpBg && !rp.hpBg.destroyed) rp.hpBg.destroy();
+      if (rp.hpFill && !rp.hpFill.destroyed) rp.hpFill.destroy();
       this.remotePlayers.delete(playerId);
     }
   }
@@ -2409,9 +2412,12 @@ export class GameScene extends Phaser.Scene {
     }
     this.spellVisuals.clear();
 
-    // Cleanup remote player sprites, shadows, labels, HP bars
+    // Cleanup remote player sprites, shadows, labels, HP bars (kill tweens first)
     for (const [id, rp] of this.remotePlayers) {
-      if (rp.sprite && !rp.sprite.destroyed) rp.sprite.destroy();
+      if (rp.sprite && !rp.sprite.destroyed) {
+        this.tweens.killTweensOf(rp.sprite);
+        rp.sprite.destroy();
+      }
       if (rp.shadow && !rp.shadow.destroyed) rp.shadow.destroy();
       if (rp.nameLabel && !rp.nameLabel.destroyed) rp.nameLabel.destroy();
       if (rp.hpBg && !rp.hpBg.destroyed) rp.hpBg.destroy();
@@ -2445,6 +2451,7 @@ export class GameScene extends Phaser.Scene {
     if (this.ringGraphics && !this.ringGraphics.destroyed) this.ringGraphics.destroy();
     if (this.outerRingGraphics && !this.outerRingGraphics.destroyed) this.outerRingGraphics.destroy();
     if (this.edgeVignette && !this.edgeVignette.destroyed) this.edgeVignette.destroy();
+    if (this.arenaTexture && !this.arenaTexture.destroyed) this.arenaTexture.destroy();
 
     // Clear kill feed timeouts and texts
     if (this.killFeedTimeouts) {

@@ -9,11 +9,14 @@ export class ServerSpell {
   /**
    * @param {object} physics - ServerPhysics instance
    * @param {function} getDamageTaken - callback (playerId) => damageTaken (0 = full HP)
+   * @param {object} obstacleManager - ObstacleManager instance
+   * @param {function} isEliminated - callback (playerId) => boolean — skip eliminated targets
    */
-  constructor(physics, getDamageTaken = () => 0, obstacleManager = null) {
+  constructor(physics, getDamageTaken = () => 0, obstacleManager = null, isEliminated = () => false) {
     this.physics = physics;
     this.getDamageTaken = getDamageTaken; // Smash Bros-style: lookup target vulnerability for knockback scaling
     this.obstacleManager = obstacleManager; // For spell-obstacle collision checks
+    this.isEliminated = isEliminated; // Skip eliminated players in collision checks
     this.nextSpellId = 1;      // Per-instance spell ID counter
     this.activeSpells = [];   // All active spell entities
     this.cooldowns = new Map(); // playerId -> { spellId: remainingMs }
@@ -282,6 +285,7 @@ export class ServerSpell {
     const dashWidth = stats.dashWidth || 30;
     for (const [id, body] of this.physics.playerBodies) {
       if (id === playerId) continue;
+      if (this.isEliminated(id)) continue;
 
       // Point-to-line segment distance check
       const px = body.position.x - originX;
@@ -407,6 +411,7 @@ export class ServerSpell {
     const hits = [];
     for (const [id, body] of this.physics.playerBodies) {
       if (id === playerId) continue;
+      if (this.isEliminated(id)) continue;
       const dx = body.position.x - originX;
       const dy = body.position.y - originY;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -499,6 +504,7 @@ export class ServerSpell {
         // Check collision with players
         for (const [playerId, body] of this.physics.playerBodies) {
           if (playerId === spell.ownerId) continue;
+          if (this.isEliminated(playerId)) continue;
           const dx = body.position.x - spell.x;
           const dy = body.position.y - spell.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -553,6 +559,7 @@ export class ServerSpell {
       if (spell.spellType === SPELL_TYPES.ZONE && spell.active) {
         for (const [playerId, body] of this.physics.playerBodies) {
           if (playerId === spell.ownerId) continue;
+          if (this.isEliminated(playerId)) continue;
           const dx = body.position.x - spell.x;
           const dy = body.position.y - spell.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -677,6 +684,7 @@ export class ServerSpell {
           if (spell.flightCollision) {
             for (const [playerId, body] of this.physics.playerBodies) {
               if (playerId === spell.ownerId) continue;
+              if (this.isEliminated(playerId)) continue;
               if (spell.flightHitIds.includes(playerId)) continue;
               const edx = body.position.x - casterBody.position.x;
               const edy = body.position.y - casterBody.position.y;
@@ -743,6 +751,7 @@ export class ServerSpell {
           if (spell.flightCollision) {
             for (const [playerId, body] of this.physics.playerBodies) {
               if (playerId === spell.ownerId) continue;
+              if (this.isEliminated(playerId)) continue;
               if (spell.flightHitIds.includes(playerId)) continue;
               const dx = body.position.x - casterBody.position.x;
               const dy = body.position.y - casterBody.position.y;
@@ -800,6 +809,7 @@ export class ServerSpell {
         if (!spell.pullSelf) {
           for (const [playerId, body] of this.physics.playerBodies) {
             if (playerId === spell.ownerId) continue;
+            if (this.isEliminated(playerId)) continue;
             const pdx = body.position.x - spell.x;
             const pdy = body.position.y - spell.y;
             const dist = Math.sqrt(pdx * pdx + pdy * pdy);
@@ -894,6 +904,7 @@ export class ServerSpell {
   handleExplosion(spell, impactX, impactY, directHitId = null) {
     for (const [playerId, body] of this.physics.playerBodies) {
       if (playerId === spell.ownerId) continue;
+      if (this.isEliminated(playerId)) continue;
       // Skip the direct-hit target — they already received knockback from the projectile impact
       if (playerId === directHitId) continue;
       const dx = body.position.x - impactX;

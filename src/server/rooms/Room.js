@@ -64,7 +64,14 @@ export class Room {
       const d = this.dummies.get(playerId);
       if (d) return d.maxHp - d.hp;
       return 0;
-    }, this.obstacleManager);
+    }, this.obstacleManager, (playerId) => {
+      // Check if player/dummy is eliminated — spells skip eliminated targets
+      const p = this.players.get(playerId);
+      if (p) return p.eliminated;
+      const d = this.dummies.get(playerId);
+      if (d) return d.eliminated;
+      return false;
+    });
     this.rounds = new RoundManager();
     this.progressions = new Map(); // playerId -> PlayerProgression
     this.tickInterval = null;

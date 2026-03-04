@@ -162,8 +162,11 @@ export class NetworkManager {
   disconnect() {
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
+      this.pingInterval = null;
     }
     if (this.socket) {
+      // Remove all listeners to prevent duplicates on reconnect
+      this.socket.removeAllListeners();
       this.socket.disconnect();
       this.socket = null;
     }
