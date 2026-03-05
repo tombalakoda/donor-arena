@@ -226,6 +226,11 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-button-pressed', 'assets/ui/theme-wood/button_pressed.png');
     this.load.image('ui-inventory-cell', 'assets/ui/theme-wood/inventory_cell.png');
     this.load.image('ui-heart', 'assets/ui/receptacle/Heart.png');
+    // Additional UI for menu overhaul
+    this.load.image('ui-panel-2', 'assets/ui/theme-wood/nine_path_panel_2.png');
+    this.load.image('ui-bg', 'assets/ui/theme-wood/nine_path_bg.png');
+    this.load.image('ui-panel-interior', 'assets/ui/theme-wood/nine_path_panel_interior.png');
+    this.load.image('ui-focus', 'assets/ui/theme-wood/nine_path_focus.png');
 
     // --- Load Spell Icons ---
     const spellIcons = [

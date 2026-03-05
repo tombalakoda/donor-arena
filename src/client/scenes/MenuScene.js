@@ -2,8 +2,6 @@ import Phaser from 'phaser';
 import { CHARACTERS } from './BootScene.js';
 import { getPassive } from '../../shared/characterPassives.js';
 
-const SPRITE_SCALE = 3;
-
 // Loading-screen style tips for re-use
 const TIPS = [
   'Right-click to move on ice',
@@ -20,12 +18,14 @@ export class MenuScene extends Phaser.Scene {
     super({ key: 'MenuScene' });
     this.selectedCharIndex = 0;
     this.playerName = 'Player';
-    this.charCells = [];      // { bg, sprite, nameText, highlight }
+    this.charCells = [];
     this.previewSprite = null;
     this.nameInput = null;
-    this.transitioning = false; // prevent double-clicks during fade
+    this.transitioning = false;
     this.menuMusic = null;
     this.fxCircleSprite = null;
+    this.particleEmitter = null;
+    this.floatTween = null;
   }
 
   create() {
@@ -38,43 +38,16 @@ export class MenuScene extends Phaser.Scene {
     // Fade in from black
     cam.fadeIn(500, 0, 0, 0);
 
-    // Background
-    this.add.rectangle(camW / 2, camH / 2, camW, camH, 0x0a0a1e);
-
-    // --- Decorative particles / stars ---
-    this.createBackgroundStars(camW, camH);
+    // --- Background (tiled floor + overlay + particles) ---
+    this.createBackground(camW, camH);
 
     // --- Title ---
-    const titleText = this.add.text(camW / 2, 44, 'DÖNER FIGHT', {
-      fontSize: '56px',
-      fontFamily: 'monospace',
-      fill: '#ffdd44',
-      stroke: '#000000',
-      strokeThickness: 6,
-    }).setOrigin(0.5);
+    this.createTitleArea(camW);
 
-    // Subtle title pulsing
-    this.tweens.add({
-      targets: titleText,
-      scaleX: 1.03,
-      scaleY: 1.03,
-      yoyo: true,
-      repeat: -1,
-      duration: 1200,
-      ease: 'Sine.easeInOut',
-    });
-
-    // Subtitle
-    this.add.text(camW / 2, 92, '🥙 Choose your döner 🥙', {
-      fontSize: '16px',
-      fontFamily: 'monospace',
-      fill: '#888899',
-    }).setOrigin(0.5);
-
-    // --- Character Selection Grid ---
+    // --- Character Selection Grid (left side) ---
     this.createCharacterGrid(camW, camH);
 
-    // --- Walk Preview with FX decoration ---
+    // --- Preview Panel (right side) ---
     this.createPreview(camW, camH);
 
     // --- Player Name Input ---
@@ -83,23 +56,8 @@ export class MenuScene extends Phaser.Scene {
     // --- Buttons ---
     this.createButtons(camW, camH);
 
-    // --- Bottom tip ---
-    const tipText = this.add.text(camW / 2, camH - 20, TIPS[0], {
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      fill: '#555577',
-      fontStyle: 'italic',
-    }).setOrigin(0.5);
-
-    let tipIndex = 0;
-    this._tipTimer = this.time.addEvent({
-      delay: 3000,
-      loop: true,
-      callback: () => {
-        tipIndex = (tipIndex + 1) % TIPS.length;
-        tipText.setText(TIPS[tipIndex]);
-      },
-    });
+    // --- Bottom tip bar ---
+    this.createBottomBar(camW, camH);
 
     // --- Sound Toggle ---
     this.createSoundToggle(camW);
@@ -111,208 +69,269 @@ export class MenuScene extends Phaser.Scene {
     this.startMenuMusic();
   }
 
-  createSoundToggle(camW) {
-    const isMuted = this.sound.mute;
-    const btnSize = 36;
-    const x = camW - 28;
-    const y = 28;
+  // =========================================================================
+  // BACKGROUND
+  // =========================================================================
 
-    const bg = this.add.rectangle(x, y, btnSize, btnSize, 0x1a1428, 0.9)
-      .setStrokeStyle(2, 0x3d2e1e);
-
-    const icon = this.add.text(x, y, isMuted ? '🔇' : '🔊', {
-      fontSize: '18px',
-    }).setOrigin(0.5);
-
-    const hitArea = this.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
-      .setInteractive({ useHandCursor: true });
-
-    hitArea.on('pointerover', () => bg.setStrokeStyle(2, 0xffdd44));
-    hitArea.on('pointerout', () => bg.setStrokeStyle(2, 0x3d2e1e));
-    hitArea.on('pointerdown', () => {
-      this.sound.mute = !this.sound.mute;
-      localStorage.setItem('soundMuted', this.sound.mute);
-      icon.setText(this.sound.mute ? '🔇' : '🔊');
-    });
-  }
-
-  createBackgroundStars(camW, camH) {
-    const g = this.add.graphics();
-    for (let i = 0; i < 60; i++) {
-      const x = Phaser.Math.Between(0, camW);
-      const y = Phaser.Math.Between(0, camH);
-      const alpha = 0.1 + Math.random() * 0.3;
-      const size = Math.random() < 0.3 ? 2 : 1;
-      g.fillStyle(0x6688cc, alpha);
-      g.fillRect(x, y, size, size);
-    }
-  }
-
-  startMenuMusic() {
-    // Don't restart if already playing
-    if (this.menuMusic && this.menuMusic.isPlaying) return;
-
-    if (this.sound.get('music-menu')) {
-      this.menuMusic = this.sound.get('music-menu');
-      if (!this.menuMusic.isPlaying) {
-        this.menuMusic.play({ loop: true, volume: 0.35 });
-      }
-    } else {
-      try {
-        this.menuMusic = this.sound.add('music-menu', { loop: true, volume: 0.35 });
-        this.menuMusic.play();
-      } catch (e) {
-        // Audio not available, that's fine
+  createBackground(camW, camH) {
+    // Layer 1: Tiled wood floor via RenderTexture
+    const rt = this.add.renderTexture(0, 0, camW, camH).setOrigin(0).setDepth(0);
+    // Use tile-floor frame 113 — brown wood plank tile from mid rows
+    const stamp = this.make.sprite({ x: 0, y: 0, key: 'tile-floor', frame: 113, add: false });
+    stamp.setOrigin(0);
+    const tileW = 16;
+    const tileH = 16;
+    for (let y = 0; y < camH; y += tileH) {
+      for (let x = 0; x < camW; x += tileW) {
+        rt.draw(stamp, x, y);
       }
     }
-  }
+    stamp.destroy();
 
-  stopMenuMusic() {
-    if (this.menuMusic && this.menuMusic.isPlaying) {
-      this.tweens.add({
-        targets: this.menuMusic,
-        volume: 0,
-        duration: 400,
-        onComplete: () => {
-          this.menuMusic.stop();
-        },
+    // Layer 2: Dark warm overlay
+    const overlay = this.add.graphics().setDepth(1);
+    overlay.fillStyle(0x0d0a06, 0.68);
+    overlay.fillRect(0, 0, camW, camH);
+
+    // Layer 3: Atmospheric floating spirit particles
+    if (this.textures.exists('fx-spirit')) {
+      const frameCount = this.textures.get('fx-spirit').frameTotal - 1;
+      const frames = [];
+      for (let i = 0; i < Math.min(frameCount, 4); i++) frames.push(i);
+
+      this.particleEmitter = this.add.particles(0, 0, 'fx-spirit', {
+        frame: frames,
+        x: { min: 0, max: camW },
+        y: { min: camH + 10, max: camH + 30 },
+        scale: { start: 0.5, end: 0.15 },
+        alpha: { start: 0.12, end: 0 },
+        speed: { min: 8, max: 20 },
+        angle: { min: 260, max: 280 },
+        lifespan: { min: 5000, max: 9000 },
+        frequency: 900,
+        quantity: 1,
+        blendMode: 'ADD',
       });
+      this.particleEmitter.setDepth(2);
     }
   }
 
-  playSfx(key) {
-    try {
-      this.sound.play(key, { volume: 0.5 });
-    } catch (e) {
-      // Audio not available
-    }
+  // =========================================================================
+  // TITLE
+  // =========================================================================
+
+  createTitleArea(camW) {
+    // Panel backing behind title
+    this.add.nineslice(camW / 2, 46, 'ui-panel', null, 420, 64, 4, 4, 4, 4)
+      .setAlpha(0.6).setDepth(15);
+
+    // Glow text (pulsing behind main title)
+    const titleGlow = this.add.text(camW / 2, 44, 'DÖNER FIGHT', {
+      fontSize: '52px',
+      fontFamily: 'monospace',
+      fill: '#ffaa33',
+      stroke: '#ffaa33',
+      strokeThickness: 14,
+    }).setOrigin(0.5).setAlpha(0.12).setDepth(16);
+
+    this.tweens.add({
+      targets: titleGlow,
+      alpha: { from: 0.08, to: 0.22 },
+      yoyo: true,
+      repeat: -1,
+      duration: 1500,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Main title
+    const titleText = this.add.text(camW / 2, 44, 'DÖNER FIGHT', {
+      fontSize: '52px',
+      fontFamily: 'monospace',
+      fill: '#ffdd44',
+      stroke: '#000000',
+      strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(17);
+
+    // Subtle pulsing
+    this.tweens.add({
+      targets: titleText,
+      scaleX: 1.03,
+      scaleY: 1.03,
+      yoyo: true,
+      repeat: -1,
+      duration: 1200,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Subtitle
+    this.add.text(camW / 2, 88, 'Choose your fighter', {
+      fontSize: '14px',
+      fontFamily: 'monospace',
+      fill: '#887766',
+    }).setOrigin(0.5).setDepth(17);
   }
 
-  createCharacterGrid(camW, _camH) {
-    const gridY = 170;
-    const cellSize = 78;
-    const gap = 10;
-    const totalWidth = CHARACTERS.length * cellSize + (CHARACTERS.length - 1) * gap;
-    const startX = (camW - totalWidth) / 2 + cellSize / 2;
+  // =========================================================================
+  // CHARACTER GRID (4x2, left side)
+  // =========================================================================
+
+  createCharacterGrid(_camW, _camH) {
+    const gridOriginX = 90;
+    const gridOriginY = 130;
+    const cellSize = 96;
+    const gap = 12;
+    const cols = 4;
 
     this.charCells = [];
 
     for (let i = 0; i < CHARACTERS.length; i++) {
       const char = CHARACTERS[i];
-      const x = startX + i * (cellSize + gap);
-      const y = gridY;
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = gridOriginX + col * (cellSize + gap) + cellSize / 2;
+      const y = gridOriginY + row * (cellSize + gap) + cellSize / 2;
 
-      // Cell background — wood-toned
-      const bg = this.add.rectangle(x, y, cellSize, cellSize, 0x1a1428, 0.9)
-        .setStrokeStyle(2, 0x3d2e1e);
+      // Cell background — nine-patch inventory cell
+      const bg = this.add.nineslice(x, y, 'ui-inventory-cell', null, cellSize, cellSize, 4, 4, 4, 4)
+        .setDepth(10);
 
-      // Character face portrait (if loaded, fallback to idle sprite)
+      // Face portrait
       let portrait;
       if (this.textures.exists(`${char.id}-face`)) {
         portrait = this.add.image(x, y - 6, `${char.id}-face`)
-          .setScale(1.8);
+          .setScale(1.9).setDepth(11);
       } else {
         portrait = this.add.sprite(x, y - 6, `${char.id}-idle`, 0)
-          .setScale(SPRITE_SCALE);
+          .setScale(3).setDepth(11);
       }
 
       // Character name
-      const nameText = this.add.text(x, y + 32, char.name, {
+      const nameText = this.add.text(x, y + 36, char.name, {
         fontSize: '10px',
         fontFamily: 'monospace',
-        fill: '#998877',
-      }).setOrigin(0.5);
+        fill: '#c4a882',
+      }).setOrigin(0.5).setDepth(12);
 
-      // Selection highlight (hidden by default)
-      const highlight = this.add.rectangle(x, y, cellSize + 4, cellSize + 4)
-        .setStrokeStyle(3, 0xffdd44)
-        .setFillStyle(0xffdd44, 0.08);
-      highlight.setVisible(false);
+      // Selection highlight — gold glow frame (hidden by default)
+      const highlight = this.add.nineslice(x, y, 'ui-focus', null, cellSize + 8, cellSize + 8, 3, 3, 3, 3)
+        .setDepth(13).setVisible(false);
 
-      // Make cell interactive
-      bg.setInteractive({ useHandCursor: true });
-      bg.on('pointerdown', () => {
+      // Invisible hit area for interaction
+      const hitArea = this.add.rectangle(x, y, cellSize, cellSize, 0xffffff, 0)
+        .setInteractive({ useHandCursor: true }).setDepth(14);
+
+      hitArea.on('pointerdown', () => {
         this.playSfx('sfx-accept');
         this.selectCharacter(i);
       });
-      bg.on('pointerover', () => {
+      hitArea.on('pointerover', () => {
         this.playSfx('sfx-move');
         if (this.selectedCharIndex !== i) {
-          bg.setFillStyle(0x2a2438, 0.95);
+          this.tweens.add({
+            targets: [bg, portrait, nameText],
+            scaleX: '*=1.04',
+            scaleY: '*=1.04',
+            duration: 100,
+            ease: 'Back.easeOut',
+          });
         }
       });
-      bg.on('pointerout', () => {
+      hitArea.on('pointerout', () => {
         if (this.selectedCharIndex !== i) {
-          bg.setFillStyle(0x1a1428, 0.9);
+          // Reset scale
+          bg.setScale(1);
+          portrait.setScale(this.textures.exists(`${char.id}-face`) ? 1.9 : 3);
+          nameText.setScale(1);
         }
       });
 
-      this.charCells.push({ bg, sprite: portrait, nameText, highlight });
+      this.charCells.push({ bg, portrait, nameText, highlight, hitArea, baseY: portrait.y });
     }
   }
 
-  createPreview(camW, _camH) {
-    const previewY = 330;
+  // =========================================================================
+  // PREVIEW PANEL (right side)
+  // =========================================================================
 
-    // Preview background panel
-    const panelG = this.add.graphics();
-    panelG.fillStyle(0x111122, 0.7);
-    panelG.fillRoundedRect(camW / 2 - 68, previewY - 68, 136, 136, 8);
-    panelG.lineStyle(2, 0x3d2e1e, 0.8);
-    panelG.strokeRoundedRect(camW / 2 - 68, previewY - 68, 136, 136, 8);
+  createPreview(_camW, _camH) {
+    // Outer bordered panel
+    this.add.nineslice(880, 216, 'ui-panel', null, 520, 210, 4, 4, 4, 4)
+      .setDepth(10);
 
-    // Spinning FX circle decoration behind the preview
+    // Inner dark inset area for character sprite
+    this.add.nineslice(700, 216, 'ui-panel-interior', null, 150, 180, 4, 4, 4, 4)
+      .setDepth(11);
+
+    // FX circle decoration behind character
     if (this.textures.exists('fx-circle')) {
-      this.fxCircleSprite = this.add.sprite(camW / 2, previewY, 'fx-circle', 0)
-        .setScale(4)
+      this.fxCircleSprite = this.add.sprite(700, 210, 'fx-circle', 0)
+        .setScale(4.5)
         .setAlpha(0.2)
-        .setTint(0xffaa33);
-      // Play the circle animation (looping)
+        .setTint(0xffaa33)
+        .setDepth(12);
+
       const circleAnimKey = 'fx-circle-play';
       if (this.anims.exists(circleAnimKey)) {
         this.fxCircleSprite.play({ key: circleAnimKey, repeat: -1 });
       }
     }
 
-    // Preview sprite (larger, walking animation)
-    this.previewSprite = this.add.sprite(camW / 2, previewY, 'boy-walk', 0)
-      .setScale(5);
+    // Preview walking sprite (larger)
+    this.previewSprite = this.add.sprite(700, 210, 'boy-walk', 0)
+      .setScale(6).setDepth(13);
 
-    // Selected character name (larger)
-    this.previewName = this.add.text(camW / 2, previewY + 76, 'Boy', {
-      fontSize: '22px',
+    // --- Text area (right of sprite) ---
+
+    // Character name
+    this.previewName = this.add.text(810, 145, 'Boy', {
+      fontSize: '26px',
       fontFamily: 'monospace',
       fill: '#ffdd44',
       stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5);
+      strokeThickness: 3,
+    }).setOrigin(0, 0.5).setDepth(14);
 
-    // Passive ability display
-    this.passiveName = this.add.text(camW / 2, previewY + 100, '', {
-      fontSize: '13px',
+    // Decorative separator line
+    const sep = this.add.graphics().setDepth(14);
+    sep.lineStyle(1, 0xffdd44, 0.3);
+    sep.lineBetween(810, 165, 1100, 165);
+
+    // Passive name
+    this.passiveName = this.add.text(810, 190, '', {
+      fontSize: '14px',
       fontFamily: 'monospace',
       fill: '#88ddff',
-    }).setOrigin(0.5);
+    }).setOrigin(0, 0.5).setDepth(14);
 
-    this.passiveDesc = this.add.text(camW / 2, previewY + 116, '', {
-      fontSize: '11px',
+    // Passive description
+    this.passiveDesc = this.add.text(810, 215, '', {
+      fontSize: '12px',
       fontFamily: 'monospace',
-      fill: '#8888aa',
+      fill: '#9999bb',
       fontStyle: 'italic',
-    }).setOrigin(0.5);
+      wordWrap: { width: 260 },
+    }).setOrigin(0, 0.5).setDepth(14);
   }
 
+  // =========================================================================
+  // NAME INPUT
+  // =========================================================================
+
   createNameInput(camW, _camH) {
-    const nameY = 445;
+    const nameY = 360;
+
+    // Panel container
+    this.add.nineslice(camW / 2, nameY, 'ui-panel', null, 380, 46, 4, 4, 4, 4)
+      .setDepth(10);
 
     // Label
-    this.add.text(camW / 2 - 125, nameY, 'Name:', {
-      fontSize: '18px',
+    this.add.text(camW / 2 - 150, nameY, 'Name:', {
+      fontSize: '16px',
       fontFamily: 'monospace',
       fill: '#ddccaa',
-    }).setOrigin(0, 0.5);
+    }).setOrigin(0, 0.5).setDepth(12);
 
-    // DOM text input — styled to match wood/warm theme
+    // DOM text input — transparent bg so nine-patch panel shows through
     const inputElement = document.createElement('input');
     inputElement.type = 'text';
     inputElement.value = 'Player';
@@ -320,106 +339,216 @@ export class MenuScene extends Phaser.Scene {
     inputElement.style.cssText = `
       font-size: 16px;
       font-family: monospace;
-      padding: 6px 12px;
-      width: 180px;
-      background: #1a1428;
+      padding: 4px 10px;
+      width: 200px;
+      background: transparent;
       color: #ffdd44;
-      border: 2px solid #3d2e1e;
-      border-radius: 4px;
+      border: none;
       outline: none;
+      caret-color: #ffdd44;
     `;
-    inputElement.addEventListener('focus', () => {
-      inputElement.style.borderColor = '#ffdd44';
-    });
-    inputElement.addEventListener('blur', () => {
-      inputElement.style.borderColor = '#3d2e1e';
-    });
 
-    this.nameInput = this.add.dom(camW / 2 + 30, nameY, inputElement);
+    this.nameInput = this.add.dom(camW / 2 + 40, nameY, inputElement).setDepth(12);
   }
 
-  createButtons(camW, _camH) {
-    const btnY = 525;
-    const btnGap = 190;
+  // =========================================================================
+  // BUTTONS (nine-patch textures)
+  // =========================================================================
 
-    // Play button — warm green/gold
-    this.createButton(camW / 2 - btnGap / 2, btnY, '⚔️ PLAY', 0x448833, () => {
+  createButtons(camW, _camH) {
+    const btnY = 420;
+
+    this.createButton(camW / 2 - 100, btnY, 'PLAY', () => {
       this.startGame('normal');
     });
 
-    // Sandbox button — blue
-    this.createButton(camW / 2 + btnGap / 2, btnY, '🏋️ SANDBOX', 0x335588, () => {
+    this.createButton(camW / 2 + 100, btnY, 'SANDBOX', () => {
       this.startGame('sandbox');
     });
 
     // Hint text
-    this.add.text(camW / 2, btnY + 48, 'Sandbox: Free SP, training dummies, no ring shrink', {
-      fontSize: '12px',
+    this.add.text(camW / 2, btnY + 38, 'Sandbox: Free SP, training dummies, no ring shrink', {
+      fontSize: '11px',
       fontFamily: 'monospace',
-      fill: '#555566',
-    }).setOrigin(0.5);
+      fill: '#665544',
+    }).setOrigin(0.5).setDepth(12);
   }
 
-  createButton(x, y, label, color, callback) {
-    const w = 160;
-    const h = 48;
+  createButton(x, y, label, callback) {
+    const w = 170;
+    const h = 44;
 
-    const bg = this.add.rectangle(x, y, w, h, color, 1)
-      .setStrokeStyle(2, 0xffdd44)
-      .setInteractive({ useHandCursor: true });
+    // Normal state
+    const btnNormal = this.add.nineslice(x, y, 'ui-button', null, w, h, 4, 4, 2, 2)
+      .setDepth(10);
+    // Hover state (hidden)
+    const btnHover = this.add.nineslice(x, y, 'ui-button-hover', null, w, h, 4, 4, 2, 2)
+      .setDepth(10).setVisible(false);
+    // Pressed state (hidden)
+    const btnPressed = this.add.nineslice(x, y, 'ui-button-pressed', null, w, h, 4, 4, 2, 2)
+      .setDepth(10).setVisible(false);
 
-    // Rounded corners effect via graphics
-    const glow = this.add.graphics();
-    glow.lineStyle(1, 0xffdd44, 0.15);
-    glow.strokeRoundedRect(x - w / 2 - 2, y - h / 2 - 2, w + 4, h + 4, 6);
-
-    const text = this.add.text(x, y, label, {
-      fontSize: '18px',
+    // Button label
+    const text = this.add.text(x, y - 1, label, {
+      fontSize: '16px',
       fontFamily: 'monospace',
       fill: '#ffffff',
       fontStyle: 'bold',
-    }).setOrigin(0.5);
+      stroke: '#000000',
+      strokeThickness: 1,
+    }).setOrigin(0.5).setDepth(11);
 
-    const darkerColor = Phaser.Display.Color.ValueToColor(color).darken(20).color;
-    const lighterColor = Phaser.Display.Color.ValueToColor(color).lighten(15).color;
+    // Invisible hit area
+    const hitArea = this.add.rectangle(x, y, w, h, 0xffffff, 0)
+      .setInteractive({ useHandCursor: true }).setDepth(12);
 
-    bg.on('pointerover', () => {
-      bg.setFillStyle(lighterColor);
+    hitArea.on('pointerover', () => {
+      btnNormal.setVisible(false);
+      btnHover.setVisible(true);
+      btnPressed.setVisible(false);
       this.playSfx('sfx-move');
     });
-    bg.on('pointerout', () => bg.setFillStyle(color));
-    bg.on('pointerdown', () => bg.setFillStyle(darkerColor));
-    bg.on('pointerup', () => {
-      bg.setFillStyle(color);
+    hitArea.on('pointerout', () => {
+      btnNormal.setVisible(true);
+      btnHover.setVisible(false);
+      btnPressed.setVisible(false);
+      text.setY(y - 1);
+    });
+    hitArea.on('pointerdown', () => {
+      btnNormal.setVisible(false);
+      btnHover.setVisible(false);
+      btnPressed.setVisible(true);
+      text.setY(y + 1);
+    });
+    hitArea.on('pointerup', () => {
+      btnNormal.setVisible(true);
+      btnHover.setVisible(false);
+      btnPressed.setVisible(false);
+      text.setY(y - 1);
       this.playSfx('sfx-accept');
       callback();
     });
-
-    return { bg, text };
   }
+
+  // =========================================================================
+  // BOTTOM BAR (tips + sound)
+  // =========================================================================
+
+  createBottomBar(camW, camH) {
+    // Panel behind tips
+    this.add.nineslice(camW / 2, camH - 22, 'ui-panel', null, 480, 28, 4, 4, 4, 4)
+      .setAlpha(0.35).setDepth(10);
+
+    const tipText = this.add.text(camW / 2, camH - 22, TIPS[0], {
+      fontSize: '11px',
+      fontFamily: 'monospace',
+      fill: '#887766',
+      fontStyle: 'italic',
+    }).setOrigin(0.5).setDepth(12);
+
+    let tipIndex = 0;
+    this._tipTimer = this.time.addEvent({
+      delay: 3000,
+      loop: true,
+      callback: () => {
+        tipIndex = (tipIndex + 1) % TIPS.length;
+        tipText.setText(TIPS[tipIndex]);
+      },
+    });
+  }
+
+  createSoundToggle(camW) {
+    const isMuted = this.sound.mute;
+    const btnSize = 34;
+    const x = camW - 28;
+    const y = 28;
+
+    // Nine-patch panel background
+    const bg = this.add.nineslice(x, y, 'ui-panel', null, btnSize, btnSize, 4, 4, 4, 4)
+      .setDepth(10);
+
+    const icon = this.add.text(x, y, isMuted ? '🔇' : '🔊', {
+      fontSize: '16px',
+    }).setOrigin(0.5).setDepth(12);
+
+    const hitArea = this.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
+      .setInteractive({ useHandCursor: true }).setDepth(14);
+
+    hitArea.on('pointerover', () => bg.setTint(0xddddaa));
+    hitArea.on('pointerout', () => bg.clearTint());
+    hitArea.on('pointerdown', () => {
+      this.sound.mute = !this.sound.mute;
+      localStorage.setItem('soundMuted', this.sound.mute);
+      icon.setText(this.sound.mute ? '🔇' : '🔊');
+    });
+  }
+
+  // =========================================================================
+  // CHARACTER SELECTION LOGIC
+  // =========================================================================
 
   selectCharacter(index) {
     // Deselect previous
-    if (this.charCells[this.selectedCharIndex]) {
-      const prev = this.charCells[this.selectedCharIndex];
+    const prev = this.charCells[this.selectedCharIndex];
+    if (prev) {
       prev.highlight.setVisible(false);
-      prev.bg.setFillStyle(0x1a1428, 0.9);
-      prev.nameText.setColor('#998877');
+      prev.nameText.setColor('#c4a882');
+      prev.bg.setScale(1);
+      prev.portrait.setScale(this.textures.exists(`${CHARACTERS[this.selectedCharIndex].id}-face`) ? 1.9 : 3);
+      prev.nameText.setScale(1);
+      // Stop floating tween on previous
+      if (this.floatTween) {
+        this.floatTween.stop();
+        this.floatTween = null;
+        prev.portrait.setY(prev.baseY);
+      }
     }
 
     this.selectedCharIndex = index;
     const cell = this.charCells[index];
     const char = CHARACTERS[index];
 
-    // Highlight selected
+    // Highlight selected cell
     cell.highlight.setVisible(true);
-    cell.bg.setFillStyle(0x2a2438, 0.95);
     cell.nameText.setColor('#ffdd44');
 
-    // Update preview
+    // Selection bounce
+    this.tweens.add({
+      targets: [cell.bg, cell.portrait, cell.nameText],
+      scaleX: '*=1.06',
+      scaleY: '*=1.06',
+      yoyo: true,
+      duration: 120,
+      ease: 'Back.easeOut',
+    });
+
+    // Gentle floating tween on selected portrait
+    this.floatTween = this.tweens.add({
+      targets: cell.portrait,
+      y: cell.baseY - 2,
+      yoyo: true,
+      repeat: -1,
+      duration: 1200,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Update preview panel — fade transition
     if (this.previewSprite) {
-      this.previewSprite.play(`${char.id}-walk-down`);
+      this.tweens.add({
+        targets: this.previewSprite,
+        alpha: 0,
+        duration: 80,
+        onComplete: () => {
+          this.previewSprite.play(`${char.id}-walk-down`);
+          this.tweens.add({
+            targets: this.previewSprite,
+            alpha: 1,
+            duration: 120,
+          });
+        },
+      });
     }
+
     if (this.previewName) {
       this.previewName.setText(char.name);
     }
@@ -433,6 +562,10 @@ export class MenuScene extends Phaser.Scene {
       this.passiveDesc.setText(passive.description || '');
     }
   }
+
+  // =========================================================================
+  // GAME START
+  // =========================================================================
 
   startGame(mode) {
     if (this.transitioning) return;
@@ -459,6 +592,12 @@ export class MenuScene extends Phaser.Scene {
       this._tipTimer = null;
     }
 
+    // Clean up particles
+    if (this.particleEmitter) {
+      this.particleEmitter.destroy();
+      this.particleEmitter = null;
+    }
+
     // Fade out then transition
     this.cameras.main.fadeOut(400, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
@@ -468,5 +607,48 @@ export class MenuScene extends Phaser.Scene {
         mode: mode,
       });
     });
+  }
+
+  // =========================================================================
+  // AUDIO
+  // =========================================================================
+
+  startMenuMusic() {
+    if (this.menuMusic && this.menuMusic.isPlaying) return;
+
+    if (this.sound.get('music-menu')) {
+      this.menuMusic = this.sound.get('music-menu');
+      if (!this.menuMusic.isPlaying) {
+        this.menuMusic.play({ loop: true, volume: 0.35 });
+      }
+    } else {
+      try {
+        this.menuMusic = this.sound.add('music-menu', { loop: true, volume: 0.35 });
+        this.menuMusic.play();
+      } catch (e) {
+        // Audio not available
+      }
+    }
+  }
+
+  stopMenuMusic() {
+    if (this.menuMusic && this.menuMusic.isPlaying) {
+      this.tweens.add({
+        targets: this.menuMusic,
+        volume: 0,
+        duration: 400,
+        onComplete: () => {
+          this.menuMusic.stop();
+        },
+      });
+    }
+  }
+
+  playSfx(key) {
+    try {
+      this.sound.play(key, { volume: 0.5 });
+    } catch (e) {
+      // Audio not available
+    }
   }
 }
