@@ -12,4 +12,7 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
   },
+  test: {
+    include: ['tests/**/*.test.js'],
+  },
 });
