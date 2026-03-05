@@ -34,38 +34,17 @@ export class MenuScene extends Phaser.Scene {
     const camH = cam.height;
 
     this.transitioning = false;
-
-    // Fade in from black
     cam.fadeIn(500, 0, 0, 0);
 
-    // --- Background (tiled floor + overlay + particles) ---
     this.createBackground(camW, camH);
-
-    // --- Title ---
     this.createTitleArea(camW);
-
-    // --- Character Selection Grid (left side) ---
     this.createCharacterGrid(camW, camH);
-
-    // --- Preview Panel (right side) ---
     this.createPreview(camW, camH);
-
-    // --- Player Name Input ---
     this.createNameInput(camW, camH);
-
-    // --- Buttons ---
     this.createButtons(camW, camH);
-
-    // --- Bottom tip bar ---
     this.createBottomBar(camW, camH);
-
-    // --- Sound Toggle ---
     this.createSoundToggle(camW);
-
-    // Select default character
     this.selectCharacter(0);
-
-    // --- Start menu music ---
     this.startMenuMusic();
   }
 
@@ -76,13 +55,10 @@ export class MenuScene extends Phaser.Scene {
   createBackground(camW, camH) {
     // Layer 1: Tiled wood floor via RenderTexture
     const rt = this.add.renderTexture(0, 0, camW, camH).setOrigin(0).setDepth(0);
-    // Use tile-floor frame 113 — brown wood plank tile from mid rows
     const stamp = this.make.sprite({ x: 0, y: 0, key: 'tile-floor', frame: 113, add: false });
     stamp.setOrigin(0);
-    const tileW = 16;
-    const tileH = 16;
-    for (let y = 0; y < camH; y += tileH) {
-      for (let x = 0; x < camW; x += tileW) {
+    for (let y = 0; y < camH; y += 16) {
+      for (let x = 0; x < camW; x += 16) {
         rt.draw(stamp, x, y);
       }
     }
@@ -90,7 +66,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Layer 2: Dark warm overlay
     const overlay = this.add.graphics().setDepth(1);
-    overlay.fillStyle(0x0d0a06, 0.68);
+    overlay.fillStyle(0x0d0a06, 0.7);
     overlay.fillRect(0, 0, camW, camH);
 
     // Layer 3: Atmospheric floating spirit particles
@@ -103,12 +79,12 @@ export class MenuScene extends Phaser.Scene {
         frame: frames,
         x: { min: 0, max: camW },
         y: { min: camH + 10, max: camH + 30 },
-        scale: { start: 0.5, end: 0.15 },
-        alpha: { start: 0.12, end: 0 },
-        speed: { min: 8, max: 20 },
-        angle: { min: 260, max: 280 },
+        scale: { start: 0.8, end: 0.15 },
+        alpha: { start: 0.22, end: 0 },
+        speed: { min: 10, max: 25 },
+        angle: { min: 255, max: 285 },
         lifespan: { min: 5000, max: 9000 },
-        frequency: 900,
+        frequency: 500,
         quantity: 1,
         blendMode: 'ADD',
       });
@@ -121,66 +97,54 @@ export class MenuScene extends Phaser.Scene {
   // =========================================================================
 
   createTitleArea(camW) {
-    // Panel backing behind title
-    this.add.nineslice(camW / 2, 46, 'ui-panel', null, 420, 64, 4, 4, 4, 4)
-      .setAlpha(0.6).setDepth(15);
+    // Panel backing
+    this.add.nineslice(camW / 2, 44, 'ui-panel', null, 420, 60, 4, 4, 4, 4)
+      .setAlpha(0.55).setDepth(15);
 
-    // Glow text (pulsing behind main title)
-    const titleGlow = this.add.text(camW / 2, 44, 'DÖNER FIGHT', {
-      fontSize: '52px',
-      fontFamily: 'monospace',
-      fill: '#ffaa33',
-      stroke: '#ffaa33',
-      strokeThickness: 14,
+    // Glow text
+    const titleGlow = this.add.text(camW / 2, 42, 'DÖNER FIGHT', {
+      fontSize: '48px', fontFamily: 'monospace',
+      fill: '#ffaa33', stroke: '#ffaa33', strokeThickness: 16,
     }).setOrigin(0.5).setAlpha(0.12).setDepth(16);
 
     this.tweens.add({
       targets: titleGlow,
       alpha: { from: 0.08, to: 0.22 },
-      yoyo: true,
-      repeat: -1,
-      duration: 1500,
+      yoyo: true, repeat: -1, duration: 1500,
       ease: 'Sine.easeInOut',
     });
 
     // Main title
-    const titleText = this.add.text(camW / 2, 44, 'DÖNER FIGHT', {
-      fontSize: '52px',
-      fontFamily: 'monospace',
-      fill: '#ffdd44',
-      stroke: '#000000',
-      strokeThickness: 6,
+    const titleText = this.add.text(camW / 2, 42, 'DÖNER FIGHT', {
+      fontSize: '48px', fontFamily: 'monospace',
+      fill: '#ffdd44', stroke: '#000000', strokeThickness: 6,
     }).setOrigin(0.5).setDepth(17);
 
-    // Subtle pulsing
     this.tweens.add({
       targets: titleText,
-      scaleX: 1.03,
-      scaleY: 1.03,
-      yoyo: true,
-      repeat: -1,
-      duration: 1200,
+      scaleX: 1.02, scaleY: 1.02,
+      yoyo: true, repeat: -1, duration: 1200,
       ease: 'Sine.easeInOut',
     });
 
-    // Subtitle
-    this.add.text(camW / 2, 88, 'Choose your fighter', {
-      fontSize: '14px',
-      fontFamily: 'monospace',
-      fill: '#887766',
+    this.add.text(camW / 2, 80, 'Choose your fighter', {
+      fontSize: '13px', fontFamily: 'monospace', fill: '#887766',
     }).setOrigin(0.5).setDepth(17);
   }
 
   // =========================================================================
-  // CHARACTER GRID (4x2, left side)
+  // CHARACTER GRID (left side, 2 columns x 4 rows)
   // =========================================================================
 
   createCharacterGrid(_camW, _camH) {
-    const gridOriginX = 90;
-    const gridOriginY = 130;
-    const cellSize = 96;
-    const gap = 12;
-    const cols = 4;
+    // 2 columns x 4 rows on the left — tall & narrow to pair with tall preview
+    const gridOriginX = 60;
+    const gridOriginY = 108;
+    const cellW = 120;
+    const cellH = 80;
+    const gapX = 10;
+    const gapY = 8;
+    const cols = 2;
 
     this.charCells = [];
 
@@ -188,36 +152,34 @@ export class MenuScene extends Phaser.Scene {
       const char = CHARACTERS[i];
       const col = i % cols;
       const row = Math.floor(i / cols);
-      const x = gridOriginX + col * (cellSize + gap) + cellSize / 2;
-      const y = gridOriginY + row * (cellSize + gap) + cellSize / 2;
+      const x = gridOriginX + col * (cellW + gapX) + cellW / 2;
+      const y = gridOriginY + row * (cellH + gapY) + cellH / 2;
 
-      // Cell background — nine-patch inventory cell
-      const bg = this.add.nineslice(x, y, 'ui-inventory-cell', null, cellSize, cellSize, 4, 4, 4, 4)
+      // Cell background
+      const bg = this.add.nineslice(x, y, 'ui-inventory-cell', null, cellW, cellH, 4, 4, 4, 4)
         .setDepth(10);
 
-      // Face portrait
+      // Face portrait (left side of cell)
       let portrait;
       if (this.textures.exists(`${char.id}-face`)) {
-        portrait = this.add.image(x, y - 6, `${char.id}-face`)
-          .setScale(1.9).setDepth(11);
+        portrait = this.add.image(x - 24, y, `${char.id}-face`)
+          .setScale(1.6).setDepth(11);
       } else {
-        portrait = this.add.sprite(x, y - 6, `${char.id}-idle`, 0)
+        portrait = this.add.sprite(x - 24, y, `${char.id}-idle`, 0)
           .setScale(3).setDepth(11);
       }
 
-      // Character name
-      const nameText = this.add.text(x, y + 36, char.name, {
-        fontSize: '10px',
-        fontFamily: 'monospace',
-        fill: '#c4a882',
-      }).setOrigin(0.5).setDepth(12);
+      // Character name (right side of cell)
+      const nameText = this.add.text(x + 22, y, char.name, {
+        fontSize: '11px', fontFamily: 'monospace', fill: '#c4a882',
+      }).setOrigin(0, 0.5).setDepth(12);
 
-      // Selection highlight — gold glow frame (hidden by default)
-      const highlight = this.add.nineslice(x, y, 'ui-focus', null, cellSize + 8, cellSize + 8, 3, 3, 3, 3)
+      // Selection highlight
+      const highlight = this.add.nineslice(x, y, 'ui-focus', null, cellW + 6, cellH + 6, 3, 3, 3, 3)
         .setDepth(13).setVisible(false);
 
-      // Invisible hit area for interaction
-      const hitArea = this.add.rectangle(x, y, cellSize, cellSize, 0xffffff, 0)
+      // Hit area
+      const hitArea = this.add.rectangle(x, y, cellW, cellH, 0xffffff, 0)
         .setInteractive({ useHandCursor: true }).setDepth(14);
 
       hitArea.on('pointerdown', () => {
@@ -227,21 +189,12 @@ export class MenuScene extends Phaser.Scene {
       hitArea.on('pointerover', () => {
         this.playSfx('sfx-move');
         if (this.selectedCharIndex !== i) {
-          this.tweens.add({
-            targets: [bg, portrait, nameText],
-            scaleX: '*=1.04',
-            scaleY: '*=1.04',
-            duration: 100,
-            ease: 'Back.easeOut',
-          });
+          bg.setTint(0xccccaa);
         }
       });
       hitArea.on('pointerout', () => {
         if (this.selectedCharIndex !== i) {
-          // Reset scale
-          bg.setScale(1);
-          portrait.setScale(this.textures.exists(`${char.id}-face`) ? 1.9 : 3);
-          nameText.setScale(1);
+          bg.clearTint();
         }
       });
 
@@ -250,67 +203,132 @@ export class MenuScene extends Phaser.Scene {
   }
 
   // =========================================================================
-  // PREVIEW PANEL (right side)
+  // PREVIEW PANEL (center-right, large character showcase)
   // =========================================================================
 
-  createPreview(_camW, _camH) {
-    // Outer bordered panel
-    this.add.nineslice(880, 216, 'ui-panel', null, 520, 210, 4, 4, 4, 4)
+  createPreview(camW, _camH) {
+    const panelCX = 730;
+    const panelCY = 290;
+    const panelW = 660;
+    const panelH = 340;
+
+    // Outer wood frame panel
+    this.add.nineslice(panelCX, panelCY, 'ui-panel', null, panelW, panelH, 4, 4, 4, 4)
       .setDepth(10);
 
-    // Inner dark inset area for character sprite
-    this.add.nineslice(700, 216, 'ui-panel-interior', null, 150, 180, 4, 4, 4, 4)
-      .setDepth(11);
+    // Parchment interior — warm beige using graphics + nineslice overlay
+    const parchment = this.add.graphics().setDepth(11);
+    parchment.fillStyle(0xd4c4a0, 1);  // warm parchment beige
+    parchment.fillRoundedRect(panelCX - (panelW - 20) / 2, panelCY - (panelH - 20) / 2, panelW - 20, panelH - 20, 2);
+    // Subtle texture overlay using bg panel
+    this.add.nineslice(panelCX, panelCY, 'ui-bg', null, panelW - 20, panelH - 20, 4, 4, 4, 4)
+      .setAlpha(0.15).setDepth(11);
 
-    // FX circle decoration behind character
+    // ── Left side: walking sprite with FX ──
+    const spriteAreaX = 475;
+    const spriteAreaY = panelCY - 10;
+
+    // Soft dark backdrop behind sprite (vignette look)
+    const spriteBg = this.add.graphics().setDepth(11);
+    spriteBg.fillStyle(0x3a2a18, 0.15);
+    spriteBg.fillRoundedRect(spriteAreaX - 80, panelCY - panelH / 2 + 14, 160, panelH - 60, 6);
+
+    // Subtle circle FX behind character
     if (this.textures.exists('fx-circle')) {
-      this.fxCircleSprite = this.add.sprite(700, 210, 'fx-circle', 0)
-        .setScale(4.5)
-        .setAlpha(0.2)
-        .setTint(0xffaa33)
-        .setDepth(12);
-
+      this.fxCircleSprite = this.add.sprite(spriteAreaX, spriteAreaY + 10, 'fx-circle', 0)
+        .setScale(4).setAlpha(0.08).setTint(0xddaa44).setDepth(12);
       const circleAnimKey = 'fx-circle-play';
       if (this.anims.exists(circleAnimKey)) {
         this.fxCircleSprite.play({ key: circleAnimKey, repeat: -1 });
       }
     }
 
-    // Preview walking sprite (larger)
-    this.previewSprite = this.add.sprite(700, 210, 'boy-walk', 0)
-      .setScale(6).setDepth(13);
+    // Aura glow at feet
+    if (this.textures.exists('fx-aura')) {
+      this.previewAura = this.add.sprite(spriteAreaX, spriteAreaY + 50, 'fx-aura', 0)
+        .setScale(3).setAlpha(0.18).setTint(0xddaa44).setDepth(12);
+      const auraKey = 'fx-aura-play';
+      if (this.anims.exists(auraKey)) {
+        this.previewAura.play({ key: auraKey, repeat: -1 });
+      }
+    }
 
-    // --- Text area (right of sprite) ---
+    // Walking sprite preview
+    this.previewSprite = this.add.sprite(spriteAreaX, spriteAreaY, 'boy-walk', 0)
+      .setScale(7).setDepth(13);
 
-    // Character name
-    this.previewName = this.add.text(810, 145, 'Boy', {
-      fontSize: '26px',
-      fontFamily: 'monospace',
-      fill: '#ffdd44',
-      stroke: '#000000',
-      strokeThickness: 3,
+    // ── Right side: character info ──
+    const rightX = 630;
+
+    // Character name — large italic serif-style
+    this.previewName = this.add.text(rightX, panelCY - 115, 'Boy', {
+      fontSize: '30px', fontFamily: 'Georgia, serif',
+      fill: '#3a2a18', fontStyle: 'italic',
     }).setOrigin(0, 0.5).setDepth(14);
 
-    // Decorative separator line
-    const sep = this.add.graphics().setDepth(14);
-    sep.lineStyle(1, 0xffdd44, 0.3);
-    sep.lineBetween(810, 165, 1100, 165);
+    // Separator line (dark, like ink)
+    this.previewSep = this.add.graphics().setDepth(14);
+    this.previewSep.lineStyle(1, 0x5a4a38, 0.4);
+    this.previewSep.lineBetween(rightX, panelCY - 96, rightX + 350, panelCY - 96);
 
-    // Passive name
-    this.passiveName = this.add.text(810, 190, '', {
-      fontSize: '14px',
-      fontFamily: 'monospace',
-      fill: '#88ddff',
+    // PASSIVE label
+    this.add.text(rightX, panelCY - 75, 'PASSIVE:', {
+      fontSize: '10px', fontFamily: 'monospace', fill: '#8a7a68',
+      letterSpacing: 1,
+    }).setOrigin(0, 0.5).setDepth(14);
+
+    // Passive icon + name (with shield emoji)
+    this.passiveName = this.add.text(rightX + 4, panelCY - 52, '', {
+      fontSize: '16px', fontFamily: 'Georgia, serif',
+      fill: '#2255aa', fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(14);
 
     // Passive description
-    this.passiveDesc = this.add.text(810, 215, '', {
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      fill: '#9999bb',
-      fontStyle: 'italic',
-      wordWrap: { width: 260 },
+    this.passiveDesc = this.add.text(rightX + 4, panelCY - 30, '', {
+      fontSize: '12px', fontFamily: 'monospace',
+      fill: '#6a5a48', fontStyle: 'italic',
+      wordWrap: { width: 190 },
     }).setOrigin(0, 0.5).setDepth(14);
+
+    // ── Large face portrait (hero element, like the reference) ──
+    this.previewFace = null;
+    const faceX = rightX + 160;
+    const faceY = panelCY + 50;
+    // Dark inventory cell frame behind portrait
+    this.previewFaceFrame = this.add.nineslice(faceX, faceY, 'ui-inventory-cell', null, 150, 150, 4, 4, 4, 4)
+      .setDepth(12);
+    if (this.textures.exists('boy-face')) {
+      this.previewFace = this.add.image(faceX, faceY, 'boy-face')
+        .setScale(3.4).setDepth(13);
+    }
+
+    // ── Character parade at bottom of panel ──
+    const paradeY = panelCY + panelH / 2 - 26;
+    this.paradeSprites = [];
+    for (let i = 0; i < CHARACTERS.length; i++) {
+      const char = CHARACTERS[i];
+      const totalW = CHARACTERS.length * 52;
+      const startX = panelCX - totalW / 2 + 26;
+      const px = startX + i * 52;
+      const sprite = this.add.sprite(px, paradeY, `${char.id}-walk`, 0)
+        .setScale(2).setAlpha(0.35).setDepth(14);
+      sprite.play(`${char.id}-walk-down`);
+      this.tweens.add({
+        targets: sprite,
+        y: paradeY - 2,
+        yoyo: true, repeat: -1,
+        duration: 900 + i * 80,
+        ease: 'Sine.easeInOut',
+      });
+      this.paradeSprites.push(sprite);
+    }
+
+    // Thin ink separator above parade
+    const paradeSep = this.add.graphics().setDepth(12);
+    paradeSep.lineStyle(1, 0x8a7a68, 0.2);
+    const totalW = CHARACTERS.length * 52;
+    const sepStartX = panelCX - totalW / 2;
+    paradeSep.lineBetween(sepStartX, paradeY - 14, sepStartX + totalW, paradeY - 14);
   }
 
   // =========================================================================
@@ -318,112 +336,83 @@ export class MenuScene extends Phaser.Scene {
   // =========================================================================
 
   createNameInput(camW, _camH) {
-    const nameY = 360;
+    const nameY = 510;
 
-    // Panel container
-    this.add.nineslice(camW / 2, nameY, 'ui-panel', null, 380, 46, 4, 4, 4, 4)
+    this.add.nineslice(camW / 2, nameY, 'ui-panel', null, 380, 44, 4, 4, 4, 4)
       .setDepth(10);
 
-    // Label
     this.add.text(camW / 2 - 150, nameY, 'Name:', {
-      fontSize: '16px',
-      fontFamily: 'monospace',
-      fill: '#ddccaa',
+      fontSize: '15px', fontFamily: 'monospace', fill: '#ddccaa',
     }).setOrigin(0, 0.5).setDepth(12);
 
-    // DOM text input — transparent bg so nine-patch panel shows through
     const inputElement = document.createElement('input');
     inputElement.type = 'text';
     inputElement.value = 'Player';
     inputElement.maxLength = 16;
     inputElement.style.cssText = `
-      font-size: 16px;
-      font-family: monospace;
-      padding: 4px 10px;
-      width: 200px;
-      background: transparent;
-      color: #ffdd44;
-      border: none;
-      outline: none;
-      caret-color: #ffdd44;
+      font-size: 15px; font-family: monospace;
+      padding: 4px 10px; width: 200px;
+      background: transparent; color: #ffdd44;
+      border: none; outline: none; caret-color: #ffdd44;
     `;
 
     this.nameInput = this.add.dom(camW / 2 + 40, nameY, inputElement).setDepth(12);
   }
 
   // =========================================================================
-  // BUTTONS (nine-patch textures)
+  // BUTTONS
   // =========================================================================
 
   createButtons(camW, _camH) {
-    const btnY = 420;
+    const btnY = 570;
 
-    this.createButton(camW / 2 - 100, btnY, 'PLAY', () => {
+    this.createButton(camW / 2 - 110, btnY, 'PLAY', () => {
       this.startGame('normal');
     });
 
-    this.createButton(camW / 2 + 100, btnY, 'SANDBOX', () => {
+    this.createButton(camW / 2 + 110, btnY, 'SANDBOX', () => {
       this.startGame('sandbox');
     });
 
-    // Hint text
-    this.add.text(camW / 2, btnY + 38, 'Sandbox: Free SP, training dummies, no ring shrink', {
-      fontSize: '11px',
-      fontFamily: 'monospace',
-      fill: '#665544',
+    this.add.text(camW / 2, btnY + 34, 'Sandbox: Free SP, training dummies, no ring shrink', {
+      fontSize: '10px', fontFamily: 'monospace', fill: '#665544',
     }).setOrigin(0.5).setDepth(12);
   }
 
   createButton(x, y, label, callback) {
-    const w = 170;
-    const h = 44;
+    const w = 180;
+    const h = 40;
 
-    // Normal state
     const btnNormal = this.add.nineslice(x, y, 'ui-button', null, w, h, 4, 4, 2, 2)
       .setDepth(10);
-    // Hover state (hidden)
     const btnHover = this.add.nineslice(x, y, 'ui-button-hover', null, w, h, 4, 4, 2, 2)
       .setDepth(10).setVisible(false);
-    // Pressed state (hidden)
     const btnPressed = this.add.nineslice(x, y, 'ui-button-pressed', null, w, h, 4, 4, 2, 2)
       .setDepth(10).setVisible(false);
 
-    // Button label
     const text = this.add.text(x, y - 1, label, {
-      fontSize: '16px',
-      fontFamily: 'monospace',
-      fill: '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 1,
+      fontSize: '16px', fontFamily: 'monospace',
+      fill: '#ffffff', fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(11);
 
-    // Invisible hit area
     const hitArea = this.add.rectangle(x, y, w, h, 0xffffff, 0)
       .setInteractive({ useHandCursor: true }).setDepth(12);
 
     hitArea.on('pointerover', () => {
-      btnNormal.setVisible(false);
-      btnHover.setVisible(true);
-      btnPressed.setVisible(false);
+      btnNormal.setVisible(false); btnHover.setVisible(true); btnPressed.setVisible(false);
       this.playSfx('sfx-move');
     });
     hitArea.on('pointerout', () => {
-      btnNormal.setVisible(true);
-      btnHover.setVisible(false);
-      btnPressed.setVisible(false);
+      btnNormal.setVisible(true); btnHover.setVisible(false); btnPressed.setVisible(false);
       text.setY(y - 1);
     });
     hitArea.on('pointerdown', () => {
-      btnNormal.setVisible(false);
-      btnHover.setVisible(false);
-      btnPressed.setVisible(true);
+      btnNormal.setVisible(false); btnHover.setVisible(false); btnPressed.setVisible(true);
       text.setY(y + 1);
     });
     hitArea.on('pointerup', () => {
-      btnNormal.setVisible(true);
-      btnHover.setVisible(false);
-      btnPressed.setVisible(false);
+      btnNormal.setVisible(true); btnHover.setVisible(false); btnPressed.setVisible(false);
       text.setY(y - 1);
       this.playSfx('sfx-accept');
       callback();
@@ -431,47 +420,47 @@ export class MenuScene extends Phaser.Scene {
   }
 
   // =========================================================================
-  // BOTTOM BAR (tips + sound)
+  // BOTTOM BAR
   // =========================================================================
 
   createBottomBar(camW, camH) {
-    // Panel behind tips
-    this.add.nineslice(camW / 2, camH - 22, 'ui-panel', null, 480, 28, 4, 4, 4, 4)
-      .setAlpha(0.35).setDepth(10);
+    // Bottom bar: wood panel with gold decorative line
+    this.add.nineslice(camW / 2, camH - 18, 'ui-panel', null, 560, 30, 4, 4, 4, 4)
+      .setDepth(10);
 
-    const tipText = this.add.text(camW / 2, camH - 22, TIPS[0], {
-      fontSize: '11px',
-      fontFamily: 'monospace',
-      fill: '#887766',
-      fontStyle: 'italic',
+    // Gold line above the tip panel
+    const goldLine = this.add.graphics().setDepth(11);
+    goldLine.lineStyle(2, 0xddaa44, 0.5);
+    goldLine.lineBetween(camW / 2 - 270, camH - 34, camW / 2 + 270, camH - 34);
+
+    const tipText = this.add.text(camW / 2, camH - 18, TIPS[0], {
+      fontSize: '11px', fontFamily: 'monospace', fill: '#ddccaa', fontStyle: 'italic',
     }).setOrigin(0.5).setDepth(12);
 
     let tipIndex = 0;
     this._tipTimer = this.time.addEvent({
-      delay: 3000,
-      loop: true,
+      delay: 3000, loop: true,
       callback: () => {
         tipIndex = (tipIndex + 1) % TIPS.length;
-        tipText.setText(TIPS[tipIndex]);
+        this.tweens.add({
+          targets: tipText, alpha: 0, duration: 200,
+          onComplete: () => {
+            tipText.setText(TIPS[tipIndex]);
+            this.tweens.add({ targets: tipText, alpha: 1, duration: 200 });
+          },
+        });
       },
     });
   }
 
   createSoundToggle(camW) {
     const isMuted = this.sound.mute;
-    const btnSize = 34;
     const x = camW - 28;
     const y = 28;
 
-    // Nine-patch panel background
-    const bg = this.add.nineslice(x, y, 'ui-panel', null, btnSize, btnSize, 4, 4, 4, 4)
-      .setDepth(10);
-
-    const icon = this.add.text(x, y, isMuted ? '🔇' : '🔊', {
-      fontSize: '16px',
-    }).setOrigin(0.5).setDepth(12);
-
-    const hitArea = this.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
+    const bg = this.add.nineslice(x, y, 'ui-panel', null, 34, 34, 4, 4, 4, 4).setDepth(10);
+    const icon = this.add.text(x, y, isMuted ? '🔇' : '🔊', { fontSize: '16px' }).setOrigin(0.5).setDepth(12);
+    const hitArea = this.add.rectangle(x, y, 34, 34, 0xffffff, 0)
       .setInteractive({ useHandCursor: true }).setDepth(14);
 
     hitArea.on('pointerover', () => bg.setTint(0xddddaa));
@@ -488,15 +477,11 @@ export class MenuScene extends Phaser.Scene {
   // =========================================================================
 
   selectCharacter(index) {
-    // Deselect previous
     const prev = this.charCells[this.selectedCharIndex];
     if (prev) {
       prev.highlight.setVisible(false);
       prev.nameText.setColor('#c4a882');
-      prev.bg.setScale(1);
-      prev.portrait.setScale(this.textures.exists(`${CHARACTERS[this.selectedCharIndex].id}-face`) ? 1.9 : 3);
-      prev.nameText.setScale(1);
-      // Stop floating tween on previous
+      prev.bg.clearTint();
       if (this.floatTween) {
         this.floatTween.stop();
         this.floatTween = null;
@@ -508,59 +493,61 @@ export class MenuScene extends Phaser.Scene {
     const cell = this.charCells[index];
     const char = CHARACTERS[index];
 
-    // Highlight selected cell
     cell.highlight.setVisible(true);
     cell.nameText.setColor('#ffdd44');
-
-    // Selection bounce
-    this.tweens.add({
-      targets: [cell.bg, cell.portrait, cell.nameText],
-      scaleX: '*=1.06',
-      scaleY: '*=1.06',
-      yoyo: true,
-      duration: 120,
-      ease: 'Back.easeOut',
-    });
+    cell.bg.setTint(0xbbbbaa);
 
     // Gentle floating tween on selected portrait
     this.floatTween = this.tweens.add({
       targets: cell.portrait,
-      y: cell.baseY - 2,
-      yoyo: true,
-      repeat: -1,
-      duration: 1200,
+      y: cell.baseY - 3,
+      yoyo: true, repeat: -1, duration: 1000,
       ease: 'Sine.easeInOut',
     });
 
-    // Update preview panel — fade transition
+    // Update preview — fade transition
     if (this.previewSprite) {
       this.tweens.add({
         targets: this.previewSprite,
-        alpha: 0,
-        duration: 80,
+        alpha: 0, duration: 60,
         onComplete: () => {
           this.previewSprite.play(`${char.id}-walk-down`);
           this.tweens.add({
             targets: this.previewSprite,
-            alpha: 1,
-            duration: 120,
+            alpha: 1, duration: 100,
           });
         },
       });
     }
 
-    if (this.previewName) {
-      this.previewName.setText(char.name);
+    // Update face portrait
+    if (this.previewFace && this.textures.exists(`${char.id}-face`)) {
+      this.tweens.add({
+        targets: this.previewFace,
+        alpha: 0, duration: 50,
+        onComplete: () => {
+          this.previewFace.setTexture(`${char.id}-face`);
+          this.tweens.add({ targets: this.previewFace, alpha: 1, duration: 100 });
+        },
+      });
     }
 
-    // Update passive display
+    // Highlight this character in the parade
+    if (this.paradeSprites) {
+      this.paradeSprites.forEach((s, i) => {
+        s.setAlpha(i === index ? 0.8 : 0.3);
+        s.setScale(i === index ? 2.5 : 2);
+      });
+    }
+
+    if (this.previewName) this.previewName.setText(char.name);
+
     const passive = getPassive(char.id);
     if (this.passiveName) {
-      this.passiveName.setText(passive.name || '');
+      const icon = this.getPassiveIcon(passive);
+      this.passiveName.setText(`${icon} ${passive.name || ''}`);
     }
-    if (this.passiveDesc) {
-      this.passiveDesc.setText(passive.description || '');
-    }
+    if (this.passiveDesc) this.passiveDesc.setText(passive.description || '');
   }
 
   // =========================================================================
@@ -574,31 +561,13 @@ export class MenuScene extends Phaser.Scene {
     const char = CHARACTERS[this.selectedCharIndex];
     const name = this.nameInput ? this.nameInput.node.value.trim() || 'Player' : 'Player';
 
-    // Play accept SFX
     this.playSfx('sfx-accept');
 
-    // Destroy the DOM input before scene transition (prevents floating over black)
-    if (this.nameInput) {
-      this.nameInput.destroy();
-      this.nameInput = null;
-    }
-
-    // Stop menu music
+    if (this.nameInput) { this.nameInput.destroy(); this.nameInput = null; }
     this.stopMenuMusic();
+    if (this._tipTimer) { this._tipTimer.destroy(); this._tipTimer = null; }
+    if (this.particleEmitter) { this.particleEmitter.destroy(); this.particleEmitter = null; }
 
-    // Clean up tip timer
-    if (this._tipTimer) {
-      this._tipTimer.destroy();
-      this._tipTimer = null;
-    }
-
-    // Clean up particles
-    if (this.particleEmitter) {
-      this.particleEmitter.destroy();
-      this.particleEmitter = null;
-    }
-
-    // Fade out then transition
     this.cameras.main.fadeOut(400, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start('GameScene', {
@@ -615,40 +584,42 @@ export class MenuScene extends Phaser.Scene {
 
   startMenuMusic() {
     if (this.menuMusic && this.menuMusic.isPlaying) return;
-
     if (this.sound.get('music-menu')) {
       this.menuMusic = this.sound.get('music-menu');
-      if (!this.menuMusic.isPlaying) {
-        this.menuMusic.play({ loop: true, volume: 0.35 });
-      }
+      if (!this.menuMusic.isPlaying) this.menuMusic.play({ loop: true, volume: 0.35 });
     } else {
       try {
         this.menuMusic = this.sound.add('music-menu', { loop: true, volume: 0.35 });
         this.menuMusic.play();
-      } catch (e) {
-        // Audio not available
-      }
+      } catch (e) { /* Audio not available */ }
     }
   }
 
   stopMenuMusic() {
     if (this.menuMusic && this.menuMusic.isPlaying) {
       this.tweens.add({
-        targets: this.menuMusic,
-        volume: 0,
-        duration: 400,
-        onComplete: () => {
-          this.menuMusic.stop();
-        },
+        targets: this.menuMusic, volume: 0, duration: 400,
+        onComplete: () => { this.menuMusic.stop(); },
       });
     }
   }
 
+  getPassiveIcon(passive) {
+    if (!passive || !passive.id) return '';
+    const icons = {
+      'demonic-vitality': '\u2764',  // heart
+      'iron-armor': '\uD83D\uDEE1',  // shield
+      'frost-resistance': '\u2744',  // snowflake
+      'fire-resistance': '\uD83D\uDD25',  // fire
+      'quick-learner': '\u26A1',  // lightning
+      'shadow-step': '\uD83D\uDC63',  // footprints
+      'bully': '\uD83D\uDCA5',  // collision
+      'rush': '\uD83D\uDCA8',  // dash
+    };
+    return icons[passive.id] || '\u2728';
+  }
+
   playSfx(key) {
-    try {
-      this.sound.play(key, { volume: 0.5 });
-    } catch (e) {
-      // Audio not available
-    }
+    try { this.sound.play(key, { volume: 0.5 }); } catch (e) { /* */ }
   }
 }
