@@ -62,29 +62,26 @@ export const boomerangHandler = {
     // Return + overshoot phase
     if (spell.returning) {
       if (!spell.passedCaster) {
-        // Steer toward caster
-        const casterBody = ctx.physics.playerBodies.get(spell.ownerId);
-        if (casterBody) {
-          const cx = casterBody.position.x - spell.x;
-          const cy = casterBody.position.y - spell.y;
-          const cDist = Math.sqrt(cx * cx + cy * cy) || 1;
-          spell.vx = (cx / cDist) * spell.speed;
-          spell.vy = (cy / cDist) * spell.speed;
+        // Steer toward cast origin (fixed point, not caster's live position)
+        const cx = spell.originX - spell.x;
+        const cy = spell.originY - spell.y;
+        const cDist = Math.sqrt(cx * cx + cy * cy) || 1;
+        spell.vx = (cx / cDist) * spell.speed;
+        spell.vy = (cy / cDist) * spell.speed;
 
-          // Check if reached caster — pass through, don't stop
-          if (cDist < PLAYER.RADIUS + spell.radius) {
-            spell.passedCaster = true;
-            spell.casterPassX = spell.x;
-            spell.casterPassY = spell.y;
-            // Reduce cooldown on catch (T2)
-            if (spell.cooldownOnCatch) {
-              const cd = ctx.cooldowns.get(spell.ownerId);
-              if (cd && cd[spell.type]) {
-                cd[spell.type] = Math.max(0, cd[spell.type] + spell.cooldownOnCatch);
-              }
+        // Check if reached origin — pass through, don't stop
+        if (cDist < spell.radius + 4) {
+          spell.passedCaster = true;
+          spell.casterPassX = spell.originX;
+          spell.casterPassY = spell.originY;
+          // Reduce cooldown on catch (T2)
+          if (spell.cooldownOnCatch) {
+            const cd = ctx.cooldowns.get(spell.ownerId);
+            if (cd && cd[spell.type]) {
+              cd[spell.type] = Math.max(0, cd[spell.type] + spell.cooldownOnCatch);
             }
-            // Keep going — do NOT deactivate
           }
+          // Keep going — do NOT deactivate
         }
       } else {
         // Overshoot phase: maintain velocity direction, no steering
