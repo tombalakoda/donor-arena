@@ -551,14 +551,22 @@ export class ServerSpell {
     }
   }
 
-  getActiveSpells() {
-    return this.activeSpells.map(s => ({
+  /**
+   * Serialize a spell object for sending to clients.
+   * Single source of truth — used by both s:spellCast and s:state snapshots.
+   * @param {object} s - Internal spell object
+   * @param {boolean} [roundPos=false] - Round x/y to 1 decimal (for periodic snapshots)
+   */
+  static serializeForClient(s, roundPos = false) {
+    const x = roundPos ? Math.round(s.x * 10) / 10 : s.x;
+    const y = roundPos ? Math.round(s.y * 10) / 10 : s.y;
+    return {
       id: s.id,
       type: s.type,
       spellType: s.spellType,
       ownerId: s.ownerId,
-      x: Math.round(s.x * 10) / 10,
-      y: Math.round(s.y * 10) / 10,
+      x,
+      y,
       vx: s.vx || 0,
       vy: s.vy || 0,
       radius: s.radius,
@@ -580,7 +588,6 @@ export class ServerSpell {
       swingDuration: s.swingDuration || 0,
       pullActive: s.pullActive || false,
       flightActive: s.flightActive || false,
-      // New fields for client rendering
       returning: s.returning || false,
       isMeteor: s.isMeteor || false,
       impactDelay: s.impactDelay || 0,
@@ -590,7 +597,11 @@ export class ServerSpell {
       wallThickness: s.wallThickness || 0,
       wallHp: s.wallHp || 0,
       maxWallHp: s.maxWallHp || 0,
-    }));
+    };
+  }
+
+  getActiveSpells() {
+    return this.activeSpells.map(s => ServerSpell.serializeForClient(s, true));
   }
 
   drainHits() {
