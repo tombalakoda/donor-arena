@@ -63,7 +63,7 @@ describe('ServerSpell.clampCooldown', () => {
 describe('ServerSpell.serializeForClient', () => {
   const mockSpell = {
     id: 42,
-    type: 'fireball-sniper',
+    type: 'fireball-focus',
     spellType: 'projectile',
     ownerId: 'player-1',
     x: 123.456,

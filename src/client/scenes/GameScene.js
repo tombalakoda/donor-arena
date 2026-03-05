@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PLAYER, ARENA } from '../../shared/constants.js';
 import { MSG } from '../../shared/messageTypes.js';
+import { SPELLS, SPELL_TYPES } from '../../shared/spellData.js';
 import { NetworkManager } from '../systems/NetworkManager.js';
 import { ShopOverlay } from '../ui/ShopOverlay.js';
 import { PauseMenu } from '../ui/PauseMenu.js';
@@ -298,6 +299,14 @@ export class GameScene extends Phaser.Scene {
           }
         }
         this.localEliminated = ps.eliminated || false;
+
+        // Ghost transparency for local player
+        if (this.playerSprite) {
+          const localAlpha = ps.intangible ? 0.35 : 1.0;
+          if (this.playerSprite.alpha !== localAlpha) {
+            this.playerSprite.setAlpha(localAlpha);
+          }
+        }
       } else {
         this.updateRemotePlayer(ps);
       }
@@ -602,6 +611,9 @@ export class GameScene extends Phaser.Scene {
       this.hudManager.showDamageNumber(rp.targetX, rp.targetY, prevHp - rp.hp);
     }
 
+    // Track intangible state (ghost buff)
+    rp.intangible = serverState.intangible || false;
+
     // Update name from server if provided
     if (serverState.name && !rp.name) {
       rp.name = serverState.name;
@@ -691,6 +703,12 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
+      // Ghost transparency: semi-transparent while intangible
+      const targetAlpha = rp.intangible ? 0.35 : 1.0;
+      if (rp.sprite && rp.sprite.alpha !== targetAlpha) {
+        rp.sprite.setAlpha(targetAlpha);
+      }
+
       const speed = Math.sqrt(rp.vx * rp.vx + rp.vy * rp.vy);
       const wasMoving = rp.isMoving;
       rp.isMoving = speed > 0.5;
@@ -757,6 +775,12 @@ export class GameScene extends Phaser.Scene {
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
     this.network.sendSpellCast(slotKey, spellId, worldPoint.x, worldPoint.y);
+
+    // Blink: clear movement target so player doesn't auto-walk to old click position
+    const spellDef = SPELLS[spellId];
+    if (spellDef && spellDef.type === SPELL_TYPES.BLINK) {
+      this.moveTarget = null;
+    }
   }
 
   /** Look up which spell the player has chosen for a slot */

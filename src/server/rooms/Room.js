@@ -9,6 +9,7 @@ import { PlayerProgression } from '../game/PlayerProgression.js';
 import { MSG } from '../../shared/messageTypes.js';
 import { PHYSICS, MATCH, PLAYER, SANDBOX } from '../../shared/constants.js';
 import { getPassive } from '../../shared/characterPassives.js';
+import { SPELL_TYPES } from '../../shared/spellData.js';
 import { GameLoop } from '../game/GameLoop.js';
 import { getSpawnPositions } from '../game/utils.js';
 
@@ -256,6 +257,11 @@ export class Room {
     const spells = Array.isArray(result) ? result : [result];
 
     for (const spell of spells) {
+      // Blink: clear movement target so player doesn't auto-walk to old position
+      if (spell.spellType === SPELL_TYPES.BLINK) {
+        player.input = null;
+      }
+
       const payload = ServerSpell.serializeForClient(spell);
       for (const [id, p] of this.players) {
         p.socket.emit(MSG.SERVER_SPELL_CAST, payload);

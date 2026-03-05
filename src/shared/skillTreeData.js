@@ -7,61 +7,60 @@ export const SKILL_TREES = {
   // ═══════════════════════════════════════════════════════════════
   // Q — FIREBALL VARIANTS (3 paths, 4 tiers each)
   // ═══════════════════════════════════════════════════════════════
-  'fireball-sniper': {
+  'fireball-focus': {
     base: {
       type: 'projectile',
-      damage: 4,
-      knockbackForce: 0.07,
-      cooldown: 2800,
-      speed: 9,
-      range: 500,
+      damage: 3,
+      knockbackForce: 0.05,
+      cooldown: 2500,
+      speed: 8,
+      range: 350,
       radius: 7,
-      lifetime: 2200,
+      lifetime: 1800,
       piercing: false,
     },
     tiers: [
-      { cost: 3, name: 'Marksman', description: 'Extended range, faster bolt', mods: { range: 60, speed: 1 } },
+      { cost: 3, name: 'Extended Range', description: 'Longer range, faster bolt', mods: { range: 60, speed: 1 } },
       { cost: 3, name: 'Heavy Round', description: 'Increased knockback', mods: { knockbackForce: 0.02 } },
       { cost: 4, name: 'Piercing Shot', description: 'Bolt passes through enemies', mods: { piercing: true } },
       { cost: 5, name: 'Railgun', description: 'Maximum range and push', mods: { range: 80, knockbackForce: 0.02, speed: 1 } },
     ],
   },
 
-  'fireball-machinegun': {
+  'fireball-speed': {
     base: {
       type: 'projectile',
       damage: 3,
-      knockbackForce: 0.04,
-      cooldown: 1800,
+      knockbackForce: 0.05,
+      cooldown: 2500,
       speed: 8,
-      range: 300,
-      radius: 6,
-      lifetime: 1500,
+      range: 350,
+      radius: 7,
+      lifetime: 1800,
       piercing: false,
-      projectileCount: 1,
     },
     tiers: [
-      { cost: 3, name: 'Quick Trigger', description: 'Faster cooldown', mods: { cooldown: -300 } },
-      { cost: 3, name: 'Double Tap', description: 'Fire 2 bolts in a spread', mods: { projectileCount: 1 } },
-      { cost: 4, name: 'Bullet Storm', description: 'Even faster cooldown', mods: { cooldown: -300 } },
-      { cost: 5, name: 'Minigun', description: '3 piercing bolts', mods: { projectileCount: 1, piercing: true } },
+      { cost: 3, name: 'Faster Cooldown', description: 'Faster cooldown', mods: { cooldown: -400 } },
+      { cost: 3, name: 'Rapid Fire', description: 'Even faster cooldown', mods: { cooldown: -400 } },
+      { cost: 4, name: 'Quick Draw', description: 'Much faster cooldown', mods: { cooldown: -400 } },
+      { cost: 5, name: 'Bullet Time', description: 'Extremely fast cooldown', mods: { cooldown: -400 } },
     ],
   },
 
-  'fireball-cannon': {
+  'fireball-power': {
     base: {
       type: 'projectile',
-      damage: 5,
-      knockbackForce: 0.10,
-      cooldown: 3200,
-      speed: 7,
-      range: 250,
-      radius: 9,
-      lifetime: 1400,
+      damage: 3,
+      knockbackForce: 0.05,
+      cooldown: 2500,
+      speed: 8,
+      range: 350,
+      radius: 7,
+      lifetime: 1800,
       piercing: false,
     },
     tiers: [
-      { cost: 3, name: 'Heavy Slug', description: 'More knockback, more damage', mods: { knockbackForce: 0.02, damage: 1 } },
+      { cost: 3, name: 'Heavier Hit', description: 'More knockback, more damage', mods: { knockbackForce: 0.02, damage: 1 } },
       { cost: 3, name: 'Blast Wave', description: 'Explodes on impact', mods: { explosionRadius: 40 } },
       { cost: 4, name: 'Concussion', description: 'Bigger blast, more push', mods: { explosionRadius: 15, knockbackForce: 0.02 } },
       { cost: 5, name: 'Shockwave', description: 'Devastating blast, brief stun', mods: { damage: 2, knockbackForce: 0.02, stunDuration: 300 } },
@@ -328,13 +327,13 @@ export const SKILL_TREES = {
       damage: 5,
       knockbackForce: 0.10,
       cooldown: 12000,
-      range: 250,               // close range cast only
+      range: 150,               // close range cast — high risk, high reward
       impactDelay: 1000,        // 1s delay before impact
-      impactRadius: 80,         // AoE push radius
+      impactRadius: 45,         // smaller AoE — powerful but hard to hit
       isMeteor: true,           // flag for special meteor behavior
     },
     tiers: [
-      { cost: 3, name: 'Quick Fall', description: 'Faster impact, wider blast', mods: { impactDelay: -500, impactRadius: 20, cooldown: -2000 } },
+      { cost: 3, name: 'Quick Fall', description: 'Faster impact, slightly wider blast', mods: { impactDelay: -500, impactRadius: 10, cooldown: -2000 } },
       { cost: 5, name: 'Apocalypse', description: 'Devastating impact, leaves burning ground', mods: { knockbackForce: 0.04, damage: 3, burnZoneDuration: 2000, burnSlowAmount: 0.3 } },
     ],
   },
@@ -369,10 +368,10 @@ export const SKILL_TREES = {
       speed: 7,
       range: 400,               // max distance before returning
       radius: 8,
-      lifetime: 3000,
+      lifetime: 6000,           // must be long enough for full round trip at speed
     },
     tiers: [
-      { cost: 3, name: 'Long Throw', description: 'Further range, more max knockback', mods: { range: 100, maxKnockbackForce: 0.02 } },
+      { cost: 3, name: 'Long Throw', description: 'Further range, more max knockback', mods: { range: 100, maxKnockbackForce: 0.02, lifetime: 2000 } },
       { cost: 5, name: 'Catch & Throw', description: 'Return path hits too, cooldown reduced on catch', mods: { hitsOnReturn: true, cooldownOnCatch: -2000 } },
     ],
   },
@@ -381,7 +380,7 @@ export const SKILL_TREES = {
 /**
  * Compute effective stats for a spell at a given tier level.
  *
- * @param {string} spellId - e.g. 'fireball-sniper', 'blink', 'hook', etc.
+ * @param {string} spellId - e.g. 'fireball-focus', 'blink', 'hook', etc.
  * @param {number} tierLevel - 0 = base only, 1 = first tier upgrade, 2 = second, etc.
  * @returns {Object} computed stats with all modifiers applied additively
  */

@@ -9,7 +9,7 @@ import { SLOT_SPELLS, SPELL_TO_SLOT } from '../../shared/spellData.js';
  * NEW state shape:
  *   slots: { Q: 'unlocked', W: 'locked', E: 'locked', R: 'locked' }
  *   spells: {
- *     Q: { chosenSpell: 'fireball-sniper', tier: 1 },
+ *     Q: { chosenSpell: 'fireball-focus', tier: 1 },
  *     W: { chosenSpell: null, tier: 0 },    // slot unlocked but no spell chosen
  *     E: null,                                // slot locked
  *     R: null,                                // slot locked
@@ -32,7 +32,7 @@ export class PlayerProgression {
     // Per-slot spell progression
     // null = slot locked, { chosenSpell: null, tier: 0 } = unlocked but no spell chosen
     this.spells = {
-      Q: { chosenSpell: null, tier: 0 },  // Q is unlocked but player must choose a path
+      Q: { chosenSpell: 'fireball-focus', tier: 0 },  // Q auto-equipped with basic fireball
       W: null,
       E: null,
       R: null,
@@ -99,7 +99,7 @@ export class PlayerProgression {
   /**
    * Check if a spell can be chosen for a slot.
    * @param {string} slot - Q/W/E/R
-   * @param {string} spellId - e.g. 'fireball-sniper', 'blink', etc.
+   * @param {string} spellId - e.g. 'fireball-focus', 'blink', etc.
    */
   canChooseSpell(slot, spellId) {
     // Slot must be unlocked

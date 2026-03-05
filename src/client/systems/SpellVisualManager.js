@@ -168,19 +168,33 @@ export class SpellVisualManager {
         const color = fx.color || 0x44ddff;
         const zoneRadius = spell.radius || 35;
 
-        const zone = scene.add.circle(spell.x, spell.y, zoneRadius, color, 0.2);
-        zone.setDepth(5);
-        zone.setStrokeStyle(1.5, color, 0.6);
+        if (spell.isMeteor) {
+          // Meteor: start with pulsing warning circle, explode on impact
+          const warning = scene.add.circle(spell.x, spell.y, 5, 0xff2200, 0.15);
+          warning.setDepth(5);
+          warning.setStrokeStyle(2, 0xff4400, 0.6);
+          visual.zone = warning;
+          visual.sprite = warning; // placeholder for cleanup
+          visual.isMeteor = true;
+          visual.meteorRadius = zoneRadius;
+          visual.impactDelay = spell.impactDelay || 1000;
+          visual.impactTriggered = false;
+          visual.baseAlpha = 0.15;
+        } else {
+          const zone = scene.add.circle(spell.x, spell.y, zoneRadius, color, 0.2);
+          zone.setDepth(5);
+          zone.setStrokeStyle(1.5, color, 0.6);
 
-        const sprite = scene.add.sprite(spell.x, spell.y, spriteKey);
-        sprite.setScale((zoneRadius / 16) * 0.8);
-        sprite.setDepth(6);
-        sprite.setAlpha(0.7);
-        sprite.play({ key: animKey, repeat: -1 });
+          const sprite = scene.add.sprite(spell.x, spell.y, spriteKey);
+          sprite.setScale((zoneRadius / 16) * 0.8);
+          sprite.setDepth(6);
+          sprite.setAlpha(0.7);
+          sprite.play({ key: animKey, repeat: -1 });
 
-        visual.zone = zone;
-        visual.sprite = sprite;
-        visual.baseAlpha = 0.2;
+          visual.zone = zone;
+          visual.sprite = sprite;
+          visual.baseAlpha = 0.2;
+        }
         break;
       }
 
@@ -229,7 +243,7 @@ export class SpellVisualManager {
           if (scene.anims.exists(animKey)) {
             const ghostFx = scene.add.sprite(spell.x, spell.y, spriteKey);
             ghostFx.setDepth(5);
-            ghostFx.setScale((fx.scale || 1.5) * 3);
+            ghostFx.setScale((fx.scale || 1.5) * 1.5);
             ghostFx.setAlpha(0.35);
             ghostFx.play({ key: animKey, repeat: -1 });
             visual.glow = ghostFx;
@@ -244,7 +258,7 @@ export class SpellVisualManager {
           if (scene.anims.exists(animKey)) {
             const flashFx = scene.add.sprite(spell.x, spell.y, spriteKey);
             flashFx.setDepth(5);
-            flashFx.setScale((fx.scale || 1.0) * 3);
+            flashFx.setScale((fx.scale || 1.0) * 1.5);
             flashFx.setAlpha(0.5);
             flashFx.play({ key: animKey, repeat: -1 });
             visual.glow = flashFx;
@@ -262,7 +276,7 @@ export class SpellVisualManager {
         if (scene.anims.exists(animKey)) {
           const swapSprite = scene.add.sprite(spell.x, spell.y, spriteKey);
           swapSprite.setDepth(15);
-          swapSprite.setScale(scale * 3);
+          swapSprite.setScale(scale * 2);
           swapSprite.play({ key: animKey, repeat: -1 });
           visual.sprite = swapSprite;
         } else {
@@ -296,7 +310,7 @@ export class SpellVisualManager {
         if (scene.anims.exists(animKey)) {
           const recallFx = scene.add.sprite(spell.x, spell.y, spriteKey);
           recallFx.setDepth(6);
-          recallFx.setScale(scale * 3);
+          recallFx.setScale(scale * 2);
           recallFx.play({ key: animKey, repeat: 0 });
           visual.glow = recallFx;
         }
@@ -314,7 +328,7 @@ export class SpellVisualManager {
         if (scene.anims.exists(animKey)) {
           const homingSprite = scene.add.sprite(spell.x, spell.y, spriteKey);
           homingSprite.setDepth(15);
-          homingSprite.setScale(scale * 3);
+          homingSprite.setScale(scale * 1.5);
           homingSprite.play({ key: animKey, repeat: -1 });
           visual.sprite = homingSprite;
         } else {
@@ -322,7 +336,7 @@ export class SpellVisualManager {
           visual.sprite.setDepth(15);
         }
 
-        const homingGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 7) + 5, fx.glowColor || 0xff8844, 0.3);
+        const homingGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 7) + 3, fx.glowColor || 0xff8844, 0.3);
         homingGlow.setDepth(14);
         visual.glow = homingGlow;
         visual.vx = spell.vx || 0;
@@ -339,7 +353,7 @@ export class SpellVisualManager {
         if (scene.anims.exists(animKey)) {
           const boomSprite = scene.add.sprite(spell.x, spell.y, spriteKey);
           boomSprite.setDepth(15);
-          boomSprite.setScale(scale * 3);
+          boomSprite.setScale(scale * 1.5);
           boomSprite.play({ key: animKey, repeat: -1 });
           visual.sprite = boomSprite;
         } else {
@@ -347,7 +361,7 @@ export class SpellVisualManager {
           visual.sprite.setDepth(15);
         }
 
-        const boomGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 8) + 5, fx.glowColor || 0xaacc66, 0.3);
+        const boomGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 8) + 3, fx.glowColor || 0xaacc66, 0.3);
         boomGlow.setDepth(14);
         visual.glow = boomGlow;
         visual.vx = spell.vx || 0;
@@ -498,6 +512,12 @@ export class SpellVisualManager {
         }
         visual.vx = spell.vx || 0;
         visual.vy = spell.vy || 0;
+
+        // Rotate homing missiles to face their travel direction
+        if (visual.type === SPELL_TYPES.HOMING && visual.sprite && !visual.sprite.destroyed) {
+          const angle = Math.atan2(spell.vy || 0, spell.vx || 0);
+          visual.sprite.setRotation(angle);
+        }
       }
 
       // BUFF: position comes from server (follows owner)
@@ -585,7 +605,32 @@ export class SpellVisualManager {
         if (visual.arrival && !visual.arrival.destroyed) visual.arrival.setAlpha(alpha);
         if (visual.trail && !visual.trail.destroyed) visual.trail.setAlpha(alpha);
       } else if (visual.type === SPELL_TYPES.ZONE) {
-        if (visual.zone && !visual.zone.destroyed) {
+        if (visual.isMeteor && visual.zone && !visual.zone.destroyed) {
+          // Meteor warning: grow circle toward impact radius, pulse faster as impact approaches
+          const progress = Math.min(1, visual.elapsed / visual.impactDelay);
+          const currentRadius = 5 + (visual.meteorRadius - 5) * progress;
+          visual.zone.setRadius(currentRadius);
+          const pulse = 0.15 + 0.25 * Math.sin(visual.elapsed * (0.006 + progress * 0.02));
+          visual.zone.setAlpha(pulse);
+
+          // On impact: replace warning with explosion sprite
+          if (progress >= 1 && !visual.impactTriggered) {
+            visual.impactTriggered = true;
+            visual.zone.setStrokeStyle(3, 0xff6600, 0.8);
+            visual.zone.setFillStyle(0xff4400, 0.3);
+            // Add explosion sprite on top
+            const explosionKey = 'fx-explosion';
+            const explosionAnim = 'fx-explosion-play';
+            if (scene.anims.exists(explosionAnim)) {
+              const explSprite = scene.add.sprite(visual.zone.x, visual.zone.y, explosionKey);
+              explSprite.setScale((visual.meteorRadius / 20) * 1.5);
+              explSprite.setDepth(6);
+              explSprite.setAlpha(0.8);
+              explSprite.play({ key: explosionAnim, repeat: 0 });
+              visual.glow = explSprite;
+            }
+          }
+        } else if (visual.zone && !visual.zone.destroyed) {
           const pulse = 0.15 + 0.1 * Math.sin(visual.elapsed * 0.004);
           visual.zone.setAlpha(pulse);
         }

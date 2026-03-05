@@ -9,14 +9,14 @@ import { SPELLS, SLOT_SPELLS, SPELL_TO_SLOT } from '../src/shared/spellData.js';
 
 describe('computeSpellStats', () => {
   it('should return base stats at tier 0', () => {
-    const stats = computeSpellStats('fireball-sniper', 0);
-    const base = SKILL_TREES['fireball-sniper'].base;
+    const stats = computeSpellStats('fireball-focus', 0);
+    const base = SKILL_TREES['fireball-focus'].base;
     expect(stats).toEqual(base);
   });
 
   it('should apply additive numeric mods at tier 1', () => {
-    const stats = computeSpellStats('fireball-sniper', 1);
-    const base = SKILL_TREES['fireball-sniper'].base;
+    const stats = computeSpellStats('fireball-focus', 1);
+    const base = SKILL_TREES['fireball-focus'].base;
     // Tier 0 mods: range: +60, speed: +1
     expect(stats.range).toBe(base.range + 60);
     expect(stats.speed).toBe(base.speed + 1);
@@ -25,15 +25,15 @@ describe('computeSpellStats', () => {
   });
 
   it('should apply boolean mods as overrides', () => {
-    // fireball-sniper tier 2 (index 2) adds piercing: true
-    const stats = computeSpellStats('fireball-sniper', 3);
+    // fireball-focus tier 3 (index 2) adds piercing: true
+    const stats = computeSpellStats('fireball-focus', 3);
     expect(stats.piercing).toBe(true);
   });
 
   it('should apply all tiers cumulatively', () => {
-    // fireball-sniper at tier 4 (all tiers applied)
-    const stats = computeSpellStats('fireball-sniper', 4);
-    const base = SKILL_TREES['fireball-sniper'].base;
+    // fireball-focus at tier 4 (all tiers applied)
+    const stats = computeSpellStats('fireball-focus', 4);
+    const base = SKILL_TREES['fireball-focus'].base;
     // range: +60 (T1) + 80 (T4) = +140
     expect(stats.range).toBe(base.range + 60 + 80);
     // speed: +1 (T1) + 1 (T4) = +2
@@ -44,9 +44,9 @@ describe('computeSpellStats', () => {
   });
 
   it('should not mutate the SKILL_TREES base object', () => {
-    const baseBefore = SKILL_TREES['fireball-sniper'].base.range;
-    computeSpellStats('fireball-sniper', 4);
-    expect(SKILL_TREES['fireball-sniper'].base.range).toBe(baseBefore);
+    const baseBefore = SKILL_TREES['fireball-focus'].base.range;
+    computeSpellStats('fireball-focus', 4);
+    expect(SKILL_TREES['fireball-focus'].base.range).toBe(baseBefore);
   });
 
   it('should return null for unknown spellId', () => {
@@ -54,15 +54,15 @@ describe('computeSpellStats', () => {
   });
 
   it('should clamp to available tiers if tierLevel exceeds max', () => {
-    // fireball-sniper has 4 tiers — requesting tier 10 should apply all 4
-    const stats10 = computeSpellStats('fireball-sniper', 10);
-    const stats4 = computeSpellStats('fireball-sniper', 4);
+    // fireball-focus has 4 tiers — requesting tier 10 should apply all 4
+    const stats10 = computeSpellStats('fireball-focus', 10);
+    const stats4 = computeSpellStats('fireball-focus', 4);
     expect(stats10).toEqual(stats4);
   });
 
   it('should create new stat fields from mods that do not exist in base', () => {
-    // fireball-cannon tier 1 adds explosionRadius (not in base)
-    const stats = computeSpellStats('fireball-cannon', 2);
+    // fireball-power tier 2 (index 1) adds explosionRadius: 40 (not in base)
+    const stats = computeSpellStats('fireball-power', 2);
     expect(stats.explosionRadius).toBe(40); // 0 + 40
   });
 });
@@ -73,14 +73,14 @@ describe('computeSpellStats', () => {
 
 describe('getUpgradeCost', () => {
   it('should return correct cost for each tier level', () => {
-    expect(getUpgradeCost('fireball-sniper', 0)).toBe(3); // T1 cost
-    expect(getUpgradeCost('fireball-sniper', 1)).toBe(3); // T2 cost
-    expect(getUpgradeCost('fireball-sniper', 2)).toBe(4); // T3 cost
-    expect(getUpgradeCost('fireball-sniper', 3)).toBe(5); // T4 cost
+    expect(getUpgradeCost('fireball-focus', 0)).toBe(3); // T1 cost
+    expect(getUpgradeCost('fireball-focus', 1)).toBe(3); // T2 cost
+    expect(getUpgradeCost('fireball-focus', 2)).toBe(4); // T3 cost
+    expect(getUpgradeCost('fireball-focus', 3)).toBe(5); // T4 cost
   });
 
   it('should return null at max tier', () => {
-    expect(getUpgradeCost('fireball-sniper', 4)).toBeNull();
+    expect(getUpgradeCost('fireball-focus', 4)).toBeNull();
   });
 
   it('should return null for unknown spellId', () => {

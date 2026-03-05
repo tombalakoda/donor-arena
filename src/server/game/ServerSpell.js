@@ -482,6 +482,14 @@ export class ServerSpell {
     return this.statusEffects.get(playerId) || {};
   }
 
+  /**
+   * Check if a player is currently intangible (ghost buff active).
+   */
+  isIntangible(playerId) {
+    const effects = this.statusEffects.get(playerId);
+    return !!(effects && effects.intangible && effects.intangible.until > Date.now());
+  }
+
   // ═══════════════════════════════════════════════════════
   // EXPLOSION HANDLER
   // ═══════════════════════════════════════════════════════

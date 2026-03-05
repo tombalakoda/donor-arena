@@ -19,7 +19,7 @@ export const SPELL_TYPES = {
 
 // Which spells are available in each slot
 export const SLOT_SPELLS = {
-  Q: ['fireball-sniper', 'fireball-machinegun', 'fireball-cannon'],
+  Q: ['fireball-focus', 'fireball-speed', 'fireball-power'],
   W: ['blink', 'dash', 'flash', 'ghost', 'swap', 'timeshift'],
   E: ['frostbolt', 'blizzard', 'icewall', 'bouncer', 'shield'],
   R: ['hook', 'grappling', 'lightning', 'homing', 'meteor', 'rocketswarm', 'boomerang'],
@@ -38,10 +38,10 @@ export const SPELLS = {
   // ═══════════════════════════════════════════════════════════════
   // Q — FIREBALL VARIANTS (3 paths)
   // ═══════════════════════════════════════════════════════════════
-  'fireball-sniper': {
-    id: 'fireball-sniper',
-    name: 'Sniper',
-    description: 'Long-range precision shot. Hard hit, slow fire rate.',
+  'fireball-focus': {
+    id: 'fireball-focus',
+    name: 'Focus',
+    description: 'Long range, piercing shots.',
     type: SPELL_TYPES.PROJECTILE,
     slot: 'Q',
     fx: {
@@ -54,10 +54,10 @@ export const SPELLS = {
     },
     icon: 'spell-BookFire',
   },
-  'fireball-machinegun': {
-    id: 'fireball-machinegun',
-    name: 'Machine Gun',
-    description: 'Rapid-fire barrage. Low knockback, high pressure.',
+  'fireball-speed': {
+    id: 'fireball-speed',
+    name: 'Speed',
+    description: 'Rapid fire, fast cooldown.',
     type: SPELL_TYPES.PROJECTILE,
     slot: 'Q',
     fx: {
@@ -70,16 +70,16 @@ export const SPELLS = {
     },
     icon: 'spell-Fireball',
   },
-  'fireball-cannon': {
-    id: 'fireball-cannon',
-    name: 'Cannon',
-    description: 'Short-range devastation. Massive knockback, very slow.',
+  'fireball-power': {
+    id: 'fireball-power',
+    name: 'Power',
+    description: 'Heavy knockback, explosive impact.',
     type: SPELL_TYPES.PROJECTILE,
     slot: 'Q',
     fx: {
       sprite: 'fx-flam',
       animKey: 'fx-flam-play',
-      scale: 1.3,
+      scale: 1.0,
       sound: 'sfx-fireball',
       color: 0xdd2200,
       glowColor: 0xff4400,
@@ -328,9 +328,9 @@ export const SPELLS = {
     type: SPELL_TYPES.HOMING,
     slot: 'R',
     fx: {
-      sprite: 'fx-flam',
-      animKey: 'fx-flam-play',
-      scale: 0.8,
+      sprite: 'fx-spark',
+      animKey: 'fx-spark-play',
+      scale: 0.7,
       sound: 'sfx-fireball',
       color: 0xff4488,
       glowColor: 0xff88aa,

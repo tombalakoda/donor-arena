@@ -164,6 +164,7 @@ export class GameLoop {
           characterId: player.characterId,
           name: player.name,
           eliminated: player.eliminated,
+          intangible: room.spells.isIntangible(playerId),
         });
       }
     }
