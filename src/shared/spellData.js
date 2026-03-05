@@ -135,7 +135,7 @@ export const SPELLS = {
       color: 0xffdd00,
       glowColor: 0xffee44,
     },
-    icon: 'spell-AttackUpgrade',
+    icon: 'spell-Upgrade',
   },
   'ghost': {
     id: 'ghost',
@@ -167,7 +167,7 @@ export const SPELLS = {
       color: 0xcc44ff,
       glowColor: 0xdd88ff,
     },
-    icon: 'spell-Alchemy',
+    icon: 'spell-Permutation',
   },
   'timeshift': {
     id: 'timeshift',

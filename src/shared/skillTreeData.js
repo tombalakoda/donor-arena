@@ -11,12 +11,12 @@ export const SKILL_TREES = {
     base: {
       type: 'projectile',
       damage: 3,
-      knockbackForce: 0.05,
-      cooldown: 2500,
+      knockbackForce: 0.07,      // sniper: high KB
+      cooldown: 3500,             // sniper: slow fire rate
       speed: 8,
-      range: 350,
+      range: 450,                 // sniper: long range
       radius: 7,
-      lifetime: 1800,
+      lifetime: 2300,             // proportional to range
       piercing: false,
     },
     tiers: [
@@ -31,12 +31,12 @@ export const SKILL_TREES = {
     base: {
       type: 'projectile',
       damage: 3,
-      knockbackForce: 0.05,
-      cooldown: 2500,
+      knockbackForce: 0.03,      // machinegun: weak per-shot KB
+      cooldown: 1800,             // machinegun: fast fire rate
       speed: 8,
-      range: 350,
+      range: 250,                 // machinegun: short range
       radius: 7,
-      lifetime: 1800,
+      lifetime: 1300,             // proportional to range
       piercing: false,
     },
     tiers: [
@@ -51,12 +51,12 @@ export const SKILL_TREES = {
     base: {
       type: 'projectile',
       damage: 3,
-      knockbackForce: 0.05,
-      cooldown: 2500,
+      knockbackForce: 0.08,      // power: heavy KB
+      cooldown: 3200,             // power: slow fire rate
       speed: 8,
-      range: 350,
+      range: 280,                 // power: short range (close combat)
       radius: 7,
-      lifetime: 1800,
+      lifetime: 1500,             // proportional to range
       piercing: false,
     },
     tiers: [
@@ -328,7 +328,7 @@ export const SKILL_TREES = {
       knockbackForce: 0.10,
       cooldown: 12000,
       range: 150,               // close range cast — high risk, high reward
-      impactDelay: 1000,        // 1s delay before impact
+      impactDelay: 2000,        // 2s delay before impact
       impactRadius: 45,         // smaller AoE — powerful but hard to hit
       isMeteor: true,           // flag for special meteor behavior
     },
@@ -344,7 +344,7 @@ export const SKILL_TREES = {
       damage: 1,
       knockbackForce: 0.02,
       cooldown: 10000,
-      speed: 5,
+      speed: 8,
       radius: 5,
       lifetime: 3000,
       turnRate: 0.06,
@@ -366,9 +366,10 @@ export const SKILL_TREES = {
       maxKnockbackForce: 0.09,  // KB at max range (scales linearly with distance)
       cooldown: 7000,
       speed: 7,
-      range: 400,               // max distance before returning
+      range: 70,                // barely goes forward before returning
       radius: 8,
-      lifetime: 6000,           // must be long enough for full round trip at speed
+      lifetime: 4000,           // generous for short outbound + return + overshoot
+      overshootRange: 200,      // how far past the caster it travels
     },
     tiers: [
       { cost: 3, name: 'Long Throw', description: 'Further range, more max knockback', mods: { range: 100, maxKnockbackForce: 0.02, lifetime: 2000 } },

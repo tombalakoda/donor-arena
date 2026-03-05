@@ -24,8 +24,8 @@ export const boomerangHandler = {
       damage: stats.damage || 2,
       knockbackForce: stats.knockbackForce || 0.03,
       maxKnockbackForce: stats.maxKnockbackForce || 0.09,
-      range: stats.range || 400,
-      lifetime: stats.lifetime || 3000,
+      range: stats.range || 70,
+      lifetime: stats.lifetime || 4000,
       elapsed: 0,
       active: true,
       returning: false,
@@ -34,6 +34,10 @@ export const boomerangHandler = {
       cooldownOnCatch: stats.cooldownOnCatch || 0,
       speed: clampedSpeed,
       maxDist: 0, // track max distance traveled (for KB scaling)
+      overshootRange: stats.overshootRange || 200,
+      passedCaster: false,
+      casterPassX: 0,
+      casterPassY: 0,
     };
 
     ctx.activeSpells.push(spell);
@@ -49,31 +53,45 @@ export const boomerangHandler = {
     const distFromOrigin = Math.sqrt(dx * dx + dy * dy);
     spell.maxDist = Math.max(spell.maxDist, distFromOrigin);
 
-    // Check if should reverse
+    // Outbound phase: check if should reverse
     if (!spell.returning && distFromOrigin >= spell.range) {
       spell.returning = true;
       spell.hitIds = []; // Reset hit tracking for return trip if hitsOnReturn
     }
 
-    // Steer back toward caster when returning
+    // Return + overshoot phase
     if (spell.returning) {
-      const casterBody = ctx.physics.playerBodies.get(spell.ownerId);
-      if (casterBody) {
-        const cx = casterBody.position.x - spell.x;
-        const cy = casterBody.position.y - spell.y;
-        const cDist = Math.sqrt(cx * cx + cy * cy) || 1;
-        spell.vx = (cx / cDist) * spell.speed;
-        spell.vy = (cy / cDist) * spell.speed;
+      if (!spell.passedCaster) {
+        // Steer toward caster
+        const casterBody = ctx.physics.playerBodies.get(spell.ownerId);
+        if (casterBody) {
+          const cx = casterBody.position.x - spell.x;
+          const cy = casterBody.position.y - spell.y;
+          const cDist = Math.sqrt(cx * cx + cy * cy) || 1;
+          spell.vx = (cx / cDist) * spell.speed;
+          spell.vy = (cy / cDist) * spell.speed;
 
-        // Caught by caster
-        if (cDist < PLAYER.RADIUS + spell.radius) {
-          // Reduce cooldown on catch (T2)
-          if (spell.cooldownOnCatch) {
-            const cd = ctx.cooldowns.get(spell.ownerId);
-            if (cd && cd[spell.type]) {
-              cd[spell.type] = Math.max(0, cd[spell.type] + spell.cooldownOnCatch);
+          // Check if reached caster — pass through, don't stop
+          if (cDist < PLAYER.RADIUS + spell.radius) {
+            spell.passedCaster = true;
+            spell.casterPassX = spell.x;
+            spell.casterPassY = spell.y;
+            // Reduce cooldown on catch (T2)
+            if (spell.cooldownOnCatch) {
+              const cd = ctx.cooldowns.get(spell.ownerId);
+              if (cd && cd[spell.type]) {
+                cd[spell.type] = Math.max(0, cd[spell.type] + spell.cooldownOnCatch);
+              }
             }
+            // Keep going — do NOT deactivate
           }
+        }
+      } else {
+        // Overshoot phase: maintain velocity direction, no steering
+        const odx = spell.x - spell.casterPassX;
+        const ody = spell.y - spell.casterPassY;
+        const overshootDist = Math.sqrt(odx * odx + ody * ody);
+        if (overshootDist >= spell.overshootRange) {
           spell.active = false;
           ctx.removeSpell(i);
           return 'continue';
@@ -89,8 +107,8 @@ export const boomerangHandler = {
       const targetEffects = ctx.statusEffects.get(playerId);
       if (targetEffects && targetEffects.intangible) continue;
 
-      // Skip return hits if hitsOnReturn not enabled
-      if (spell.returning && !spell.hitsOnReturn) continue;
+      // Skip return hits if hitsOnReturn not enabled (but always hit during overshoot)
+      if (spell.returning && !spell.passedCaster && !spell.hitsOnReturn) continue;
 
       const pdx = body.position.x - spell.x;
       const pdy = body.position.y - spell.y;
@@ -98,7 +116,7 @@ export const boomerangHandler = {
 
       if (pDist < spell.radius + PLAYER.RADIUS) {
         // KB scales with distance traveled
-        const distRatio = spell.maxDist / (spell.range || 400);
+        const distRatio = spell.maxDist / (spell.range || 70);
         const scaledKb = spell.knockbackForce + (spell.maxKnockbackForce - spell.knockbackForce) * Math.min(1, distRatio);
 
         const nx = pDist > 0 ? pdx / pDist : 0;

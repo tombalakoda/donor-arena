@@ -243,6 +243,7 @@ export class BootScene extends Phaser.Scene {
       'BookPlant', 'BookLight', 'BookDarkness', 'BookDeath',
       'BookWind',
       'Fireball', 'Explosion', 'Mist',
+      'Upgrade', 'Permutation',
     ];
     for (const icon of spellIcons) {
       const path = `assets/ui/skill-icons/spell/${icon}.png`;

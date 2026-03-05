@@ -776,9 +776,9 @@ export class GameScene extends Phaser.Scene {
 
     this.network.sendSpellCast(slotKey, spellId, worldPoint.x, worldPoint.y);
 
-    // Blink: clear movement target so player doesn't auto-walk to old click position
+    // Blink/Swap: clear movement target so player doesn't auto-walk to old click position
     const spellDef = SPELLS[spellId];
-    if (spellDef && spellDef.type === SPELL_TYPES.BLINK) {
+    if (spellDef && (spellDef.type === SPELL_TYPES.BLINK || spellDef.type === SPELL_TYPES.SWAP)) {
       this.moveTarget = null;
     }
   }
