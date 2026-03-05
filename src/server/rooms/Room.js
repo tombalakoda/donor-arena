@@ -285,6 +285,7 @@ export class Room {
           targetX: spell.targetX,
           targetY: spell.targetY,
           pullSelf: spell.pullSelf,
+          buffType: spell.buffType || null,
         });
       }
 

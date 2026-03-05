@@ -1075,6 +1075,170 @@ export class GameScene extends Phaser.Scene {
         break;
       }
 
+      case SPELL_TYPES.BUFF: {
+        // Buff visuals follow the caster — differentiate by buffType
+        const fx = def.fx || {};
+        const buffType = spell.buffType || 'flash';
+        visual.followOwner = true;
+        visual.ownerId = spell.ownerId;
+
+        if (buffType === 'shield') {
+          // Shield: blue bubble ring around player
+          const bubble = this.add.circle(spell.x, spell.y, PLAYER.RADIUS + 8, 0x44aaff, 0.15);
+          bubble.setDepth(4);
+          bubble.setStrokeStyle(2.5, 0x88ccff, 0.7);
+          visual.sprite = bubble;
+        } else if (buffType === 'ghost') {
+          // Ghost: ethereal glow around player (low alpha)
+          const ghostGlow = this.add.circle(spell.x, spell.y, PLAYER.RADIUS + 6, 0xaabbff, 0.12);
+          ghostGlow.setDepth(4);
+          ghostGlow.setStrokeStyle(2, 0xccddff, 0.5);
+          visual.sprite = ghostGlow;
+          // Also add animated FX sprite
+          const spriteKey = fx.sprite || 'fx-spirit';
+          const animKey = fx.animKey || 'fx-spirit-play';
+          if (this.anims.exists(animKey)) {
+            const ghostFx = this.add.sprite(spell.x, spell.y, spriteKey);
+            ghostFx.setDepth(5);
+            ghostFx.setScale((fx.scale || 1.5) * 3);
+            ghostFx.setAlpha(0.35);
+            ghostFx.play({ key: animKey, repeat: -1 });
+            visual.glow = ghostFx;
+          }
+        } else {
+          // Flash: golden speed glow
+          const flashGlow = this.add.circle(spell.x, spell.y, PLAYER.RADIUS + 5, 0xffdd00, 0.2);
+          flashGlow.setDepth(4);
+          flashGlow.setStrokeStyle(2, 0xffee44, 0.6);
+          visual.sprite = flashGlow;
+          // Animated boost sprite
+          const spriteKey = fx.sprite || 'fx-boost';
+          const animKey = fx.animKey || 'fx-boost-play';
+          if (this.anims.exists(animKey)) {
+            const flashFx = this.add.sprite(spell.x, spell.y, spriteKey);
+            flashFx.setDepth(5);
+            flashFx.setScale((fx.scale || 1.0) * 3);
+            flashFx.setAlpha(0.5);
+            flashFx.play({ key: animKey, repeat: -1 });
+            visual.glow = flashFx;
+          }
+        }
+        break;
+      }
+
+      case SPELL_TYPES.SWAP: {
+        // Swap projectile: like PROJECTILE but purple/violet
+        const fx = def.fx || {};
+        const spriteKey = fx.sprite || 'fx-spirit';
+        const animKey = fx.animKey || 'fx-spirit-play';
+        const scale = fx.scale || 0.9;
+
+        if (this.anims.exists(animKey)) {
+          const swapSprite = this.add.sprite(spell.x, spell.y, spriteKey);
+          swapSprite.setDepth(15);
+          swapSprite.setScale(scale * 3);
+          swapSprite.play({ key: animKey, repeat: -1 });
+          visual.sprite = swapSprite;
+        } else {
+          visual.sprite = this.add.circle(spell.x, spell.y, spell.radius || 7, fx.color || 0xcc44ff, 0.8);
+          visual.sprite.setDepth(15);
+        }
+
+        // Purple glow trail
+        const swapGlow = this.add.circle(spell.x, spell.y, (spell.radius || 7) + 6, fx.glowColor || 0xdd88ff, 0.3);
+        swapGlow.setDepth(14);
+        visual.glow = swapGlow;
+        visual.vx = spell.vx || 0;
+        visual.vy = spell.vy || 0;
+        break;
+      }
+
+      case SPELL_TYPES.RECALL: {
+        // Recall (Time Shift): instant teleport — poof at departure + arrival (like BLINK)
+        const fx = def.fx || {};
+        const spriteKey = fx.sprite || 'fx-circle';
+        const animKey = fx.animKey || 'fx-circle-play';
+        const scale = fx.scale || 1.0;
+        const recallColor = fx.color || 0x44ddff;
+
+        // Departure poof
+        const departPoof = this.add.circle(spell.targetX || spell.x, spell.targetY || spell.y, 20, recallColor, 0.5);
+        departPoof.setDepth(5);
+        visual.sprite = departPoof;
+
+        // Arrival poof
+        const arrivalPoof = this.add.circle(spell.x, spell.y, 20, recallColor, 0.5);
+        arrivalPoof.setDepth(5);
+        visual.arrival = arrivalPoof;
+
+        // Animated FX at arrival
+        if (this.anims.exists(animKey)) {
+          const recallFx = this.add.sprite(spell.x, spell.y, spriteKey);
+          recallFx.setDepth(6);
+          recallFx.setScale(scale * 3);
+          recallFx.play({ key: animKey, repeat: 0 });
+          visual.glow = recallFx;
+        }
+
+        visual.lifetime = spell.lifetime || 800;
+        break;
+      }
+
+      case SPELL_TYPES.HOMING: {
+        // Homing missile: like PROJECTILE with animated sprite
+        const fx = def.fx || {};
+        const spriteKey = fx.sprite || 'fx-flam';
+        const animKey = fx.animKey || 'fx-flam-play';
+        const scale = fx.scale || 0.8;
+
+        if (this.anims.exists(animKey)) {
+          const homingSprite = this.add.sprite(spell.x, spell.y, spriteKey);
+          homingSprite.setDepth(15);
+          homingSprite.setScale(scale * 3);
+          homingSprite.play({ key: animKey, repeat: -1 });
+          visual.sprite = homingSprite;
+        } else {
+          visual.sprite = this.add.circle(spell.x, spell.y, spell.radius || 7, fx.color || 0xff4400, 0.8);
+          visual.sprite.setDepth(15);
+        }
+
+        // Glow trail
+        const homingGlow = this.add.circle(spell.x, spell.y, (spell.radius || 7) + 5, fx.glowColor || 0xff8844, 0.3);
+        homingGlow.setDepth(14);
+        visual.glow = homingGlow;
+        visual.vx = spell.vx || 0;
+        visual.vy = spell.vy || 0;
+        break;
+      }
+
+      case SPELL_TYPES.BOOMERANG: {
+        // Boomerang: spinning projectile
+        const fx = def.fx || {};
+        const spriteKey = fx.sprite || 'fx-rock-spike';
+        const animKey = fx.animKey || 'fx-rock-spike-play';
+        const scale = fx.scale || 1.0;
+
+        if (this.anims.exists(animKey)) {
+          const boomSprite = this.add.sprite(spell.x, spell.y, spriteKey);
+          boomSprite.setDepth(15);
+          boomSprite.setScale(scale * 3);
+          boomSprite.play({ key: animKey, repeat: -1 });
+          visual.sprite = boomSprite;
+        } else {
+          visual.sprite = this.add.circle(spell.x, spell.y, spell.radius || 8, fx.color || 0x88aa44, 0.8);
+          visual.sprite.setDepth(15);
+        }
+
+        // Glow
+        const boomGlow = this.add.circle(spell.x, spell.y, (spell.radius || 8) + 5, fx.glowColor || 0xaacc66, 0.3);
+        boomGlow.setDepth(14);
+        visual.glow = boomGlow;
+        visual.vx = spell.vx || 0;
+        visual.vy = spell.vy || 0;
+        visual.isBoomerang = true; // For spin rotation in updateSpellVisuals
+        break;
+      }
+
       default: {
         // Fallback: simple colored circle
         const color = (def.fx && def.fx.color) || 0xff00ff;
@@ -1122,6 +1286,7 @@ export class GameScene extends Phaser.Scene {
           targetX: spell.targetX,
           targetY: spell.targetY,
           pullSelf: spell.pullSelf,
+          buffType: spell.buffType || null,
         });
       }
     }
@@ -1213,7 +1378,32 @@ export class GameScene extends Phaser.Scene {
           visual.chain.strokePath();
         }
       }
-      // BLINK, DASH, ZONE, WALL, INSTANT: no position sync needed (stationary effects)
+      // SWAP, HOMING, BOOMERANG: lerp to server position (same as PROJECTILE)
+      if (visual.type === SPELL_TYPES.SWAP || visual.type === SPELL_TYPES.HOMING || visual.type === SPELL_TYPES.BOOMERANG) {
+        const lerpFactor = 0.3;
+        visual.sprite.x += (spell.x - visual.sprite.x) * lerpFactor;
+        visual.sprite.y += (spell.y - visual.sprite.y) * lerpFactor;
+        if (visual.glow && !visual.glow.destroyed) {
+          visual.glow.x = visual.sprite.x;
+          visual.glow.y = visual.sprite.y;
+        }
+        // Update velocity from server (homing changes direction)
+        visual.vx = spell.vx || 0;
+        visual.vy = spell.vy || 0;
+      }
+
+      // BUFF: position comes from server (follows owner)
+      if (visual.type === SPELL_TYPES.BUFF && visual.followOwner) {
+        // Server sends updated x/y each tick (owner position)
+        visual.sprite.x = spell.x;
+        visual.sprite.y = spell.y;
+        if (visual.glow && !visual.glow.destroyed) {
+          visual.glow.x = spell.x;
+          visual.glow.y = spell.y;
+        }
+      }
+
+      // BLINK, DASH, ZONE, WALL, INSTANT, RECALL: no position sync needed (stationary effects)
     }
   }
 
@@ -2139,6 +2329,47 @@ export class GameScene extends Phaser.Scene {
           const pulse = 0.15 + 0.1 * Math.sin(visual.elapsed * 0.004);
           visual.zone.setAlpha(pulse);
         }
+      } else if (visual.type === SPELL_TYPES.BUFF && visual.followOwner && visual.sprite && !visual.sprite.destroyed) {
+        // Buff visuals follow the caster's position
+        let ownerX, ownerY;
+        if (visual.ownerId === this.localPlayerId && this.playerBody) {
+          ownerX = this.playerBody.position.x;
+          ownerY = this.playerBody.position.y;
+        } else {
+          const rp = this.remotePlayers.get(visual.ownerId);
+          if (rp) { ownerX = rp.x; ownerY = rp.y; }
+        }
+        if (ownerX !== undefined) {
+          visual.sprite.x = ownerX;
+          visual.sprite.y = ownerY;
+          if (visual.glow && !visual.glow.destroyed) {
+            visual.glow.x = ownerX;
+            visual.glow.y = ownerY;
+          }
+        }
+        // Pulse alpha for shield bubble
+        if (visual.sprite && !visual.sprite.destroyed) {
+          const pulse = 0.1 + 0.08 * Math.sin(visual.elapsed * 0.005);
+          visual.sprite.setAlpha(pulse);
+        }
+      } else if ((visual.type === SPELL_TYPES.SWAP || visual.type === SPELL_TYPES.HOMING || visual.type === SPELL_TYPES.BOOMERANG) && visual.sprite && !visual.sprite.destroyed) {
+        // Projectile-like movement: move sprite + glow between server ticks
+        visual.sprite.x += (visual.vx || 0);
+        visual.sprite.y += (visual.vy || 0);
+        if (visual.glow && !visual.glow.destroyed) {
+          visual.glow.x = visual.sprite.x;
+          visual.glow.y = visual.sprite.y;
+        }
+        // Boomerang: spin rotation
+        if (visual.isBoomerang) {
+          visual.sprite.rotation += 0.15;
+        }
+      } else if (visual.type === SPELL_TYPES.RECALL) {
+        // Fade out over lifetime (like BLINK)
+        const alpha = Math.max(0, 1 - visual.elapsed / visual.lifetime);
+        if (visual.sprite && !visual.sprite.destroyed) visual.sprite.setAlpha(alpha);
+        if (visual.arrival && !visual.arrival.destroyed) visual.arrival.setAlpha(alpha);
+        if (visual.glow && !visual.glow.destroyed) visual.glow.setAlpha(alpha);
       }
 
       // Cleanup when lifetime expired (with grace period for server sync)

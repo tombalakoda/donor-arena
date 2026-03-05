@@ -143,6 +143,11 @@ export class ServerPhysics {
         forceMagnitude *= (1 - statusEffects.slow.amount);
       }
 
+      // Speed boost effect: increase movement force (Flash, Ghost)
+      if (statusEffects.speedBoost) {
+        forceMagnitude *= (1 + statusEffects.speedBoost.amount);
+      }
+
       Body.applyForce(body, body.position, {
         x: nx * forceMagnitude,
         y: ny * forceMagnitude,
@@ -156,6 +161,9 @@ export class ServerPhysics {
     let effectiveMaxSpeed = maxSpeed;
     if (statusEffects.slow) {
       effectiveMaxSpeed *= (1 - statusEffects.slow.amount);
+    }
+    if (statusEffects.speedBoost) {
+      effectiveMaxSpeed *= (1 + statusEffects.speedBoost.amount);
     }
 
     const vel = body.velocity;
