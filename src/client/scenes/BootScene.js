@@ -236,6 +236,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-scroll', 'assets/ui/receptacle/rectangle/BackgroundScroll.png');
     this.load.image('ui-slider-progress', 'assets/ui/theme-wood/slider_progress.png');
     this.load.image('ui-tab', 'assets/ui/theme-wood/tab_selected.png');
+    this.load.image('ui-button-disabled', 'assets/ui/theme-wood/button_disabled.png');
+    this.load.image('ui-tab-unselected', 'assets/ui/theme-wood/tab_unselected.png');
 
     // --- Load Spell Icons ---
     const spellIcons = [

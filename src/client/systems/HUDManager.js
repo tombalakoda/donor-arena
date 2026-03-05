@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PLAYER, ARENA } from '../../shared/constants.js';
 import { SPELLS } from '../../shared/spellData.js';
+import { UI_FONT } from '../config.js';
 
 export class HUDManager {
   constructor(scene) {
@@ -28,6 +29,7 @@ export class HUDManager {
     // Spell slots
     this.spellSlots = [];
     this.spText = null;
+    this.spBg = null;
 
     // Ring
     this.ringGraphics = null;
@@ -49,44 +51,46 @@ export class HUDManager {
   createHUD() {
     const scene = this.scene;
     this.pingText = scene.add.text(10, 10, 'Ping: --', {
-      fontSize: '14px',
+      fontSize: '14px', fontFamily: UI_FONT,
       fill: '#88ccff',
     }).setScrollFactor(0).setDepth(100);
 
     this.playerCountText = scene.add.text(10, 28, 'Players: 0', {
-      fontSize: '14px',
+      fontSize: '14px', fontFamily: UI_FONT,
       fill: '#88ccff',
     }).setScrollFactor(0).setDepth(100);
 
     const camW = scene.cameras.main.width;
     const camH = scene.cameras.main.height;
-    this.hpBarBg = scene.add.rectangle(camW / 2, 20, 204, 14, 0x333333)
+
+    // HP bar: nineslice frame + colored fill rectangle inside
+    this.hpBarBg = scene.add.nineslice(camW / 2, 20, 'ui-panel-2', null, 208, 18, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(100).setOrigin(0.5);
     this.hpBarFill = scene.add.rectangle(camW / 2 - 100, 20, 200, 10, 0x44dd44)
       .setScrollFactor(0).setDepth(101).setOrigin(0, 0.5);
     this.hpText = scene.add.text(camW / 2, 20, '100/100', {
-      fontSize: '10px',
+      fontSize: '10px', fontFamily: UI_FONT,
       fill: '#ffffff',
     }).setScrollFactor(0).setDepth(102).setOrigin(0.5);
 
     this.roundText = scene.add.text(camW - 10, 10, 'Round 0/20', {
-      fontSize: '14px',
+      fontSize: '14px', fontFamily: UI_FONT,
       fill: '#ffdd44',
       fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(100).setOrigin(1, 0);
 
     this.timerText = scene.add.text(camW - 10, 28, '60s', {
-      fontSize: '14px',
+      fontSize: '14px', fontFamily: UI_FONT,
       fill: '#88ccff',
     }).setScrollFactor(0).setDepth(100).setOrigin(1, 0);
 
     this.phaseText = scene.add.text(camW / 2, 40, '', {
-      fontSize: '12px',
+      fontSize: '12px', fontFamily: UI_FONT,
       fill: '#aaaaaa',
     }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
 
     this.countdownText = scene.add.text(camW / 2, camH / 2 - 40, '', {
-      fontSize: '64px',
+      fontSize: '64px', fontFamily: UI_FONT,
       fill: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -103,8 +107,8 @@ export class HUDManager {
     const x = camW - 24;
     const y = 52;
 
-    const bg = scene.add.rectangle(x, y, btnSize, btnSize, 0x1a1428, 0.8)
-      .setScrollFactor(0).setDepth(100).setStrokeStyle(1, 0x3d2e1e);
+    const bg = scene.add.nineslice(x, y, 'ui-inventory-cell', null, btnSize, btnSize, 4, 4, 4, 4)
+      .setScrollFactor(0).setDepth(100);
 
     const icon = scene.add.text(x, y, isMuted ? '🔇' : '🔊', {
       fontSize: '14px',
@@ -113,8 +117,8 @@ export class HUDManager {
     const hitArea = scene.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
       .setScrollFactor(0).setDepth(102).setInteractive({ useHandCursor: true });
 
-    hitArea.on('pointerover', () => bg.setStrokeStyle(1, 0xffdd44));
-    hitArea.on('pointerout', () => bg.setStrokeStyle(1, 0x3d2e1e));
+    hitArea.on('pointerover', () => bg.setTint(0xddddaa));
+    hitArea.on('pointerout', () => bg.clearTint());
     hitArea.on('pointerdown', () => {
       scene.sound.mute = !scene.sound.mute;
       localStorage.setItem('soundMuted', scene.sound.mute);
@@ -138,8 +142,9 @@ export class HUDManager {
       const key = slots[i];
       const x = startX + i * (slotSize + slotGap) + slotSize / 2;
 
-      const bg = scene.add.rectangle(x, slotY, slotSize, slotSize, 0x222233, 0.8)
-        .setScrollFactor(0).setDepth(100).setStrokeStyle(2, 0x445566);
+      // Nineslice inventory cell instead of plain rectangle
+      const bg = scene.add.nineslice(x, slotY, 'ui-inventory-cell', null, slotSize, slotSize, 4, 4, 4, 4)
+        .setScrollFactor(0).setDepth(100);
 
       let icon = null;
 
@@ -147,18 +152,18 @@ export class HUDManager {
         .setScrollFactor(0).setDepth(102).setVisible(false);
 
       const cdText = scene.add.text(x, slotY, '', {
-        fontSize: '14px',
+        fontSize: '14px', fontFamily: UI_FONT,
         fill: '#ffffff',
         fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(103).setOrigin(0.5).setVisible(false);
 
       scene.add.text(x - slotSize / 2 + 4, slotY - slotSize / 2 + 2, key, {
-        fontSize: '10px',
+        fontSize: '10px', fontFamily: UI_FONT,
         fill: '#aaccff',
         fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(103);
 
-      const lockOverlay = scene.add.rectangle(x, slotY, slotSize - 2, slotSize - 2, 0x111111, 0.8)
+      const lockOverlay = scene.add.rectangle(x, slotY, slotSize - 2, slotSize - 2, 0x000000, 0.7)
         .setScrollFactor(0).setDepth(104).setVisible(false);
       const lockText = scene.add.text(x, slotY, '🔒', {
         fontSize: '16px',
@@ -167,13 +172,13 @@ export class HUDManager {
       }).setScrollFactor(0).setDepth(105).setOrigin(0.5).setVisible(false);
 
       const emptyText = scene.add.text(x, slotY, '?', {
-        fontSize: '18px',
+        fontSize: '18px', fontFamily: UI_FONT,
         fill: '#555555',
         fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(105).setOrigin(0.5).setVisible(false);
 
       const chargeText = scene.add.text(x + slotSize / 2 - 4, slotY + slotSize / 2 - 4, '', {
-        fontSize: '10px',
+        fontSize: '10px', fontFamily: UI_FONT,
         fill: '#ffdd44',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -195,15 +200,19 @@ export class HUDManager {
       });
     }
 
-    this.spText = scene.add.text(camW / 2, slotY + slotSize / 2 + 8, 'SP: 0', {
-      fontSize: '12px',
+    // SP counter with panel background
+    this.spBg = scene.add.nineslice(camW / 2, slotY + slotSize / 2 + 14, 'ui-panel-2', null, 80, 20, 4, 4, 4, 4)
+      .setScrollFactor(0).setDepth(99).setAlpha(0.7);
+
+    this.spText = scene.add.text(camW / 2, slotY + slotSize / 2 + 14, 'SP: 0', {
+      fontSize: '12px', fontFamily: UI_FONT,
       fill: '#44ddff',
       fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
+    }).setScrollFactor(0).setDepth(100).setOrigin(0.5);
 
     if (scene.gameMode === 'sandbox') {
-      scene.add.text(camW / 2, slotY + slotSize / 2 + 24, 'Press B to open Shop', {
-        fontSize: '11px',
+      scene.add.text(camW / 2, slotY + slotSize / 2 + 30, 'Press B to open Shop', {
+        fontSize: '11px', fontFamily: UI_FONT,
         fill: '#666688',
       }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
     }
@@ -217,7 +226,7 @@ export class HUDManager {
     const camW = scene.cameras.main.width;
     const camH = scene.cameras.main.height;
     this.announcementText = scene.add.text(camW / 2, camH / 3, text, {
-      fontSize: '28px',
+      fontSize: '28px', fontFamily: UI_FONT,
       fill: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -242,8 +251,7 @@ export class HUDManager {
   showDamageNumber(x, y, amount) {
     const scene = this.scene;
     const text = scene.add.text(x, y - 20, `-${Math.ceil(amount)}`, {
-      fontSize: '14px',
-      fontFamily: 'monospace',
+      fontSize: '14px', fontFamily: UI_FONT,
       color: '#ff4444',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -262,9 +270,9 @@ export class HUDManager {
   addKillFeed(text) {
     const scene = this.scene;
     const camW = scene.cameras.main.width;
-    const y = 60 + this.killFeedTexts.length * 18;
+    const y = 72 + this.killFeedTexts.length * 18;
     const feedText = scene.add.text(camW - 10, y, text, {
-      fontSize: '12px',
+      fontSize: '12px', fontFamily: UI_FONT,
       fill: '#ff8888',
       stroke: '#000000',
       strokeThickness: 2,
@@ -276,7 +284,7 @@ export class HUDManager {
       const old = this.killFeedTexts.shift();
       old.destroy();
       this.killFeedTexts.forEach((t, i) => {
-        t.setY(60 + i * 18);
+        t.setY(72 + i * 18);
       });
     }
 
@@ -289,7 +297,7 @@ export class HUDManager {
         this.killFeedTexts.splice(idx, 1);
         feedText.destroy();
         this.killFeedTexts.forEach((t, i) => {
-          t.setY(60 + i * 18);
+          t.setY(72 + i * 18);
         });
       }
     }, 4000);
@@ -586,7 +594,7 @@ export class HUDManager {
       this.hpBarBg, this.hpBarFill, this.hpText,
       this.pingText, this.playerCountText,
       this.roundText, this.timerText, this.phaseText,
-      this.countdownText, this.spText,
+      this.countdownText, this.spText, this.spBg,
     ];
     for (const el of hudElements) {
       if (el && !el.destroyed) el.destroy();

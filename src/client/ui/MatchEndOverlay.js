@@ -1,4 +1,5 @@
-import Phaser from 'phaser';
+import { UI_FONT } from '../config.js';
+import { createNinesliceButton } from './UIHelpers.js';
 
 /**
  * MatchEndOverlay — Shown when all rounds are complete.
@@ -49,29 +50,24 @@ export class MatchEndOverlay {
       this.playSfx('jingle-gameover');
     }
 
-    // Dark overlay
+    // Dark overlay (kept as rectangle dimmer)
     const bg = scene.add.rectangle(camW / 2, camH / 2, camW, camH, 0x000000, 0.8)
       .setScrollFactor(0).setDepth(DEPTH).setInteractive();
     this.elements.push(bg);
 
-    // Main panel
+    // Main panel — nineslice
     const panelW = 520;
     const panelH = 440;
-    const px = camW / 2 - panelW / 2;
     const py = camH / 2 - panelH / 2;
-    const panelG = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH + 1);
-    panelG.fillStyle(0x0a0a1e, 0.95);
-    panelG.fillRoundedRect(px, py, panelW, panelH, 12);
-    panelG.lineStyle(3, 0x3d2e1e, 1);
-    panelG.strokeRoundedRect(px, py, panelW, panelH, 12);
-    panelG.lineStyle(1, 0xffdd44, 0.2);
-    panelG.strokeRoundedRect(px + 4, py + 4, panelW - 8, panelH - 8, 10);
-    this.elements.push(panelG);
+    const px = camW / 2 - panelW / 2;
+    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 4, 4, 4, 4)
+      .setScrollFactor(0).setDepth(DEPTH + 1);
+    this.elements.push(panel);
 
     // Title
     const title = scene.add.text(camW / 2, py + 30, 'MATCH OVER', {
       fontSize: '32px',
-      fontFamily: 'monospace',
+      fontFamily: UI_FONT,
       fill: '#ffdd44',
       stroke: '#000000',
       strokeThickness: 4,
@@ -80,7 +76,7 @@ export class MatchEndOverlay {
 
     const sub = scene.add.text(camW / 2, py + 60, 'DÖNER FIGHT', {
       fontSize: '13px',
-      fontFamily: 'monospace',
+      fontFamily: UI_FONT,
       fill: '#666688',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
     this.elements.push(sub);
@@ -112,9 +108,9 @@ export class MatchEndOverlay {
 
       // Winner name
       const winnerName = winner.name || winner.id.slice(-4);
-      const nameLabel = scene.add.text(camW / 2, py + 135, `👑 ${winnerName}`, {
+      const nameLabel = scene.add.text(camW / 2, py + 135, `${winnerName}`, {
         fontSize: '18px',
-        fontFamily: 'monospace',
+        fontFamily: UI_FONT,
         fill: '#ffdd44',
         stroke: '#000000',
         strokeThickness: 2,
@@ -128,7 +124,7 @@ export class MatchEndOverlay {
     const cols = { rank: px + 25, face: px + 60, name: px + 100, pts: px + 300, elims: px + 370, wins: px + 440 };
 
     // Header
-    const headerStyle = { fontSize: '12px', fontFamily: 'monospace', fill: '#888899' };
+    const headerStyle = { fontSize: '12px', fontFamily: UI_FONT, fill: '#888899' };
     const headers = [
       scene.add.text(cols.rank, tableY, '#', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
       scene.add.text(cols.name, tableY, 'Player', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
@@ -156,16 +152,25 @@ export class MatchEndOverlay {
       const rankColor = rankColors[i] || '#aaaaaa';
       const nameColor = isLocal ? '#44ddff' : '#cccccc';
 
-      // Highlight row for local player
-      if (isLocal) {
-        const rowBg = scene.add.rectangle(camW / 2, ry + 6, panelW - 30, rowH - 2, 0x44ddff, 0.08)
+      // Alternating row background for even rows
+      if (i % 2 === 0) {
+        const rowBgAlt = scene.add.nineslice(camW / 2, ry + 6, 'ui-bg', null, panelW - 30, rowH - 2, 4, 4, 4, 4)
+          .setAlpha(0.15)
           .setScrollFactor(0).setDepth(DEPTH + 1);
-        this.elements.push(rowBg);
+        this.elements.push(rowBgAlt);
+      }
+
+      // Highlight row for local player — nineslice focus
+      if (isLocal) {
+        const rowHighlight = scene.add.nineslice(camW / 2, ry + 6, 'ui-focus', null, panelW - 30, rowH - 2, 3, 3, 3, 3)
+          .setAlpha(0.3)
+          .setScrollFactor(0).setDepth(DEPTH + 1);
+        this.elements.push(rowHighlight);
       }
 
       // Rank
       const rankText = scene.add.text(cols.rank + 8, ry, `${i + 1}`, {
-        fontSize: '13px', fontFamily: 'monospace', fill: rankColor, fontStyle: 'bold',
+        fontSize: '13px', fontFamily: UI_FONT, fill: rankColor, fontStyle: 'bold',
       }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(DEPTH + 3);
       this.elements.push(rankText);
 
@@ -182,25 +187,25 @@ export class MatchEndOverlay {
       // Name
       const name = s.name || s.id.slice(-4);
       const nameText = scene.add.text(cols.name, ry, name, {
-        fontSize: '13px', fontFamily: 'monospace', fill: nameColor,
+        fontSize: '13px', fontFamily: UI_FONT, fill: nameColor,
       }).setScrollFactor(0).setDepth(DEPTH + 3);
       this.elements.push(nameText);
 
       // Points
       const ptsText = scene.add.text(cols.pts + 10, ry, `${s.points}`, {
-        fontSize: '13px', fontFamily: 'monospace', fill: '#ffdd44',
+        fontSize: '13px', fontFamily: UI_FONT, fill: '#ffdd44',
       }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(DEPTH + 3);
       this.elements.push(ptsText);
 
       // Eliminations
       const elimText = scene.add.text(cols.elims + 10, ry, `${s.eliminations}`, {
-        fontSize: '13px', fontFamily: 'monospace', fill: '#ff6644',
+        fontSize: '13px', fontFamily: UI_FONT, fill: '#ff6644',
       }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(DEPTH + 3);
       this.elements.push(elimText);
 
       // Rounds won
       const winsText = scene.add.text(cols.wins + 10, ry, `${s.roundsWon}`, {
-        fontSize: '13px', fontFamily: 'monospace', fill: '#44cc88',
+        fontSize: '13px', fontFamily: UI_FONT, fill: '#44cc88',
       }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(DEPTH + 3);
       this.elements.push(winsText);
     }
@@ -208,49 +213,25 @@ export class MatchEndOverlay {
     // --- Buttons ---
     const btnY = py + panelH - 45;
 
-    this.buildButton(camW / 2 - 90, btnY, '🏠 Menu', 0x884433, () => {
-      this.playSfx('sfx-accept');
-      this.returnToMenu();
-    }, DEPTH + 3);
-
-    this.buildButton(camW / 2 + 90, btnY, '🔄 Play Again', 0x448833, () => {
-      this.playSfx('sfx-accept');
-      this.playAgain();
-    }, DEPTH + 3);
-  }
-
-  buildButton(x, y, label, color, callback, depth) {
-    const scene = this.scene;
-    const w = 150;
-    const h = 40;
-
-    const bg = scene.add.rectangle(x, y, w, h, color, 1)
-      .setStrokeStyle(2, 0xffdd44)
-      .setInteractive({ useHandCursor: true })
-      .setScrollFactor(0).setDepth(depth);
-
-    const text = scene.add.text(x, y, label, {
-      fontSize: '15px',
-      fontFamily: 'monospace',
-      fill: '#ffffff',
-      fontStyle: 'bold',
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(depth + 1);
-
-    const darkerColor = Phaser.Display.Color.ValueToColor(color).darken(20).color;
-    const lighterColor = Phaser.Display.Color.ValueToColor(color).lighten(15).color;
-
-    bg.on('pointerover', () => {
-      bg.setFillStyle(lighterColor);
-      this.playSfx('sfx-move');
+    const { elements: menuEls } = createNinesliceButton(scene, camW / 2 - 90, btnY, 'Menu', {
+      width: 150, height: 40, depth: DEPTH + 3, fontSize: '15px',
+      onClick: () => {
+        this.playSfx('sfx-accept');
+        this.returnToMenu();
+      },
+      sfx: true,
     });
-    bg.on('pointerout', () => bg.setFillStyle(color));
-    bg.on('pointerdown', () => bg.setFillStyle(darkerColor));
-    bg.on('pointerup', () => {
-      bg.setFillStyle(color);
-      callback();
-    });
+    this.elements.push(...menuEls);
 
-    this.elements.push(bg, text);
+    const { elements: playEls } = createNinesliceButton(scene, camW / 2 + 90, btnY, 'Play Again', {
+      width: 150, height: 40, depth: DEPTH + 3, fontSize: '15px',
+      onClick: () => {
+        this.playSfx('sfx-accept');
+        this.playAgain();
+      },
+      sfx: true,
+    });
+    this.elements.push(...playEls);
   }
 
   returnToMenu() {

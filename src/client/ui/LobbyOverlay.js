@@ -1,6 +1,6 @@
-import Phaser from 'phaser';
 import { CHARACTERS } from '../scenes/BootScene.js';
 import { MATCH } from '../../shared/constants.js';
+import { UI_FONT } from '../config.js';
 
 // Loading-screen style tips
 const TIPS = [
@@ -22,7 +22,7 @@ export class LobbyOverlay {
     this.scene = scene;
     this.visible = false;
     this.elements = [];
-    this.playerSlots = [];  // { faceSprite, nameText, container }
+    this.playerSlots = [];  // { bg, focusHighlight, faceSprite, nameText, placeholder }
     this.countText = null;
     this.tipText = null;
     this.tipIndex = 0;
@@ -66,24 +66,18 @@ export class LobbyOverlay {
       .setScrollFactor(0).setDepth(DEPTH).setInteractive();
     this.elements.push(bg);
 
-    // Main panel
+    // Main panel — nineslice
     const panelW = 440;
     const panelH = 350;
-    const px = camW / 2 - panelW / 2;
-    const py = camH / 2 - panelH / 2;
-    const panelG = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH + 1);
-    panelG.fillStyle(0x0a0a1e, 0.92);
-    panelG.fillRoundedRect(px, py, panelW, panelH, 12);
-    panelG.lineStyle(3, 0x3d2e1e, 1);
-    panelG.strokeRoundedRect(px, py, panelW, panelH, 12);
-    panelG.lineStyle(1, 0xffdd44, 0.15);
-    panelG.strokeRoundedRect(px + 4, py + 4, panelW - 8, panelH - 8, 10);
-    this.elements.push(panelG);
+    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 4, 4, 4, 4)
+      .setScrollFactor(0).setDepth(DEPTH + 1);
+    this.elements.push(panel);
 
     // Title
+    const py = camH / 2 - panelH / 2;
     const title = scene.add.text(camW / 2, py + 30, 'WAITING FOR PLAYERS', {
       fontSize: '22px',
-      fontFamily: 'monospace',
+      fontFamily: UI_FONT,
       fill: '#ffdd44',
       stroke: '#000000',
       strokeThickness: 3,
@@ -107,7 +101,7 @@ export class LobbyOverlay {
     // Subtitle
     const sub = scene.add.text(camW / 2, py + 55, 'DÖNER FIGHT', {
       fontSize: '12px',
-      fontFamily: 'monospace',
+      fontFamily: UI_FONT,
       fill: '#555577',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
     this.elements.push(sub);
@@ -115,7 +109,7 @@ export class LobbyOverlay {
     // Player count
     this.countText = scene.add.text(camW / 2, py + 80, `0 / ${MATCH.MAX_PLAYERS} players`, {
       fontSize: '15px',
-      fontFamily: 'monospace',
+      fontFamily: UI_FONT,
       fill: '#44aadd',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
     this.elements.push(this.countText);
@@ -135,16 +129,20 @@ export class LobbyOverlay {
         const sx = gridStartX + col * (slotSize + gap);
         const sy = gridStartY + row * (slotSize + gap + 8);
 
-        // Slot background
-        const slotBg = scene.add.rectangle(sx, sy, slotSize, slotSize, 0x111122, 0.6)
-          .setStrokeStyle(1, 0x333355)
+        // Focus highlight (behind slot, initially hidden)
+        const focusHighlight = scene.add.nineslice(sx, sy, 'ui-focus', null, slotSize + 6, slotSize + 6, 3, 3, 3, 3)
+          .setScrollFactor(0).setDepth(DEPTH + 2).setVisible(false);
+        this.elements.push(focusHighlight);
+
+        // Slot background — nineslice inventory cell
+        const slotBg = scene.add.nineslice(sx, sy, 'ui-inventory-cell', null, slotSize, slotSize, 4, 4, 4, 4)
           .setScrollFactor(0).setDepth(DEPTH + 2);
         this.elements.push(slotBg);
 
         // Placeholder "?"
         const placeholder = scene.add.text(sx, sy - 8, '?', {
           fontSize: '28px',
-          fontFamily: 'monospace',
+          fontFamily: UI_FONT,
           fill: '#333355',
         }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 3);
         this.elements.push(placeholder);
@@ -152,12 +150,12 @@ export class LobbyOverlay {
         // Name (empty initially)
         const nameText = scene.add.text(sx, sy + 28, '', {
           fontSize: '9px',
-          fontFamily: 'monospace',
+          fontFamily: UI_FONT,
           fill: '#888899',
         }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 3);
         this.elements.push(nameText);
 
-        this.playerSlots.push({ bg: slotBg, placeholder, nameText, faceSprite: null });
+        this.playerSlots.push({ bg: slotBg, focusHighlight, placeholder, nameText, faceSprite: null });
       }
     }
 
@@ -165,7 +163,7 @@ export class LobbyOverlay {
     this.tipIndex = 0;
     this.tipText = scene.add.text(camW / 2, py + panelH - 30, TIPS[0], {
       fontSize: '11px',
-      fontFamily: 'monospace',
+      fontFamily: UI_FONT,
       fill: '#555577',
       fontStyle: 'italic',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
@@ -205,8 +203,8 @@ export class LobbyOverlay {
         slot.placeholder.setVisible(false);
         slot.nameText.setText(player.name || player.id.slice(-4));
         slot.nameText.setColor('#cccccc');
-        slot.bg.setStrokeStyle(2, 0xffdd44);
-        slot.bg.setFillStyle(0x1a1428, 0.8);
+        slot.bg.setTint(0xbbbbaa);
+        slot.focusHighlight.setVisible(true);
 
         // Add face sprite if not already there
         if (!slot.faceSprite) {
@@ -229,8 +227,8 @@ export class LobbyOverlay {
         // Empty slot
         slot.placeholder.setVisible(true);
         slot.nameText.setText('');
-        slot.bg.setStrokeStyle(1, 0x333355);
-        slot.bg.setFillStyle(0x111122, 0.6);
+        slot.bg.clearTint();
+        slot.focusHighlight.setVisible(false);
 
         if (slot.faceSprite) {
           slot.faceSprite.destroy();

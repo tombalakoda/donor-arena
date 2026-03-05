@@ -3,6 +3,9 @@ import { BootScene } from './scenes/BootScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
 import { GameScene } from './scenes/GameScene.js';
 
+/** Shared font family string — Ninja Adventure pixel font with monospace fallback */
+export const UI_FONT = "'NormalFont', monospace";
+
 export const gameConfig = {
   type: Phaser.AUTO,
   width: 1280,
