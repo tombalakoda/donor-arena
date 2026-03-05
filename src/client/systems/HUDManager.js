@@ -574,7 +574,7 @@ export class HUDManager {
     // Spell HUD slots
     for (const slot of this.spellSlots) {
       const slotElements = [slot.bg, slot.icon, slot.cdOverlay, slot.cdText,
-                            slot.lockOverlay, slot.lockText, slot.chargeText];
+                            slot.lockOverlay, slot.lockText, slot.chargeText, slot.emptyText];
       for (const el of slotElements) {
         if (el && !el.destroyed) el.destroy();
       }

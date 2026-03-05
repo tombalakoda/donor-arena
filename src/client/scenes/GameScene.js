@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PLAYER, ARENA } from '../../shared/constants.js';
+import { MSG } from '../../shared/messageTypes.js';
 import { NetworkManager } from '../systems/NetworkManager.js';
 import { ShopOverlay } from '../ui/ShopOverlay.js';
 import { PauseMenu } from '../ui/PauseMenu.js';
@@ -176,7 +177,7 @@ export class GameScene extends Phaser.Scene {
         if (this.shopOverlay && this.shopOverlay.visible) {
           this.shopOverlay.hide();
         } else {
-          this.network.socket.emit('c:sandboxShopToggle');
+          this.network.socket.emit(MSG.CLIENT_SANDBOX_SHOP_TOGGLE);
         }
       });
     }

@@ -1,7 +1,7 @@
 import Matter from 'matter-js';
 import { PLAYER, ARENA } from '../../shared/constants.js';
 
-const { Engine, World, Bodies, Body, Events } = Matter;
+const { Engine, World, Bodies, Body } = Matter;
 
 export class ServerPhysics {
   constructor() {

@@ -642,9 +642,6 @@ export class SpellVisualManager {
     if (visual.trail && !visual.trail.destroyed) visual.trail.destroy();
     if (visual.arrival && !visual.arrival.destroyed) visual.arrival.destroy();
     if (visual.zone && !visual.zone.destroyed) visual.zone.destroy();
-    if (visual.circle && !visual.circle.destroyed) visual.circle.destroy();
-    if (visual.rect && !visual.rect.destroyed) visual.rect.destroy();
-    if (visual.core && !visual.core.destroyed) visual.core.destroy();
   }
 
   destroy() {

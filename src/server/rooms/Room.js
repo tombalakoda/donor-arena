@@ -7,23 +7,12 @@ import { ObstacleManager } from '../game/ObstacleManager.js';
 import { RoundManager, PHASE } from '../game/RoundManager.js';
 import { PlayerProgression } from '../game/PlayerProgression.js';
 import { MSG } from '../../shared/messageTypes.js';
-import { PHYSICS, MATCH, ARENA, PLAYER, SANDBOX } from '../../shared/constants.js';
+import { PHYSICS, MATCH, PLAYER, SANDBOX } from '../../shared/constants.js';
 import { getPassive } from '../../shared/characterPassives.js';
 import { GameLoop } from '../game/GameLoop.js';
+import { getSpawnPositions } from '../game/utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-function getSpawnPositions(count, radius = 200) {
-  const positions = [];
-  for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
-    positions.push({
-      x: Math.round(Math.cos(angle) * radius),
-      y: Math.round(Math.sin(angle) * radius),
-    });
-  }
-  return positions;
-}
 
 export class Room {
   constructor(id, options = {}) {
@@ -110,7 +99,6 @@ export class Room {
       characterId: charId,
       hp: maxHp,
       maxHp,
-      score: 0,
       input: null,
       eliminated: false,
     });
@@ -155,7 +143,7 @@ export class Room {
     });
 
     // Listen for spell casts from this player
-    socket.on('c:spell', (data) => {
+    socket.on(MSG.CLIENT_SPELL_CAST, (data) => {
       this.handleSpellCast(playerId, data);
     });
 
@@ -181,7 +169,7 @@ export class Room {
       if (progression) {
         progression.awardSP(SANDBOX.STARTING_SP);
       }
-      socket.on('c:sandboxShopToggle', () => {
+      socket.on(MSG.CLIENT_SANDBOX_SHOP_TOGGLE, () => {
         const prog = this.progressions.get(playerId);
         socket.emit(MSG.SERVER_SHOP_OPEN, {
           progression: prog ? prog.getState() : null,
@@ -201,12 +189,12 @@ export class Room {
     // Clean up socket listeners added in addPlayer()
     const player = this.players.get(playerId);
     if (player && player.socket) {
-      player.socket.removeAllListeners('c:spell');
+      player.socket.removeAllListeners(MSG.CLIENT_SPELL_CAST);
       player.socket.removeAllListeners(MSG.CLIENT_HOOK_RELEASE);
       player.socket.removeAllListeners(MSG.CLIENT_SHOP_UNLOCK_SLOT);
       player.socket.removeAllListeners(MSG.CLIENT_SHOP_CHOOSE_SPELL);
       player.socket.removeAllListeners(MSG.CLIENT_SHOP_UPGRADE_TIER);
-      player.socket.removeAllListeners('c:sandboxShopToggle');
+      player.socket.removeAllListeners(MSG.CLIENT_SANDBOX_SHOP_TOGGLE);
     }
 
     this.players.delete(playerId);
@@ -270,7 +258,7 @@ export class Room {
     for (const spell of spells) {
       const payload = ServerSpell.serializeForClient(spell);
       for (const [id, p] of this.players) {
-        p.socket.emit('s:spellCast', payload);
+        p.socket.emit(MSG.SERVER_SPELL_CAST, payload);
       }
 
       if (spell.hits) {
@@ -402,7 +390,7 @@ export class Room {
     const eliminated = this.players.get(eliminatedId);
     const eliminator = this.players.get(eliminatorId);
     for (const [id, p] of this.players) {
-      p.socket.emit('s:eliminated', {
+      p.socket.emit(MSG.SERVER_ELIMINATED, {
         playerId: eliminatedId,
         playerName: eliminated?.name || 'Unknown',
         eliminatorId: eliminatorId || null,

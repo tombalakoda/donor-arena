@@ -1,4 +1,3 @@
-import Phaser from 'phaser';
 import { SKILL_TREES, computeSpellStats, getNextTierInfo, getMaxTier, getUpgradeCost } from '../../shared/skillTreeData.js';
 import { SPELLS, SLOT_SPELLS } from '../../shared/spellData.js';
 import { SP } from '../../shared/constants.js';

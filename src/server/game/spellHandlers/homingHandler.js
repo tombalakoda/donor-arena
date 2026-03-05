@@ -1,10 +1,6 @@
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
 
-function clampSpeed(speed) {
-  return Math.min(20, Math.max(1, speed || 5));
-}
-
 export const homingHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY) {
     const dx = targetX - originX;
@@ -14,7 +10,7 @@ export const homingHandler = {
 
     const missileCount = Math.min(10, Math.max(1, stats.missileCount || 1));
     const isSwarm = stats.isSwarm || missileCount > 1;
-    const clampedSpeed = clampSpeed(stats.speed);
+    const clampedSpeed = ctx.clampSpeed(stats.speed);
 
     const spells = [];
     for (let i = 0; i < missileCount; i++) {

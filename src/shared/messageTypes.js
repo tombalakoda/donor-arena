@@ -8,7 +8,11 @@ export const MSG = {
   CLIENT_PING: 'c:ping',
 
   // Client -> Server (spells)
+  CLIENT_SPELL_CAST: 'c:spell',
   CLIENT_HOOK_RELEASE: 'c:hookRelease',
+
+  // Client -> Server (sandbox)
+  CLIENT_SANDBOX_SHOP_TOGGLE: 'c:sandboxShopToggle',
 
   // Client -> Server (shop)
   CLIENT_SHOP_UNLOCK_SLOT: 'c:shopUnlockSlot',
@@ -25,6 +29,8 @@ export const MSG = {
   SERVER_SHOP_OPEN: 's:shopOpen',
   SERVER_SHOP_UPDATE: 's:shopUpdate',
   SERVER_MATCH_END: 's:matchEnd',
+  SERVER_SPELL_CAST: 's:spellCast',
+  SERVER_ELIMINATED: 's:eliminated',
   SERVER_SPELL_CONFIRM: 's:spellOk',
   SERVER_SPELL_DENY: 's:spellNo',
   SERVER_PONG: 's:pong',

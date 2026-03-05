@@ -1,10 +1,6 @@
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
 
-function clampSpeed(speed) {
-  return Math.min(20, Math.max(1, speed || 5));
-}
-
 export const boomerangHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY) {
     const dx = targetX - originX;
@@ -12,7 +8,7 @@ export const boomerangHandler = {
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
     const nx = dx / dist;
     const ny = dy / dist;
-    const clampedSpeed = clampSpeed(stats.speed);
+    const clampedSpeed = ctx.clampSpeed(stats.speed);
 
     const spell = {
       id: ctx.nextSpellId(),

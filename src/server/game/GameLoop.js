@@ -1,22 +1,10 @@
 import { PHYSICS, DAMAGE, SANDBOX } from '../../shared/constants.js';
 import { getPassive } from '../../shared/characterPassives.js';
 import { PHASE } from './RoundManager.js';
-import { ServerSpell } from './ServerSpell.js';
 import { MSG } from '../../shared/messageTypes.js';
+import { getSpawnPositions } from './utils.js';
 
 const DUMMY_CHARACTERS = ['knight', 'ninja-green', 'demon-red', 'eskimo'];
-
-function getSpawnPositions(count, radius = 200) {
-  const positions = [];
-  for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
-    positions.push({
-      x: Math.round(Math.cos(angle) * radius),
-      y: Math.round(Math.sin(angle) * radius),
-    });
-  }
-  return positions;
-}
 
 export class GameLoop {
   /**

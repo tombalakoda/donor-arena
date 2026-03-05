@@ -1,10 +1,6 @@
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER, PHYSICS } from '../../../shared/constants.js';
 
-function clampSpeed(speed) {
-  return Math.min(20, Math.max(1, speed || 5));
-}
-
 export const projectileHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY) {
     const dx = targetX - originX;
@@ -16,7 +12,7 @@ export const projectileHandler = {
     const rawCount = stats.projectileCount || 1;
     const projectileCount = Math.min(5, Math.max(1, Math.floor(rawCount)));
     const spreadAngle = projectileCount > 1 ? 0.15 : 0;
-    const clampedSpeed = clampSpeed(stats.speed);
+    const clampedSpeed = ctx.clampSpeed(stats.speed);
 
     const spells = [];
     for (let i = 0; i < projectileCount; i++) {

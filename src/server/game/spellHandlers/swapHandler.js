@@ -4,10 +4,6 @@ import { PLAYER } from '../../../shared/constants.js';
 
 const { Body } = Matter;
 
-function clampSpeed(speed) {
-  return Math.min(20, Math.max(1, speed || 5));
-}
-
 export const swapHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY) {
     const dx = targetX - originX;
@@ -16,7 +12,7 @@ export const swapHandler = {
     const nx = dx / dist;
     const ny = dy / dist;
 
-    const clampedSpeed = clampSpeed(stats.speed);
+    const clampedSpeed = ctx.clampSpeed(stats.speed);
     const vx = nx * clampedSpeed;
     const vy = ny * clampedSpeed;
 

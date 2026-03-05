@@ -8,7 +8,6 @@ export class NetworkManager {
     this.connected = false;
     this.playerId = null;
     this.ping = 0;
-    this.inputSeq = 0;
 
     // Callbacks
     this.onJoined = null;          // (data) => {}
@@ -72,7 +71,7 @@ export class NetworkManager {
     });
 
     // Spell cast broadcast from server
-    this.socket.on('s:spellCast', (data) => {
+    this.socket.on(MSG.SERVER_SPELL_CAST, (data) => {
       if (this.onSpellCast) this.onSpellCast(data);
     });
 
@@ -85,7 +84,7 @@ export class NetworkManager {
       if (this.onRoundEnd) this.onRoundEnd(data);
     });
 
-    this.socket.on('s:eliminated', (data) => {
+    this.socket.on(MSG.SERVER_ELIMINATED, (data) => {
       if (this.onEliminated) this.onEliminated(data);
     });
 
@@ -127,16 +126,12 @@ export class NetworkManager {
     if (now - this.lastInputSendTime < this.inputSendInterval) return;
     this.lastInputSendTime = now;
 
-    this.inputSeq++;
-    this.socket.emit(MSG.CLIENT_INPUT, {
-      seq: this.inputSeq,
-      ...input,
-    });
+    this.socket.emit(MSG.CLIENT_INPUT, input);
   }
 
   sendSpellCast(slot, spellId, targetX, targetY) {
     if (!this.connected) return;
-    this.socket.emit('c:spell', { slot, spellId, targetX, targetY });
+    this.socket.emit(MSG.CLIENT_SPELL_CAST, { slot, spellId, targetX, targetY });
   }
 
   sendHookRelease() {

@@ -4,10 +4,6 @@ import { PLAYER, PHYSICS } from '../../../shared/constants.js';
 
 const { Body } = Matter;
 
-function clampSpeed(speed) {
-  return Math.min(20, Math.max(1, speed || 5));
-}
-
 export const hookHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY) {
     const dx = targetX - originX;
@@ -15,7 +11,7 @@ export const hookHandler = {
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
     const isPullSelf = stats.pullSelf || false;
 
-    const baseSpeed = clampSpeed(stats.speed);
+    const baseSpeed = ctx.clampSpeed(stats.speed);
     const hookSpeed = isPullSelf ? baseSpeed * 1.5 : baseSpeed;
     const vx = (dx / dist) * hookSpeed;
     const vy = (dy / dist) * hookSpeed;

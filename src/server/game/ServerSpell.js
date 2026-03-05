@@ -1,11 +1,11 @@
 import Matter from 'matter-js';
-import { SPELLS, SPELL_TYPES, SPELL_TO_SLOT } from '../../shared/spellData.js';
-import { SKILL_TREES, computeSpellStats } from '../../shared/skillTreeData.js';
+import { SPELLS, SPELL_TYPES } from '../../shared/spellData.js';
+import { SKILL_TREES } from '../../shared/skillTreeData.js';
 import { PLAYER, PHYSICS } from '../../shared/constants.js';
 import { getPassive } from '../../shared/characterPassives.js';
 import { handlers } from './spellHandlers/index.js';
 
-const { Bodies, Body, World, Composite } = Matter;
+const { Body, World } = Matter;
 
 export class ServerSpell {
   /**
@@ -135,6 +135,7 @@ export class ServerSpell {
       getKnockbackMultiplier: this._getKnockbackMultiplier.bind(this),
       removeSpell: this.removeSpell.bind(this),
       cleanupSpell: this._cleanupSpell.bind(this),
+      clampSpeed: ServerSpell.clampSpeed,
       now,
       deltaMs,
     };
