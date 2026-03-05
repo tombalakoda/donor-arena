@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { PLAYER, ARENA } from '../../shared/constants.js';
-import { SPELLS, SPELL_KEYS, SPELL_TYPES } from '../../shared/spellData.js';
-import { SKILL_TREE, SPELL_SLOTS } from '../../shared/skillTreeData.js';
+import { SPELLS, SPELL_TYPES, SLOT_SPELLS } from '../../shared/spellData.js';
+import { SKILL_TREES, computeSpellStats } from '../../shared/skillTreeData.js';
 import { NetworkManager } from '../systems/NetworkManager.js';
 import { ShopOverlay } from '../ui/ShopOverlay.js';
 import { PauseMenu } from '../ui/PauseMenu.js';
@@ -1231,7 +1231,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   castSpell(slotKey) {
-    const spellId = SPELL_KEYS[slotKey];
+    // Look up the chosen spell for this slot from progression
+    const spellId = this.getSlotSpellId(slotKey);
     if (!spellId) return;
 
     // Check client-side cooldown (server also validates)
@@ -1241,7 +1242,15 @@ export class GameScene extends Phaser.Scene {
     const pointer = this.input.activePointer;
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
-    this.network.sendSpellCast(spellId, worldPoint.x, worldPoint.y);
+    this.network.sendSpellCast(slotKey, spellId, worldPoint.x, worldPoint.y);
+  }
+
+  /** Look up which spell the player has chosen for a slot */
+  getSlotSpellId(slotKey) {
+    if (!this.progression) return null;
+    const spellState = this.progression.spells[slotKey];
+    if (!spellState || !spellState.chosenSpell) return null;
+    return spellState.chosenSpell;
   }
 
   // --- Arena ---
@@ -1853,23 +1862,14 @@ export class GameScene extends Phaser.Scene {
 
     for (let i = 0; i < slots.length; i++) {
       const key = slots[i];
-      const spellId = SPELL_KEYS[key];
-      const def = SPELLS[spellId];
       const x = startX + i * (slotSize + slotGap) + slotSize / 2;
 
       // Slot background
       const bg = this.add.rectangle(x, slotY, slotSize, slotSize, 0x222233, 0.8)
         .setScrollFactor(0).setDepth(100).setStrokeStyle(2, 0x445566);
 
-      // Spell icon
+      // Spell icon — initially null, updated dynamically based on progression
       let icon = null;
-      if (def && def.icon) {
-        icon = this.add.image(x, slotY, def.icon)
-          .setScrollFactor(0).setDepth(101);
-        // Scale icon to fit slot
-        const iconScale = (slotSize - 8) / Math.max(icon.width, icon.height);
-        icon.setScale(iconScale);
-      }
 
       // Cooldown overlay (semi-transparent dark rect that shrinks)
       const cdOverlay = this.add.rectangle(x, slotY, slotSize - 4, slotSize - 4, 0x000000, 0.6)
@@ -1892,13 +1892,20 @@ export class GameScene extends Phaser.Scene {
       // Lock overlay (for locked spell slots)
       const lockOverlay = this.add.rectangle(x, slotY, slotSize - 2, slotSize - 2, 0x111111, 0.8)
         .setScrollFactor(0).setDepth(104).setVisible(false);
-      const lockText = this.add.text(x, slotY, 'X', {
-        fontSize: '20px',
+      const lockText = this.add.text(x, slotY, '🔒', {
+        fontSize: '16px',
         fill: '#555555',
         fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(105).setOrigin(0.5).setVisible(false);
 
-      // Charge counter (bottom-right corner, for multi-charge spells like Double Blink)
+      // "No spell" text (slot unlocked but no spell chosen)
+      const emptyText = this.add.text(x, slotY, '?', {
+        fontSize: '18px',
+        fill: '#555555',
+        fontStyle: 'bold',
+      }).setScrollFactor(0).setDepth(105).setOrigin(0.5).setVisible(false);
+
+      // Charge counter (bottom-right corner, for multi-charge spells)
       const chargeText = this.add.text(x + slotSize / 2 - 4, slotY + slotSize / 2 - 4, '', {
         fontSize: '10px',
         fill: '#ffdd44',
@@ -1909,14 +1916,16 @@ export class GameScene extends Phaser.Scene {
 
       this.spellSlots.push({
         key,
-        spellId,
+        spellId: null,  // filled dynamically from progression
         bg,
         icon,
         cdOverlay,
         cdText,
         lockOverlay,
         lockText,
+        emptyText,
         chargeText,
+        x, y: slotY, size: slotSize,
       });
     }
 
@@ -2348,45 +2357,80 @@ export class GameScene extends Phaser.Scene {
 
   updateSpellHUD() {
     for (const slot of this.spellSlots) {
-      // Check if slot is locked
       const isLocked = this.progression && this.progression.slots[slot.key] === 'locked';
+      const spellState = this.progression ? this.progression.spells[slot.key] : null;
+      const spellId = spellState ? spellState.chosenSpell : null;
+      const hasSpell = spellId !== null;
 
+      // Update stored spellId for cooldown tracking
+      slot.spellId = spellId;
+
+      // Lock overlay
       if (slot.lockOverlay && slot.lockText) {
         slot.lockOverlay.setVisible(isLocked);
         slot.lockText.setVisible(isLocked);
       }
 
+      // Empty slot indicator (unlocked but no spell chosen)
+      if (slot.emptyText) {
+        slot.emptyText.setVisible(!isLocked && !hasSpell);
+      }
+
       if (isLocked) {
-        // Hide cooldown stuff for locked slots
         slot.cdOverlay.setVisible(false);
         slot.cdText.setVisible(false);
-        if (slot.icon) slot.icon.setAlpha(0.2);
+        if (slot.icon) { slot.icon.setVisible(false); }
         continue;
       }
 
-      if (slot.icon) slot.icon.setAlpha(1);
+      // Update spell icon dynamically
+      const def = hasSpell ? SPELLS[spellId] : null;
+      if (def && def.icon) {
+        if (!slot.icon || slot._currentIconKey !== def.icon) {
+          // Create or replace icon
+          if (slot.icon && !slot.icon.destroyed) slot.icon.destroy();
+          if (this.textures.exists(def.icon)) {
+            slot.icon = this.add.image(slot.x, slot.y, def.icon)
+              .setScrollFactor(0).setDepth(101);
+            const iconScale = (slot.size - 8) / Math.max(slot.icon.width, slot.icon.height);
+            slot.icon.setScale(iconScale);
+          } else {
+            slot.icon = null;
+          }
+          slot._currentIconKey = def.icon;
+        }
+        if (slot.icon) slot.icon.setVisible(true).setAlpha(1);
+      } else {
+        if (slot.icon && !slot.icon.destroyed) slot.icon.setVisible(false);
+      }
 
-      const cd = this.cooldowns[slot.spellId];
-      if (cd && cd > 0) {
-        slot.cdOverlay.setVisible(true);
-        slot.cdText.setVisible(true);
-        slot.cdText.setText((cd / 1000).toFixed(1));
+      // Cooldowns
+      if (hasSpell) {
+        const cd = this.cooldowns[spellId];
+        if (cd && cd > 0) {
+          slot.cdOverlay.setVisible(true);
+          slot.cdText.setVisible(true);
+          slot.cdText.setText((cd / 1000).toFixed(1));
+        } else {
+          slot.cdOverlay.setVisible(false);
+          slot.cdText.setVisible(false);
+        }
+
+        // Charge counter
+        const charge = this.charges[spellId];
+        if (slot.chargeText) {
+          if (charge && charge.max > 1) {
+            slot.chargeText.setVisible(true);
+            slot.chargeText.setText(`${charge.remaining}/${charge.max}`);
+            slot.chargeText.setColor(charge.remaining > 0 ? '#ffdd44' : '#ff4444');
+          } else {
+            slot.chargeText.setVisible(false);
+          }
+        }
       } else {
         slot.cdOverlay.setVisible(false);
         slot.cdText.setVisible(false);
-      }
-
-      // Show charge counter for multi-charge spells
-      const charge = this.charges[slot.spellId];
-      if (slot.chargeText) {
-        if (charge && charge.max > 1) {
-          slot.chargeText.setVisible(true);
-          slot.chargeText.setText(`${charge.remaining}/${charge.max}`);
-          // Color: gold if charges available, red if depleted
-          slot.chargeText.setColor(charge.remaining > 0 ? '#ffdd44' : '#ff4444');
-        } else {
-          slot.chargeText.setVisible(false);
-        }
+        if (slot.chargeText) slot.chargeText.setVisible(false);
       }
     }
 

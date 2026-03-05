@@ -1,9 +1,19 @@
 import { SP } from '../../shared/constants.js';
-import { SKILL_TREE, SPELL_SLOTS, computeSpellStats, getUpgradeCost, getMaxTier } from '../../shared/skillTreeData.js';
+import { SKILL_TREES, computeSpellStats, getUpgradeCost, getMaxTier } from '../../shared/skillTreeData.js';
+import { SLOT_SPELLS, SPELL_TO_SLOT } from '../../shared/spellData.js';
 
 /**
  * Server-side progression tracker for a single player.
- * Manages SP balance, slot unlocks, branch choices, and tier upgrades.
+ * Manages SP balance, slot unlocks, spell choices, and tier upgrades.
+ *
+ * NEW state shape:
+ *   slots: { Q: 'unlocked', W: 'locked', E: 'locked', R: 'locked' }
+ *   spells: {
+ *     Q: { chosenSpell: 'fireball-sniper', tier: 1 },
+ *     W: { chosenSpell: null, tier: 0 },    // slot unlocked but no spell chosen
+ *     E: null,                                // slot locked
+ *     R: null,                                // slot locked
+ *   }
  */
 export class PlayerProgression {
   constructor(playerId) {
@@ -19,12 +29,13 @@ export class PlayerProgression {
       R: 'locked',
     };
 
-    // Per-spell progression: branch choice and tier level
+    // Per-slot spell progression
+    // null = slot locked, { chosenSpell: null, tier: 0 } = unlocked but no spell chosen
     this.spells = {
-      fireball:  { branch: null, tier: 0 },
-      blink:     { branch: null, tier: 0 },
-      frostBolt: { branch: null, tier: 0 },
-      hook:      { branch: null, tier: 0 },
+      Q: { chosenSpell: null, tier: 0 },  // Q is unlocked but player must choose a path
+      W: null,
+      E: null,
+      R: null,
     };
 
     // Damage tracking for SP calculation (reset each round)
@@ -69,6 +80,7 @@ export class PlayerProgression {
   // --- Slot Unlocks ---
 
   canUnlockSlot(slot) {
+    if (slot === 'Q') return false; // Q is always unlocked
     if (this.slots[slot] !== 'locked') return false;
     return this.sp >= SP.SLOT_UNLOCK_COST;
   }
@@ -77,91 +89,148 @@ export class PlayerProgression {
     if (!this.canUnlockSlot(slot)) return false;
     this.sp -= SP.SLOT_UNLOCK_COST;
     this.slots[slot] = 'unlocked';
+    // Initialize spell state for the newly unlocked slot
+    this.spells[slot] = { chosenSpell: null, tier: 0 };
     return true;
   }
 
-  // --- Branch Choice ---
+  // --- Spell Choice ---
 
-  canChooseBranch(spellId, branch) {
-    const spell = this.spells[spellId];
-    if (!spell) return false;
-    if (spell.branch !== null) return false; // already chosen
-
+  /**
+   * Check if a spell can be chosen for a slot.
+   * @param {string} slot - Q/W/E/R
+   * @param {string} spellId - e.g. 'fireball-sniper', 'blink', etc.
+   */
+  canChooseSpell(slot, spellId) {
     // Slot must be unlocked
-    const tree = SKILL_TREE[spellId];
-    if (!tree) return false;
-    if (this.slots[tree.slot] !== 'unlocked') return false;
+    if (this.slots[slot] !== 'unlocked') return false;
+    // Spell state must exist
+    const spellState = this.spells[slot];
+    if (!spellState) return false;
 
-    // Must have valid branch
-    if (branch !== 'A' && branch !== 'B') return false;
+    // Spell must belong to this slot
+    const validSpells = SLOT_SPELLS[slot];
+    if (!validSpells || !validSpells.includes(spellId)) return false;
 
-    return this.sp >= SP.BRANCH_CHOICE_COST;
+    // Spell must exist in skill trees
+    if (!SKILL_TREES[spellId]) return false;
+
+    // If already chosen the same spell, can't re-choose
+    if (spellState.chosenSpell === spellId) return false;
+
+    // If switching spells (already have one chosen), it's free but resets tier
+    if (spellState.chosenSpell !== null) return true;
+
+    // First-time choice costs SP
+    return this.sp >= SP.SPELL_CHOICE_COST;
   }
 
-  chooseBranch(spellId, branch) {
-    if (!this.canChooseBranch(spellId, branch)) return false;
-    this.sp -= SP.BRANCH_CHOICE_COST;
-    this.spells[spellId].branch = branch;
-    // Branch choice unlocks tier 1 automatically (first tier is the branch identity)
-    this.spells[spellId].tier = 1;
+  /**
+   * Choose a spell for a slot. If switching from another spell, tier resets to 0.
+   */
+  chooseSpell(slot, spellId) {
+    if (!this.canChooseSpell(slot, spellId)) return false;
+
+    const spellState = this.spells[slot];
+    const isSwitch = spellState.chosenSpell !== null;
+
+    if (!isSwitch) {
+      // First-time choice costs SP
+      this.sp -= SP.SPELL_CHOICE_COST;
+    }
+
+    // Set the chosen spell and reset tier (switching loses progress)
+    spellState.chosenSpell = spellId;
+    spellState.tier = 0;
     return true;
   }
 
   // --- Tier Upgrades ---
 
-  canUpgradeTier(spellId) {
-    const spell = this.spells[spellId];
-    if (!spell || !spell.branch) return false;
+  canUpgradeTier(slot) {
+    const spellState = this.spells[slot];
+    if (!spellState || !spellState.chosenSpell) return false;
 
-    // Check slot is unlocked
-    const tree = SKILL_TREE[spellId];
-    if (!tree) return false;
-    if (this.slots[tree.slot] !== 'unlocked') return false;
+    // Slot must be unlocked
+    if (this.slots[slot] !== 'unlocked') return false;
+
+    const spellId = spellState.chosenSpell;
 
     // Check not at max tier
-    const maxTier = getMaxTier(spellId, spell.branch);
-    if (spell.tier >= maxTier) return false;
+    const maxTier = getMaxTier(spellId);
+    if (spellState.tier >= maxTier) return false;
 
     // Check cost
-    const cost = getUpgradeCost(spellId, spell.branch, spell.tier);
+    const cost = getUpgradeCost(spellId, spellState.tier);
     if (cost === null) return false;
 
     return this.sp >= cost;
   }
 
-  upgradeTier(spellId) {
-    if (!this.canUpgradeTier(spellId)) return false;
+  upgradeTier(slot) {
+    if (!this.canUpgradeTier(slot)) return false;
 
-    const spell = this.spells[spellId];
-    const cost = getUpgradeCost(spellId, spell.branch, spell.tier);
+    const spellState = this.spells[slot];
+    const cost = getUpgradeCost(spellState.chosenSpell, spellState.tier);
 
     this.sp -= cost;
-    spell.tier++;
+    spellState.tier++;
     return true;
   }
 
   // --- Spell Stats ---
 
   /**
-   * Get computed stats for a spell based on this player's progression.
-   * Returns null if spell slot is locked.
+   * Get computed stats for the spell chosen in a given slot.
+   * Returns null if slot is locked or no spell chosen.
    */
-  getSpellStats(spellId) {
-    const tree = SKILL_TREE[spellId];
-    if (!tree) return null;
-    if (this.slots[tree.slot] !== 'unlocked') return null;
+  getSpellStatsForSlot(slot) {
+    if (this.slots[slot] !== 'unlocked') return null;
+    const spellState = this.spells[slot];
+    if (!spellState || !spellState.chosenSpell) return null;
 
-    const spell = this.spells[spellId];
-    return computeSpellStats(spellId, spell.branch, spell.tier);
+    return computeSpellStats(spellState.chosenSpell, spellState.tier);
   }
 
   /**
-   * Check if a player can cast a specific spell (slot unlocked).
+   * Get computed stats for a specific spell ID based on this player's progression.
+   * Looks up which slot the spell belongs to and returns stats based on current tier.
+   */
+  getSpellStats(spellId) {
+    const slot = SPELL_TO_SLOT[spellId];
+    if (!slot) return null;
+    if (this.slots[slot] !== 'unlocked') return null;
+
+    const spellState = this.spells[slot];
+    if (!spellState || spellState.chosenSpell !== spellId) return null;
+
+    return computeSpellStats(spellId, spellState.tier);
+  }
+
+  /**
+   * Check if a player can cast a specific spell.
+   * Must have the slot unlocked AND have chosen that specific spell.
    */
   canCastSpell(spellId) {
-    const tree = SKILL_TREE[spellId];
-    if (!tree) return false;
-    return this.slots[tree.slot] === 'unlocked';
+    const slot = SPELL_TO_SLOT[spellId];
+    if (!slot) return false;
+    if (this.slots[slot] !== 'unlocked') return false;
+
+    const spellState = this.spells[slot];
+    if (!spellState || spellState.chosenSpell !== spellId) return false;
+
+    return true;
+  }
+
+  /**
+   * Check if a player can cast from a given slot (any spell chosen in that slot).
+   * Returns the spellId if castable, null otherwise.
+   */
+  getSlotSpellId(slot) {
+    if (this.slots[slot] !== 'unlocked') return null;
+    const spellState = this.spells[slot];
+    if (!spellState || !spellState.chosenSpell) return null;
+    return spellState.chosenSpell;
   }
 
   // --- Serialization ---
@@ -175,10 +244,10 @@ export class PlayerProgression {
       totalSpEarned: this.totalSpEarned,
       slots: { ...this.slots },
       spells: {
-        fireball:  { ...this.spells.fireball },
-        blink:     { ...this.spells.blink },
-        frostBolt: { ...this.spells.frostBolt },
-        hook:      { ...this.spells.hook },
+        Q: this.spells.Q ? { ...this.spells.Q } : null,
+        W: this.spells.W ? { ...this.spells.W } : null,
+        E: this.spells.E ? { ...this.spells.E } : null,
+        R: this.spells.R ? { ...this.spells.R } : null,
       },
     };
   }

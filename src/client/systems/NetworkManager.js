@@ -134,9 +134,9 @@ export class NetworkManager {
     });
   }
 
-  sendSpellCast(spellId, targetX, targetY) {
+  sendSpellCast(slot, spellId, targetX, targetY) {
     if (!this.connected) return;
-    this.socket.emit('c:spell', { spellId, targetX, targetY });
+    this.socket.emit('c:spell', { slot, spellId, targetX, targetY });
   }
 
   sendHookRelease() {
@@ -149,14 +149,14 @@ export class NetworkManager {
     this.socket.emit(MSG.CLIENT_SHOP_UNLOCK_SLOT, { slot });
   }
 
-  sendShopChooseBranch(spellId, branch) {
+  sendShopChooseSpell(slot, spellId) {
     if (!this.connected) return;
-    this.socket.emit(MSG.CLIENT_SHOP_CHOOSE_BRANCH, { spellId, branch });
+    this.socket.emit(MSG.CLIENT_SHOP_CHOOSE_SPELL, { slot, spellId });
   }
 
-  sendShopUpgradeTier(spellId) {
+  sendShopUpgradeTier(slot) {
     if (!this.connected) return;
-    this.socket.emit(MSG.CLIENT_SHOP_UPGRADE_TIER, { spellId });
+    this.socket.emit(MSG.CLIENT_SHOP_UPGRADE_TIER, { slot });
   }
 
   disconnect() {

@@ -166,8 +166,8 @@ export class Room {
     socket.on(MSG.CLIENT_SHOP_UNLOCK_SLOT, (data) => {
       this.handleShopUnlockSlot(playerId, data);
     });
-    socket.on(MSG.CLIENT_SHOP_CHOOSE_BRANCH, (data) => {
-      this.handleShopChooseBranch(playerId, data);
+    socket.on(MSG.CLIENT_SHOP_CHOOSE_SPELL, (data) => {
+      this.handleShopChooseSpell(playerId, data);
     });
     socket.on(MSG.CLIENT_SHOP_UPGRADE_TIER, (data) => {
       this.handleShopUpgradeTier(playerId, data);
@@ -202,7 +202,7 @@ export class Room {
       player.socket.removeAllListeners('c:spell');
       player.socket.removeAllListeners(MSG.CLIENT_HOOK_RELEASE);
       player.socket.removeAllListeners(MSG.CLIENT_SHOP_UNLOCK_SLOT);
-      player.socket.removeAllListeners(MSG.CLIENT_SHOP_CHOOSE_BRANCH);
+      player.socket.removeAllListeners(MSG.CLIENT_SHOP_CHOOSE_SPELL);
       player.socket.removeAllListeners(MSG.CLIENT_SHOP_UPGRADE_TIER);
       player.socket.removeAllListeners('c:sandboxShopToggle');
     }
@@ -244,15 +244,22 @@ export class Room {
     if (!player || player.eliminated) return;
     // Only allow spells during playing phase
     if (this.rounds.phase !== PHASE.PLAYING) return;
-    // Validate spell data
-    if (!data || typeof data.spellId !== 'string') return;
-    if (!Number.isFinite(data.targetX) || !Number.isFinite(data.targetY)) return;
+    // Validate spell data — client sends slot key (Q/W/E/R) or direct spellId
+    if (!data || !Number.isFinite(data.targetX) || !Number.isFinite(data.targetY)) return;
 
-    // Check if player has this spell slot unlocked
     const progression = this.progressions.get(playerId);
-    if (progression && !progression.canCastSpell(data.spellId)) return;
 
-    const result = this.spells.processCast(playerId, data.spellId, data.targetX, data.targetY, progression);
+    // Resolve the spell ID: client sends slot key, we look up chosen spell
+    let spellId = data.spellId;
+    if (progression && data.slot) {
+      spellId = progression.getSlotSpellId(data.slot);
+    }
+    if (!spellId || typeof spellId !== 'string') return;
+
+    // Check if player has this spell equipped
+    if (progression && !progression.canCastSpell(spellId)) return;
+
+    const result = this.spells.processCast(playerId, spellId, data.targetX, data.targetY, progression);
     if (!result) return;
 
     // processCast returns an array for multi-projectile spells, single spell otherwise
@@ -292,7 +299,7 @@ export class Room {
             if (targetPassive.damageReduction) {
               finalDamage *= (1 - targetPassive.damageReduction);
             }
-            if (targetPassive.fireResist && (spell.type === 'fireball')) {
+            if (targetPassive.fireResist && spell.type && spell.type.startsWith('fireball')) {
               finalDamage *= (1 - targetPassive.fireResist);
             }
 
@@ -334,15 +341,16 @@ export class Room {
     }
   }
 
-  handleShopChooseBranch(playerId, data) {
+  handleShopChooseSpell(playerId, data) {
     if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
     const progression = this.progressions.get(playerId);
     if (!progression) return;
+    if (!data || !data.slot || !data.spellId) return;
 
-    const success = progression.chooseBranch(data.spellId, data.branch);
+    const success = progression.chooseSpell(data.slot, data.spellId);
     if (success) {
       this.sendProgressionUpdate(playerId);
-      console.log(`[SHOP] ${playerId} chose branch ${data.branch} for ${data.spellId}`);
+      console.log(`[SHOP] ${playerId} chose ${data.spellId} for slot ${data.slot}`);
     }
   }
 
@@ -350,11 +358,12 @@ export class Room {
     if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
     const progression = this.progressions.get(playerId);
     if (!progression) return;
+    if (!data || !data.slot) return;
 
-    const success = progression.upgradeTier(data.spellId);
+    const success = progression.upgradeTier(data.slot);
     if (success) {
       this.sendProgressionUpdate(playerId);
-      console.log(`[SHOP] ${playerId} upgraded tier for ${data.spellId}`);
+      console.log(`[SHOP] ${playerId} upgraded tier for slot ${data.slot}`);
     }
   }
 
@@ -544,7 +553,7 @@ export class Room {
             finalDamage *= (1 - targetPassive.damageReduction);
           }
           // Fire resistance (stacks multiplicatively with armor)
-          if (targetPassive.fireResist && hit.spellId === 'fireball') {
+          if (targetPassive.fireResist && hit.spellId && hit.spellId.startsWith('fireball')) {
             finalDamage *= (1 - targetPassive.fireResist);
           }
 

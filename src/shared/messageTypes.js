@@ -12,7 +12,7 @@ export const MSG = {
 
   // Client -> Server (shop)
   CLIENT_SHOP_UNLOCK_SLOT: 'c:shopUnlockSlot',
-  CLIENT_SHOP_CHOOSE_BRANCH: 'c:shopChooseBranch',
+  CLIENT_SHOP_CHOOSE_SPELL: 'c:shopChooseSpell',     // NEW: replaces CHOOSE_BRANCH
   CLIENT_SHOP_UPGRADE_TIER: 'c:shopUpgradeTier',
 
   // Server -> Client

@@ -62,6 +62,8 @@ export const SP = {
   ROUND_WIN: 4,            // last player standing (was 3)
   SURVIVAL: 2,             // survived the round (was 1 — staying in the ring matters)
   BASE_PER_ROUND: 2,       // everyone gets 2 SP per round just for playing
-  SLOT_UNLOCK_COST: 5,     // cost to unlock W, E, or R
-  BRANCH_CHOICE_COST: 3,   // cost to pick a branch
+  SLOT_UNLOCK_COST: 5,     // cost to unlock W, E, or R slot
+  SPELL_CHOICE_COST: 3,    // cost to choose a spell in a slot (was BRANCH_CHOICE_COST)
+  // Tier upgrade costs are defined per-tier in skillTreeData.js
+  // Q tiers: 3/3/4/5 SP.  W/E/R tiers: 3/5 SP.
 };

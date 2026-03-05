@@ -1,223 +1,407 @@
 // Skill Tree Definitions — shared between client and server
-// Each spell has a base definition and two upgrade branches (A/B).
-// Once a branch is chosen, it's locked in for the match.
-// Each branch has 4 tiers of upgrades.
+// Each spell has base stats and tier upgrades.
+// Q spells: 4 tiers. W/E/R spells: 2 tiers.
+// Stats are computed by applying tier mods additively on top of base.
 
-export const SKILL_TREE = {
-  fireball: {
-    id: 'fireball',
-    name: 'Fireball',
-    slot: 'Q',
-    unlockCost: 0, // everyone starts with it
-    icon: 'spell-BookFire',
+export const SKILL_TREES = {
+  // ═══════════════════════════════════════════════════════════════
+  // Q — FIREBALL VARIANTS (3 paths, 4 tiers each)
+  // ═══════════════════════════════════════════════════════════════
+  'fireball-sniper': {
     base: {
       type: 'projectile',
-      damage: 4,              // was 10 — chip damage, not kill tool
-      knockbackForce: 0.06,   // was 0.04 — more push, vulnerability scaling does the rest
-      cooldown: 2200,         // was 2500 — primary tool, slightly faster
-      speed: 8,
-      range: 400,
+      damage: 4,
+      knockbackForce: 0.07,
+      cooldown: 2800,
+      speed: 9,
+      range: 500,
       radius: 7,
-      lifetime: 2000,
+      lifetime: 2200,
       piercing: false,
     },
-    branches: {
-      A: {
-        name: 'Rapid Fire',
-        description: 'Relentless barrage: many small pushes that build vulnerability fast',
-        icon: 'spell-Fireball',
-        tiers: [
-          { cost: 3, name: 'Quick Shot', description: 'Faster cooldown', mods: { cooldown: -500, damage: -1 } },
-          { cost: 3, name: 'Trigger Happy', description: 'Even faster cooldown, more speed', mods: { cooldown: -400, speed: 1 } },
-          { cost: 3, name: 'Suppressing Fire', description: 'Rapid push barrage', mods: { cooldown: -300, knockbackForce: 0.005 } },
-          { cost: 4, name: 'Machine Gun', description: 'Extreme fire rate, piercing shots', mods: { cooldown: -200, piercing: true, knockbackForce: 0.005 } },
-        ],
-      },
-      B: {
-        name: 'Meteor',
-        description: 'Massive single push: sends enemies flying across the arena',
-        icon: 'spell-Explosion',
-        tiers: [
-          { cost: 3, name: 'Heavy Impact', description: 'Bigger push, slightly slower', mods: { damage: 2, knockbackForce: 0.02, speed: -1 } },
-          { cost: 3, name: 'Blast Radius', description: 'Explodes on impact — pushes everyone nearby', mods: { explosionRadius: 45, knockbackForce: 0.01 } },
-          { cost: 3, name: 'Shockwave', description: 'Even more knockback, larger blast', mods: { knockbackForce: 0.02, explosionRadius: 12 } },
-          { cost: 4, name: 'Cataclysm', description: 'Devastating push — guaranteed ring-out at high vulnerability', mods: { damage: 3, knockbackForce: 0.03, explosionRadius: 6 } },
-        ],
-      },
-    },
+    tiers: [
+      { cost: 3, name: 'Marksman', description: 'Extended range, faster bolt', mods: { range: 60, speed: 1 } },
+      { cost: 3, name: 'Heavy Round', description: 'Increased knockback', mods: { knockbackForce: 0.02 } },
+      { cost: 4, name: 'Piercing Shot', description: 'Bolt passes through enemies', mods: { piercing: true } },
+      { cost: 5, name: 'Railgun', description: 'Maximum range and push', mods: { range: 80, knockbackForce: 0.02, speed: 1 } },
+    ],
   },
 
-  blink: {
-    id: 'blink',
-    name: 'Blink',
-    slot: 'W',
-    unlockCost: 5,
-    icon: 'spell-BookLight',
+  'fireball-machinegun': {
+    base: {
+      type: 'projectile',
+      damage: 3,
+      knockbackForce: 0.04,
+      cooldown: 1800,
+      speed: 8,
+      range: 300,
+      radius: 6,
+      lifetime: 1500,
+      piercing: false,
+      projectileCount: 1,
+    },
+    tiers: [
+      { cost: 3, name: 'Quick Trigger', description: 'Faster cooldown', mods: { cooldown: -300 } },
+      { cost: 3, name: 'Double Tap', description: 'Fire 2 bolts in a spread', mods: { projectileCount: 1 } },
+      { cost: 4, name: 'Bullet Storm', description: 'Even faster cooldown', mods: { cooldown: -300 } },
+      { cost: 5, name: 'Minigun', description: '3 piercing bolts', mods: { projectileCount: 1, piercing: true } },
+    ],
+  },
+
+  'fireball-cannon': {
+    base: {
+      type: 'projectile',
+      damage: 5,
+      knockbackForce: 0.10,
+      cooldown: 3200,
+      speed: 7,
+      range: 250,
+      radius: 9,
+      lifetime: 1400,
+      piercing: false,
+    },
+    tiers: [
+      { cost: 3, name: 'Heavy Slug', description: 'More knockback, more damage', mods: { knockbackForce: 0.02, damage: 1 } },
+      { cost: 3, name: 'Blast Wave', description: 'Explodes on impact', mods: { explosionRadius: 40 } },
+      { cost: 4, name: 'Concussion', description: 'Bigger blast, more push', mods: { explosionRadius: 15, knockbackForce: 0.02 } },
+      { cost: 5, name: 'Shockwave', description: 'Devastating blast, brief stun', mods: { damage: 2, knockbackForce: 0.02, stunDuration: 300 } },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // W — MOBILITY (6 spells, 2 tiers each)
+  // ═══════════════════════════════════════════════════════════════
+  'blink': {
     base: {
       type: 'blink',
-      cooldown: 5000,        // was 6000 — mobility matters more in sumo
-      range: 220,             // was 200 — slightly longer escape
+      cooldown: 5000,
+      range: 220,
       damage: 0,
       knockbackForce: 0,
     },
-    branches: {
-      A: {
-        name: 'Phase Shift',
-        description: 'Escape artist: blink away from the edge with multiple charges',
-        icon: 'spell-BookLight',
-        tiers: [
-          { cost: 3, name: 'Extended Range', description: 'Blink further', mods: { range: 60 } },
-          { cost: 3, name: 'Quick Phase', description: 'Reduced cooldown', mods: { cooldown: -1000 } },
-          { cost: 3, name: 'Double Blink', description: 'Two charges before cooldown', mods: { charges: 2 } },
-          { cost: 4, name: 'Warp', description: 'Much further range, brief invulnerability', mods: { range: 80, cooldown: -500, invulnFrames: 300 } },
-        ],
-      },
-      B: {
-        name: 'Shoulder Slam',
-        description: 'Dash into enemies and send them flying — the sumo charge',
-        icon: 'spell-BookWind',
-        tiers: [
-          { cost: 3, name: 'Shoulder Check', description: 'Dash pushes enemies hard', mods: { dashDamage: 3, dashKnockback: 0.04, range: -60 } },
-          { cost: 3, name: 'Momentum', description: 'Even more push, reduced cooldown', mods: { dashKnockback: 0.02, cooldown: -800 } },
-          { cost: 3, name: 'Battering Ram', description: 'Wider dash, more push', mods: { dashDamage: 2, dashKnockback: 0.01, dashWidth: 15 } },
-          { cost: 4, name: 'Unstoppable', description: 'Devastating slam — launches enemies', mods: { dashDamage: 3, dashKnockback: 0.03, cooldown: -700 } },
-        ],
-      },
-    },
+    tiers: [
+      { cost: 3, name: 'Far Reach', description: 'Blink further', mods: { range: 60 } },
+      { cost: 5, name: 'Phase Warp', description: 'Much further, faster cooldown', mods: { range: 80, cooldown: -1000 } },
+    ],
   },
 
-  frostBolt: {
-    id: 'frostBolt',
-    name: 'Frost Bolt',
-    slot: 'E',
-    unlockCost: 5,
-    icon: 'spell-BookIce',
+  'dash': {
+    base: {
+      type: 'dash',
+      cooldown: 5000,
+      range: 160,
+      dashDamage: 3,
+      dashKnockback: 0.04,
+      dashWidth: 12,
+    },
+    tiers: [
+      { cost: 3, name: 'Heavy Charge', description: 'Harder slam, more damage', mods: { dashKnockback: 0.02, dashDamage: 2 } },
+      { cost: 5, name: 'Battering Ram', description: 'Wider, faster cooldown, more push', mods: { dashWidth: 10, cooldown: -1000, dashKnockback: 0.02 } },
+    ],
+  },
+
+  'flash': {
+    base: {
+      type: 'buff',
+      cooldown: 6000,
+      buffDuration: 2000,
+      speedBoost: 0.6,          // +60% movement speed
+      frictionReduction: 0.003, // reduce air friction during flash
+    },
+    tiers: [
+      { cost: 3, name: 'Afterburner', description: 'Longer boost, faster speed', mods: { buffDuration: 1000, speedBoost: 0.2 } },
+      { cost: 5, name: 'Blazing Trail', description: 'Leave a trail that slows enemies', mods: { cooldown: -1500, leaveTrail: true, trailSlowAmount: 0.3, trailSlowDuration: 1500 } },
+    ],
+  },
+
+  'ghost': {
+    base: {
+      type: 'buff',
+      cooldown: 8000,
+      buffDuration: 2500,
+      speedBoost: 0.2,          // +20% movement speed
+      intangible: true,         // projectiles pass through
+    },
+    tiers: [
+      { cost: 3, name: 'Phantom', description: 'Longer intangibility', mods: { buffDuration: 1000 } },
+      { cost: 5, name: 'Poltergeist', description: 'AoE push when exiting ghost form', mods: { cooldown: -2000, exitPushForce: 0.03, exitPushRadius: 60 } },
+    ],
+  },
+
+  'swap': {
+    base: {
+      type: 'swap',
+      cooldown: 10000,
+      speed: 8,
+      range: 350,
+      radius: 7,
+      lifetime: 1800,
+      damage: 0,
+      knockbackForce: 0,
+    },
+    tiers: [
+      { cost: 3, name: 'Quick Swap', description: 'Faster bolt, faster cooldown', mods: { speed: 3, cooldown: -2000 } },
+      { cost: 5, name: 'Disorient', description: 'Enemy is stunned after swap', mods: { swapStunDuration: 500, cooldown: -1500 } },
+    ],
+  },
+
+  'timeshift': {
+    base: {
+      type: 'recall',
+      cooldown: 8000,
+      recallDuration: 3000,     // stores 3s of position history
+    },
+    tiers: [
+      { cost: 3, name: 'Deep Memory', description: 'Recall from 4s ago, faster cooldown', mods: { recallDuration: 1000, cooldown: -1500 } },
+      { cost: 5, name: 'Temporal Rift', description: 'AoE push at departure point, faster cooldown', mods: { departurePushForce: 0.04, departurePushRadius: 60, cooldown: -1500 } },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // E — DEBUFF / CONTROL (5 spells, 2 tiers each)
+  // ═══════════════════════════════════════════════════════════════
+  'frostbolt': {
     base: {
       type: 'projectile',
-      damage: 2,              // was 5 — pure utility/setup spell
-      knockbackForce: 0.02,   // was 0.008 — meaningful push now
-      cooldown: 3500,         // was 4000 — utility should be available
+      damage: 2,
+      knockbackForce: 0.02,
+      cooldown: 3500,
       speed: 7,
       range: 350,
       radius: 6,
       lifetime: 2000,
       piercing: false,
-      slowAmount: 0.5,        // was 0.4 — stronger slow for edge traps
-      slowDuration: 2000,     // was 1500 — longer setup window
-      rootDuration: 400,      // 0.4s base root — brief freeze on hit
+      slowAmount: 0.5,
+      slowDuration: 2000,
+      rootDuration: 400,
     },
-    branches: {
-      A: {
-        name: 'Deep Freeze',
-        description: 'Root enemies at the ring edge — then push them out',
-        icon: 'spell-BookIce',
-        tiers: [
-          { cost: 3, name: 'Permafrost', description: 'Longer and stronger slow', mods: { slowDuration: 500, slowAmount: 0.1 } },
-          { cost: 3, name: 'Ice Lance', description: 'More push, faster bolt', mods: { knockbackForce: 0.01, speed: 2, range: 50 } },
-          { cost: 3, name: 'Frozen Solid', description: 'Much longer root — easy ring-out setup', mods: { rootDuration: 400 } },
-          { cost: 4, name: 'Absolute Zero', description: 'Deep freeze: long root, heavy slow', mods: { damage: 2, slowAmount: 0.1, rootDuration: 300, knockbackForce: 0.01 } },
-        ],
-      },
-      B: {
-        name: 'Blizzard',
-        description: 'Drop a slow zone at the ring edge — trap enemies in the danger zone',
-        icon: 'spell-Mist',
-        tiers: [
-          { cost: 3, name: 'Frost Ring', description: 'Drop a frost zone instead of firing a bolt', mods: { convertToZone: true, zoneRadius: 45, zoneDuration: 3500 } },
-          { cost: 3, name: 'Expanding Cold', description: 'Larger zone, lasts longer', mods: { zoneRadius: 15, zoneDuration: 1000 } },
-          { cost: 3, name: 'Hypothermia', description: 'Zone slows much more — enemies can barely move', mods: { zoneDamage: 1, slowAmount: 0.15 } },
-          { cost: 4, name: 'Ice Age', description: 'Massive slow zone — covers the ring edge', mods: { zoneRadius: 18, zoneDuration: 1500, zoneDamage: 1, slowAmount: 0.1 } },
-        ],
-      },
-    },
+    tiers: [
+      { cost: 3, name: 'Permafrost', description: 'Stronger, longer slow', mods: { slowDuration: 500, slowAmount: 0.1 } },
+      { cost: 5, name: 'Absolute Zero', description: 'Deep freeze: long root, heavy push', mods: { rootDuration: 400, knockbackForce: 0.02, damage: 2 } },
+    ],
   },
 
-  hook: {
-    id: 'hook',
-    name: 'Hook',
-    slot: 'R',
-    unlockCost: 5,
-    icon: 'spell-BookDeath',
+  'blizzard': {
+    base: {
+      type: 'zone',
+      cooldown: 6000,
+      range: 300,
+      zoneRadius: 45,
+      zoneDuration: 3500,
+      zoneDamage: 0,
+      slowAmount: 0.5,
+      slowDuration: 1000,
+    },
+    tiers: [
+      { cost: 3, name: 'Expanding Cold', description: 'Larger zone, lasts longer', mods: { zoneRadius: 20, zoneDuration: 1500 } },
+      { cost: 5, name: 'Ice Age', description: 'Zone damages and slows much more', mods: { zoneDamage: 1, slowAmount: 0.15 } },
+    ],
+  },
+
+  'icewall': {
+    base: {
+      type: 'wall',
+      cooldown: 10000,
+      range: 200,
+      wallDuration: 4000,
+      wallHp: 30,
+      wallWidth: 80,            // width of the wall segment
+      wallThickness: 16,        // thickness
+    },
+    tiers: [
+      { cost: 3, name: 'Fortified', description: 'Tougher wall, lasts longer', mods: { wallHp: 20, wallDuration: 2000 } },
+      { cost: 5, name: 'Shatter', description: 'Wall explodes when destroyed, slowing nearby enemies', mods: { shatterSlowAmount: 0.4, shatterSlowDuration: 1500, shatterRadius: 60, cooldown: -2000 } },
+    ],
+  },
+
+  'bouncer': {
+    base: {
+      type: 'projectile',
+      damage: 2,
+      knockbackForce: 0.03,
+      cooldown: 5000,
+      speed: 6,
+      range: 600,
+      radius: 7,
+      lifetime: 4000,
+      piercing: false,
+      maxBounces: 3,
+      destroysSpells: true,     // destroys enemy projectiles on contact
+    },
+    tiers: [
+      { cost: 3, name: 'Ricochet', description: 'More bounces, faster bolt', mods: { maxBounces: 2, speed: 2 } },
+      { cost: 5, name: 'Momentum', description: 'Gets stronger with each bounce', mods: { kbPerBounce: 0.01, cooldown: -1000 } },
+    ],
+  },
+
+  'shield': {
+    base: {
+      type: 'buff',
+      cooldown: 12000,
+      buffDuration: 2000,
+      shieldHits: 2,            // blocks this many hits
+    },
+    tiers: [
+      { cost: 3, name: 'Hardened', description: 'Blocks more hits, lasts longer', mods: { shieldHits: 1, buffDuration: 1000 } },
+      { cost: 5, name: 'Reflect', description: 'On break, reflects last hit. Faster cooldown.', mods: { reflectOnBreak: true, cooldown: -2000 } },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // R — ULTIMATE (7 spells, 2 tiers each)
+  // ═══════════════════════════════════════════════════════════════
+  'hook': {
     base: {
       type: 'hook',
-      damage: 2,              // was 5 — displacement tool, not DPS
+      damage: 2,
       knockbackForce: 0,
-      cooldown: 8000,         // was 10000 — faster sumo pacing
+      cooldown: 8000,
       speed: 12,
-      range: 320,             // was 300 — slightly longer reach
+      range: 320,
       radius: 8,
       lifetime: 1500,
-      pullForce: 0.06,        // was 0.04 — stronger displacement
+      pullForce: 0.06,
+      swingDuration: 600,
     },
-    branches: {
-      A: {
-        name: 'Swing & Release',
-        description: 'Hook enemies and swing them around — fling them out of the ring',
-        icon: 'spell-BookDeath',
-        tiers: [
-          { cost: 3, name: 'Barbed Hook', description: 'Stronger release force', mods: { damage: 1, pullForce: 0.02 } },
-          { cost: 3, name: 'Quick Release', description: 'Faster hook, reduced cooldown', mods: { cooldown: -2000, speed: 2 } },
-          { cost: 3, name: 'Longer Chain', description: 'Extended swing — more windup, bigger fling', mods: { damage: 1, swingDuration: 200 } },
-          { cost: 4, name: 'Death Grip', description: 'Devastating swing force and range', mods: { pullForce: 0.03, damage: 1, range: 60 } },
-        ],
-      },
-      B: {
-        name: 'Grappling Hook',
-        description: 'Hook a point, get pulled to it, then launch through — become the projectile',
-        icon: 'spell-BookDarkness',
-        tiers: [
-          { cost: 3, name: 'Grapple Anchor', description: 'Hook pulls you to the anchor point. Press R for early release.', mods: { pullSelf: true, cooldown: -1500, pullSpeed: 4 } },
-          { cost: 3, name: 'Long Chain', description: 'Longer range, faster hook travel', mods: { range: 80, speed: 4, pullSpeed: 1 } },
-          { cost: 3, name: 'Wrecking Ball', description: 'Collide with enemies during pull and flight', mods: { flightCollision: true, flightDamage: 3, flightKnockback: 0.02, pullSpeed: 1 } },
-          { cost: 4, name: 'Human Cannonball', description: 'Faster pull, longer flight, devastating impact', mods: { pullSpeed: 2, launchSpeedBonus: 2, flightDuration: 200, flightDamage: 2, flightKnockback: 0.015 } },
-        ],
-      },
+    tiers: [
+      { cost: 3, name: 'Barbed Hook', description: 'Stronger release, more damage', mods: { pullForce: 0.02, damage: 1, cooldown: -1500 } },
+      { cost: 5, name: 'Death Grip', description: 'Longer swing, more range and force', mods: { swingDuration: 300, range: 60, pullForce: 0.02 } },
+    ],
+  },
+
+  'grappling': {
+    base: {
+      type: 'hook',
+      damage: 0,
+      knockbackForce: 0,
+      cooldown: 8000,
+      speed: 12,
+      range: 320,
+      radius: 8,
+      lifetime: 1500,
+      pullSelf: true,
+      pullSpeed: 4,
+      launchSpeedBonus: 0,
+      flightDuration: 500,
     },
+    tiers: [
+      { cost: 3, name: 'Long Chain', description: 'Faster pull, further range', mods: { pullSpeed: 2, range: 80, cooldown: -1500 } },
+      { cost: 5, name: 'Wrecking Ball', description: 'Collide with enemies during flight', mods: { flightCollision: true, flightDamage: 4, flightKnockback: 0.03 } },
+    ],
+  },
+
+  'lightning': {
+    base: {
+      type: 'instant',
+      damage: 3,
+      knockbackForce: 0.09,
+      cooldown: 7000,
+      radius: 100,              // detection radius for nearest enemy
+    },
+    tiers: [
+      { cost: 3, name: 'Surge', description: 'Wider range, more push', mods: { radius: 40, knockbackForce: 0.03 } },
+      { cost: 5, name: 'Chain Lightning', description: 'Chains to 2nd enemy at 50% power', mods: { chainCount: 1, chainKbFactor: 0.5, cooldown: -1500 } },
+    ],
+  },
+
+  'homing': {
+    base: {
+      type: 'homing',
+      damage: 3,
+      knockbackForce: 0.06,
+      cooldown: 9000,
+      speed: 5,
+      radius: 7,
+      lifetime: 4000,
+      turnRate: 0.08,           // radians per tick (how fast it steers)
+      trackingRange: 400,       // max distance to acquire a target
+    },
+    tiers: [
+      { cost: 3, name: 'Persistence', description: 'Tracks longer, turns sharper', mods: { lifetime: 2000, turnRate: 0.03 } },
+      { cost: 5, name: 'Warhead', description: 'Faster, stronger, explodes on impact', mods: { speed: 2, knockbackForce: 0.03, explosionRadius: 30 } },
+    ],
+  },
+
+  'meteor': {
+    base: {
+      type: 'zone',
+      damage: 5,
+      knockbackForce: 0.10,
+      cooldown: 12000,
+      range: 250,               // close range cast only
+      impactDelay: 1000,        // 1s delay before impact
+      impactRadius: 80,         // AoE push radius
+      isMeteor: true,           // flag for special meteor behavior
+    },
+    tiers: [
+      { cost: 3, name: 'Quick Fall', description: 'Faster impact, wider blast', mods: { impactDelay: -500, impactRadius: 20, cooldown: -2000 } },
+      { cost: 5, name: 'Apocalypse', description: 'Devastating impact, leaves burning ground', mods: { knockbackForce: 0.04, damage: 3, burnZoneDuration: 2000, burnSlowAmount: 0.3 } },
+    ],
+  },
+
+  'rocketswarm': {
+    base: {
+      type: 'homing',
+      damage: 1,
+      knockbackForce: 0.02,
+      cooldown: 10000,
+      speed: 5,
+      radius: 5,
+      lifetime: 3000,
+      turnRate: 0.06,
+      trackingRange: 150,       // shorter tracking range
+      missileCount: 5,          // how many missiles to spawn
+      isSwarm: true,            // flag for multi-missile behavior
+    },
+    tiers: [
+      { cost: 3, name: 'Barrage', description: 'More missiles, longer duration', mods: { missileCount: 3, lifetime: 1000 } },
+      { cost: 5, name: 'Saturation', description: 'Stronger missiles, wider tracking', mods: { knockbackForce: 0.01, trackingRange: 50, cooldown: -2000 } },
+    ],
+  },
+
+  'boomerang': {
+    base: {
+      type: 'boomerang',
+      damage: 2,
+      knockbackForce: 0.03,     // base KB at close range
+      maxKnockbackForce: 0.09,  // KB at max range (scales linearly with distance)
+      cooldown: 7000,
+      speed: 7,
+      range: 400,               // max distance before returning
+      radius: 8,
+      lifetime: 3000,
+    },
+    tiers: [
+      { cost: 3, name: 'Long Throw', description: 'Further range, more max knockback', mods: { range: 100, maxKnockbackForce: 0.02 } },
+      { cost: 5, name: 'Catch & Throw', description: 'Return path hits too, cooldown reduced on catch', mods: { hitsOnReturn: true, cooldownOnCatch: -2000 } },
+    ],
   },
 };
 
-// Map spell IDs to their slot keys
-export const SPELL_SLOTS = {
-  Q: 'fireball',
-  W: 'blink',
-  E: 'frostBolt',
-  R: 'hook',
-};
-
-// Reverse map: spell ID to slot
-export const SPELL_TO_SLOT = {};
-for (const [slot, spellId] of Object.entries(SPELL_SLOTS)) {
-  SPELL_TO_SLOT[spellId] = slot;
-}
-
 /**
- * Compute the effective stats for a spell given a player's branch choice and tier level.
+ * Compute effective stats for a spell at a given tier level.
  *
- * @param {string} spellId - e.g. 'fireball', 'blink', etc.
- * @param {string|null} branch - 'A', 'B', or null (no branch chosen yet)
- * @param {number} tierLevel - 0 = base only, 1 = first tier upgrade, ... 4 = max
+ * @param {string} spellId - e.g. 'fireball-sniper', 'blink', 'hook', etc.
+ * @param {number} tierLevel - 0 = base only, 1 = first tier upgrade, 2 = second, etc.
  * @returns {Object} computed stats with all modifiers applied additively
  */
-export function computeSpellStats(spellId, branch, tierLevel) {
-  const tree = SKILL_TREE[spellId];
+export function computeSpellStats(spellId, tierLevel) {
+  const tree = SKILL_TREES[spellId];
   if (!tree) return null;
 
   // Start with a copy of base stats
   const stats = { ...tree.base };
 
-  // If no branch chosen or tier 0, return base stats
-  if (!branch || tierLevel <= 0) return stats;
+  // If tier 0, return base stats
+  if (!tierLevel || tierLevel <= 0) return stats;
 
-  const branchData = tree.branches[branch];
-  if (!branchData) return stats;
-
-  // Apply tiers 1 through tierLevel (clamped to available tiers)
-  const maxTier = Math.min(tierLevel, branchData.tiers.length);
+  // Apply tiers 0 through tierLevel-1 (clamped to available tiers)
+  const maxTier = Math.min(tierLevel, tree.tiers.length);
   for (let i = 0; i < maxTier; i++) {
-    const tier = branchData.tiers[i];
+    const tier = tree.tiers[i];
     for (const [key, value] of Object.entries(tier.mods)) {
       if (typeof value === 'boolean') {
-        // Boolean mods override (e.g., piercing: true, convertToZone: true)
+        // Boolean mods override (e.g., piercing: true, pullSelf: true)
         stats[key] = value;
       } else if (typeof value === 'number') {
         // Numeric mods are additive
@@ -233,46 +417,36 @@ export function computeSpellStats(spellId, branch, tierLevel) {
  * Get the cost to upgrade to the next tier for a spell.
  *
  * @param {string} spellId
- * @param {string} branch - 'A' or 'B'
  * @param {number} currentTier - current tier level (0-based)
  * @returns {number|null} cost in SP, or null if max tier reached
  */
-export function getUpgradeCost(spellId, branch, currentTier) {
-  const tree = SKILL_TREE[spellId];
-  if (!tree || !branch) return null;
+export function getUpgradeCost(spellId, currentTier) {
+  const tree = SKILL_TREES[spellId];
+  if (!tree) return null;
 
-  const branchData = tree.branches[branch];
-  if (!branchData) return null;
-
-  if (currentTier >= branchData.tiers.length) return null; // already max
-  return branchData.tiers[currentTier].cost;
+  if (currentTier >= tree.tiers.length) return null; // already max
+  return tree.tiers[currentTier].cost;
 }
 
 /**
  * Get info about the next tier upgrade.
  *
  * @param {string} spellId
- * @param {string} branch
  * @param {number} currentTier
  * @returns {{ name, description, cost, mods }|null}
  */
-export function getNextTierInfo(spellId, branch, currentTier) {
-  const tree = SKILL_TREE[spellId];
-  if (!tree || !branch) return null;
+export function getNextTierInfo(spellId, currentTier) {
+  const tree = SKILL_TREES[spellId];
+  if (!tree) return null;
 
-  const branchData = tree.branches[branch];
-  if (!branchData) return null;
-
-  if (currentTier >= branchData.tiers.length) return null;
-  return branchData.tiers[currentTier];
+  if (currentTier >= tree.tiers.length) return null;
+  return tree.tiers[currentTier];
 }
 
 /**
- * Get max tier count for a branch.
+ * Get max tier count for a spell.
  */
-export function getMaxTier(spellId, branch) {
-  const tree = SKILL_TREE[spellId];
-  if (!tree || !branch) return 0;
-  const branchData = tree.branches[branch];
-  return branchData ? branchData.tiers.length : 0;
+export function getMaxTier(spellId) {
+  const tree = SKILL_TREES[spellId];
+  return tree ? tree.tiers.length : 0;
 }
