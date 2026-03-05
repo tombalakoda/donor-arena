@@ -21,6 +21,34 @@ export class SpellVisualManager {
     }
   }
 
+  // --- Spawn / Death burst helpers ---
+
+  _spawnBurst(x, y, color) {
+    const ring = this.scene.add.circle(x, y, 4, color, 0.6);
+    ring.setDepth(17);
+    this.scene.tweens.add({
+      targets: ring,
+      radius: 18,
+      alpha: 0,
+      duration: 200,
+      ease: 'Quad.easeOut',
+      onComplete: () => ring.destroy(),
+    });
+  }
+
+  _deathBurst(x, y, color) {
+    const ring = this.scene.add.circle(x, y, 6, color, 0.5);
+    ring.setDepth(17);
+    this.scene.tweens.add({
+      targets: ring,
+      radius: 22,
+      alpha: 0,
+      duration: 250,
+      ease: 'Quad.easeOut',
+      onComplete: () => ring.destroy(),
+    });
+  }
+
   createSpellVisual(spell) {
     const def = SPELLS[spell.type];
     if (!def) return;
@@ -55,10 +83,28 @@ export class SpellVisualManager {
         const angle = Math.atan2(spell.vy || 0, spell.vx || 0);
         sprite.setRotation(angle);
 
+        // Particle trail
+        const trail = scene.add.particles(0, 0, spriteKey, {
+          follow: sprite,
+          frequency: 40,
+          lifespan: 200,
+          scale: { start: scale * 0.5, end: 0 },
+          alpha: { start: 0.4, end: 0 },
+          blendMode: 'ADD',
+          depth: 14,
+        });
+
         visual.sprite = sprite;
         visual.glow = glow;
-        visual.vx = (spell.vx || 0) * 0.05;
-        visual.vy = (spell.vy || 0) * 0.05;
+        visual.trail = trail;
+        visual.glowColor = glowColor;
+        // Store velocity per-tick (server units) for extrapolation
+        visual.vx = spell.vx || 0;
+        visual.vy = spell.vy || 0;
+        visual.serverX = spell.x;
+        visual.serverY = spell.y;
+
+        this._spawnBurst(spell.x, spell.y, glowColor);
         break;
       }
 
@@ -156,8 +202,10 @@ export class SpellVisualManager {
         visual.sprite = sprite;
         visual.chain = chain;
         visual.hooked = false;
-        visual.vx = (spell.vx || 0) * 0.05;
-        visual.vy = (spell.vy || 0) * 0.05;
+        visual.vx = spell.vx || 0;
+        visual.vy = spell.vy || 0;
+        visual.serverX = spell.x;
+        visual.serverY = spell.y;
         break;
       }
 
@@ -272,23 +320,49 @@ export class SpellVisualManager {
         const spriteKey = fx.sprite || 'fx-spirit';
         const animKey = fx.animKey || 'fx-spirit-play';
         const scale = fx.scale || 0.9;
+        const glowColor = fx.glowColor || 0xdd88ff;
 
         if (scene.anims.exists(animKey)) {
           const swapSprite = scene.add.sprite(spell.x, spell.y, spriteKey);
           swapSprite.setDepth(15);
           swapSprite.setScale(scale * 2);
           swapSprite.play({ key: animKey, repeat: -1 });
+          // Initial rotation to face travel direction
+          const angle = Math.atan2(spell.vy || 0, spell.vx || 0);
+          swapSprite.setRotation(angle);
           visual.sprite = swapSprite;
         } else {
           visual.sprite = scene.add.circle(spell.x, spell.y, spell.radius || 7, fx.color || 0xcc44ff, 0.8);
           visual.sprite.setDepth(15);
         }
 
-        const swapGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 7) + 6, fx.glowColor || 0xdd88ff, 0.3);
+        const swapGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 7) + 6, glowColor, 0.3);
         swapGlow.setDepth(14);
         visual.glow = swapGlow;
+        visual.glowColor = glowColor;
+
+        // Particle trail
+        const swapTrailKey = scene.anims.exists(animKey) ? spriteKey : null;
+        if (swapTrailKey) {
+          const trail = scene.add.particles(0, 0, swapTrailKey, {
+            follow: visual.sprite,
+            frequency: 40,
+            lifespan: 200,
+            scale: { start: scale * 0.5, end: 0 },
+            alpha: { start: 0.4, end: 0 },
+            blendMode: 'ADD',
+            depth: 14,
+          });
+          visual.trail = trail;
+        }
+
+        // Velocity for extrapolation
         visual.vx = spell.vx || 0;
         visual.vy = spell.vy || 0;
+        visual.serverX = spell.x;
+        visual.serverY = spell.y;
+
+        this._spawnBurst(spell.x, spell.y, glowColor);
         break;
       }
 
@@ -324,23 +398,48 @@ export class SpellVisualManager {
         const spriteKey = fx.sprite || 'fx-flam';
         const animKey = fx.animKey || 'fx-flam-play';
         const scale = fx.scale || 0.8;
+        const glowColor = fx.glowColor || 0xff8844;
 
         if (scene.anims.exists(animKey)) {
           const homingSprite = scene.add.sprite(spell.x, spell.y, spriteKey);
           homingSprite.setDepth(15);
           homingSprite.setScale(scale * 1.5);
           homingSprite.play({ key: animKey, repeat: -1 });
+          // Initial rotation
+          const angle = Math.atan2(spell.vy || 0, spell.vx || 0);
+          homingSprite.setRotation(angle);
           visual.sprite = homingSprite;
         } else {
           visual.sprite = scene.add.circle(spell.x, spell.y, spell.radius || 7, fx.color || 0xff4400, 0.8);
           visual.sprite.setDepth(15);
         }
 
-        const homingGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 7) + 3, fx.glowColor || 0xff8844, 0.3);
+        const homingGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 7) + 3, glowColor, 0.3);
         homingGlow.setDepth(14);
         visual.glow = homingGlow;
+        visual.glowColor = glowColor;
+
+        // Particle trail
+        if (scene.anims.exists(animKey)) {
+          const trail = scene.add.particles(0, 0, spriteKey, {
+            follow: visual.sprite,
+            frequency: 40,
+            lifespan: 200,
+            scale: { start: scale * 0.5, end: 0 },
+            alpha: { start: 0.4, end: 0 },
+            blendMode: 'ADD',
+            depth: 14,
+          });
+          visual.trail = trail;
+        }
+
+        // Velocity for extrapolation
         visual.vx = spell.vx || 0;
         visual.vy = spell.vy || 0;
+        visual.serverX = spell.x;
+        visual.serverY = spell.y;
+
+        this._spawnBurst(spell.x, spell.y, glowColor);
         break;
       }
 
@@ -349,6 +448,7 @@ export class SpellVisualManager {
         const spriteKey = fx.sprite || 'fx-rock-spike';
         const animKey = fx.animKey || 'fx-rock-spike-play';
         const scale = fx.scale || 1.0;
+        const glowColor = fx.glowColor || 0xaacc66;
 
         if (scene.anims.exists(animKey)) {
           const boomSprite = scene.add.sprite(spell.x, spell.y, spriteKey);
@@ -361,12 +461,34 @@ export class SpellVisualManager {
           visual.sprite.setDepth(15);
         }
 
-        const boomGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 8) + 3, fx.glowColor || 0xaacc66, 0.3);
+        const boomGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 8) + 3, glowColor, 0.3);
         boomGlow.setDepth(14);
         visual.glow = boomGlow;
+        visual.glowColor = glowColor;
+
+        // Particle trail
+        const boomTrailKey = scene.anims.exists(animKey) ? spriteKey : null;
+        if (boomTrailKey) {
+          const trail = scene.add.particles(0, 0, boomTrailKey, {
+            follow: visual.sprite,
+            frequency: 40,
+            lifespan: 200,
+            scale: { start: scale * 0.5, end: 0 },
+            alpha: { start: 0.4, end: 0 },
+            blendMode: 'ADD',
+            depth: 14,
+          });
+          visual.trail = trail;
+        }
+
+        // Velocity for extrapolation
         visual.vx = spell.vx || 0;
         visual.vy = spell.vy || 0;
+        visual.serverX = spell.x;
+        visual.serverY = spell.y;
         visual.isBoomerang = true;
+
+        this._spawnBurst(spell.x, spell.y, glowColor);
         break;
       }
 
@@ -394,6 +516,15 @@ export class SpellVisualManager {
           scene.grapplingActive = false;
           scene.moveTarget = null;
         }
+
+        // Death burst for moving spell types
+        if (visual.sprite && !visual.sprite.destroyed) {
+          const movingTypes = [SPELL_TYPES.PROJECTILE, SPELL_TYPES.HOMING, SPELL_TYPES.SWAP, SPELL_TYPES.BOOMERANG];
+          if (movingTypes.includes(visual.type) && visual.glowColor) {
+            this._deathBurst(visual.sprite.x, visual.sprite.y, visual.glowColor);
+          }
+        }
+
         this.destroySpellVisual(visual);
         this.spellVisuals.delete(id);
       }
@@ -426,13 +557,18 @@ export class SpellVisualManager {
       const visual = this.spellVisuals.get(spell.id);
       if (!visual || !visual.sprite || visual.sprite.destroyed) continue;
 
+      // PROJECTILE: snap to server + store velocity for extrapolation
       if (visual.type === SPELL_TYPES.PROJECTILE) {
-        const lerpFactor = 0.3;
-        visual.sprite.x += (spell.x - visual.sprite.x) * lerpFactor;
-        visual.sprite.y += (spell.y - visual.sprite.y) * lerpFactor;
+        visual.serverX = spell.x;
+        visual.serverY = spell.y;
+        visual.vx = spell.vx || 0;
+        visual.vy = spell.vy || 0;
+        // Snap to server position on each sync tick
+        visual.sprite.x = spell.x;
+        visual.sprite.y = spell.y;
         if (visual.glow && !visual.glow.destroyed) {
-          visual.glow.x = visual.sprite.x;
-          visual.glow.y = visual.sprite.y;
+          visual.glow.x = spell.x;
+          visual.glow.y = spell.y;
         }
       } else if (visual.type === SPELL_TYPES.HOOK) {
         // Update chain origin to caster's CURRENT position
@@ -469,10 +605,13 @@ export class SpellVisualManager {
           }
         }
 
-        // Lerp hook position to server
-        const lerpFactor = 0.3;
-        visual.sprite.x += (spell.x - visual.sprite.x) * lerpFactor;
-        visual.sprite.y += (spell.y - visual.sprite.y) * lerpFactor;
+        // Snap hook to server position + store for extrapolation
+        visual.serverX = spell.x;
+        visual.serverY = spell.y;
+        visual.vx = spell.vx || 0;
+        visual.vy = spell.vy || 0;
+        visual.sprite.x = spell.x;
+        visual.sprite.y = spell.y;
 
         let chainFromX, chainFromY, chainToX, chainToY;
         if (spell.pullSelf && spell.hooked) {
@@ -501,22 +640,26 @@ export class SpellVisualManager {
         }
       }
 
-      // SWAP, HOMING, BOOMERANG: lerp to server position
+      // SWAP, HOMING, BOOMERANG: snap to server + store velocity
       if (visual.type === SPELL_TYPES.SWAP || visual.type === SPELL_TYPES.HOMING || visual.type === SPELL_TYPES.BOOMERANG) {
-        const lerpFactor = 0.3;
-        visual.sprite.x += (spell.x - visual.sprite.x) * lerpFactor;
-        visual.sprite.y += (spell.y - visual.sprite.y) * lerpFactor;
-        if (visual.glow && !visual.glow.destroyed) {
-          visual.glow.x = visual.sprite.x;
-          visual.glow.y = visual.sprite.y;
-        }
+        visual.serverX = spell.x;
+        visual.serverY = spell.y;
         visual.vx = spell.vx || 0;
         visual.vy = spell.vy || 0;
+        // Snap to server position
+        visual.sprite.x = spell.x;
+        visual.sprite.y = spell.y;
+        if (visual.glow && !visual.glow.destroyed) {
+          visual.glow.x = spell.x;
+          visual.glow.y = spell.y;
+        }
 
-        // Rotate homing missiles to face their travel direction
-        if (visual.type === SPELL_TYPES.HOMING && visual.sprite && !visual.sprite.destroyed) {
-          const angle = Math.atan2(spell.vy || 0, spell.vx || 0);
-          visual.sprite.setRotation(angle);
+        // Rotate homing and swap to face travel direction
+        if ((visual.type === SPELL_TYPES.HOMING || visual.type === SPELL_TYPES.SWAP) && visual.sprite && !visual.sprite.destroyed) {
+          if (spell.vx || spell.vy) {
+            const angle = Math.atan2(spell.vy || 0, spell.vx || 0);
+            visual.sprite.setRotation(angle);
+          }
         }
       }
 
@@ -538,17 +681,38 @@ export class SpellVisualManager {
     for (const [id, visual] of this.spellVisuals) {
       visual.elapsed += delta;
 
+      // PROJECTILE: velocity extrapolation + drift correction
       if (visual.type === SPELL_TYPES.PROJECTILE && visual.sprite && !visual.sprite.destroyed) {
-        visual.sprite.x += (visual.vx || 0);
-        visual.sprite.y += (visual.vy || 0);
+        const t = delta / 50; // server tick = 50ms
+        visual.sprite.x += visual.vx * t;
+        visual.sprite.y += visual.vy * t;
+        // Drift correction
+        visual.sprite.x += (visual.serverX - visual.sprite.x) * 0.1;
+        visual.sprite.y += (visual.serverY - visual.sprite.y) * 0.1;
+        // Update server prediction target
+        visual.serverX += visual.vx * t;
+        visual.serverY += visual.vy * t;
+        // Rotation
+        if (visual.vx || visual.vy) {
+          visual.sprite.setRotation(Math.atan2(visual.vy, visual.vx));
+        }
+        // Glow offset behind travel direction
         if (visual.glow && !visual.glow.destroyed) {
-          visual.glow.x = visual.sprite.x;
-          visual.glow.y = visual.sprite.y;
+          const speed = Math.sqrt(visual.vx * visual.vx + visual.vy * visual.vy) || 1;
+          const offsetDist = 6;
+          visual.glow.x = visual.sprite.x - (visual.vx / speed) * offsetDist;
+          visual.glow.y = visual.sprite.y - (visual.vy / speed) * offsetDist;
         }
       } else if (visual.type === SPELL_TYPES.HOOK && visual.sprite && !visual.sprite.destroyed) {
         if (!visual.hooked) {
-          visual.sprite.x += (visual.vx || 0);
-          visual.sprite.y += (visual.vy || 0);
+          const t = delta / 50;
+          visual.sprite.x += visual.vx * t;
+          visual.sprite.y += visual.vy * t;
+          // Drift correction
+          visual.sprite.x += (visual.serverX - visual.sprite.x) * 0.1;
+          visual.sprite.y += (visual.serverY - visual.sprite.y) * 0.1;
+          visual.serverX += visual.vx * t;
+          visual.serverY += visual.vy * t;
         }
 
         // Update chain origin from current player position (for smooth 60fps tracking)
@@ -656,14 +820,35 @@ export class SpellVisualManager {
           visual.sprite.setAlpha(pulse);
         }
       } else if ((visual.type === SPELL_TYPES.SWAP || visual.type === SPELL_TYPES.HOMING || visual.type === SPELL_TYPES.BOOMERANG) && visual.sprite && !visual.sprite.destroyed) {
-        visual.sprite.x += (visual.vx || 0);
-        visual.sprite.y += (visual.vy || 0);
+        // Velocity extrapolation + drift correction
+        const t = delta / 50;
+        visual.sprite.x += visual.vx * t;
+        visual.sprite.y += visual.vy * t;
+        // Drift correction
+        visual.sprite.x += (visual.serverX - visual.sprite.x) * 0.1;
+        visual.sprite.y += (visual.serverY - visual.sprite.y) * 0.1;
+        // Update server prediction target
+        visual.serverX += visual.vx * t;
+        visual.serverY += visual.vy * t;
+
+        // Glow offset behind travel direction
         if (visual.glow && !visual.glow.destroyed) {
-          visual.glow.x = visual.sprite.x;
-          visual.glow.y = visual.sprite.y;
+          if (visual.vx || visual.vy) {
+            const speed = Math.sqrt(visual.vx * visual.vx + visual.vy * visual.vy) || 1;
+            const offsetDist = 6;
+            visual.glow.x = visual.sprite.x - (visual.vx / speed) * offsetDist;
+            visual.glow.y = visual.sprite.y - (visual.vy / speed) * offsetDist;
+          } else {
+            visual.glow.x = visual.sprite.x;
+            visual.glow.y = visual.sprite.y;
+          }
         }
+
+        // Boomerang spins, homing/swap rotate to face direction
         if (visual.isBoomerang) {
           visual.sprite.rotation += 0.15;
+        } else if (visual.vx || visual.vy) {
+          visual.sprite.setRotation(Math.atan2(visual.vy, visual.vx));
         }
       } else if (visual.type === SPELL_TYPES.RECALL) {
         const alpha = Math.max(0, 1 - visual.elapsed / visual.lifetime);
