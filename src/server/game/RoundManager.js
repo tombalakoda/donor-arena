@@ -23,6 +23,9 @@ export class RoundManager {
 
     // Sandbox mode
     this.sandboxMode = false;
+
+    // Cached per-round ring shrink rate (avoids recalculating every tick)
+    this.cachedShrinkRate = 0;
   }
 
   setSandboxMode(enabled) {
@@ -50,6 +53,12 @@ export class RoundManager {
     this.phase = PHASE.COUNTDOWN;
     this.phaseTimer = 0;
     this.ringRadius = ARENA.RADIUS;
+    this._updateShrinkRate();
+  }
+
+  _updateShrinkRate() {
+    const rawRate = ARENA.RING_SHRINK_BASE + this.currentRound * ARENA.RING_SHRINK_SCALE;
+    this.cachedShrinkRate = Math.min(rawRate, 6);
   }
 
   update(deltaMs, alivePlayers, totalPlayers) {
@@ -68,6 +77,7 @@ export class RoundManager {
         if (this.phaseTimer >= ROUND.COUNTDOWN * 1000) {
           this.phase = PHASE.PLAYING;
           this.phaseTimer = 0;
+          this._updateShrinkRate();
           return { event: 'countdownEnd' };
         }
         break;
@@ -75,9 +85,11 @@ export class RoundManager {
       case PHASE.PLAYING: {
         // Shrink ring (disabled in sandbox)
         if (!this.sandboxMode) {
-          const rawRate = ARENA.RING_SHRINK_BASE + this.currentRound * ARENA.RING_SHRINK_SCALE;
-          const shrinkRate = Math.min(rawRate, 6); // Cap at 6 px/sec to keep late rounds playable
-          this.ringRadius -= shrinkRate * (deltaMs / 1000);
+          // Lazy-init if phase was set directly (e.g. tests)
+          if (this.cachedShrinkRate === 0 && this.currentRound > 0) {
+            this._updateShrinkRate();
+          }
+          this.ringRadius -= this.cachedShrinkRate * (deltaMs / 1000);
           if (this.ringRadius < ARENA.MIN_RING_RADIUS) {
             this.ringRadius = ARENA.MIN_RING_RADIUS;
           }

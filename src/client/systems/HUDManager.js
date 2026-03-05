@@ -34,6 +34,13 @@ export class HUDManager {
     this.outerRingGraphics = null;
     this.lastDrawnRingRadius = -1;
     this.edgeVignette = null;
+    this._lastVignetteDistToEdge = null;
+
+    // HUD text caches (avoid redundant setText calls)
+    this._lastPing = null;
+    this._lastPlayerCount = null;
+    this._lastHpText = null;
+    this._lastHpRatio = null;
 
     // Misc
     this.announcementText = null;
@@ -351,31 +358,45 @@ export class HUDManager {
   updateHUD() {
     const scene = this.scene;
     if (scene.network) {
-      this.pingText.setText(`Ping: ${scene.network.ping}ms`);
+      const ping = scene.network.ping;
+      if (ping !== this._lastPing) {
+        this.pingText.setText(`Ping: ${ping}ms`);
+        this._lastPing = ping;
+      }
       const totalPlayers = 1 + scene.remotePlayers.size;
-      this.playerCountText.setText(`Players: ${totalPlayers}`);
+      if (totalPlayers !== this._lastPlayerCount) {
+        this.playerCountText.setText(`Players: ${totalPlayers}`);
+        this._lastPlayerCount = totalPlayers;
+      }
     }
 
     if (this.hpBarFill) {
       const hpRatio = Math.max(0, scene.localHp / scene.localMaxHp);
-      this.hpBarFill.width = 200 * hpRatio;
-      if (hpRatio > 0.75) {
-        this.hpBarFill.fillColor = 0x44bbff;
-      } else if (hpRatio > 0.5) {
-        this.hpBarFill.fillColor = 0xdddd44;
-      } else if (hpRatio > 0.25) {
-        this.hpBarFill.fillColor = 0xff8833;
-      } else {
-        this.hpBarFill.fillColor = 0xff3333;
+
+      // Only update bar width, color, and text when HP ratio changes
+      if (hpRatio !== this._lastHpRatio) {
+        this._lastHpRatio = hpRatio;
+        this.hpBarFill.width = 200 * hpRatio;
+        if (hpRatio > 0.75) {
+          this.hpBarFill.fillColor = 0x44bbff;
+        } else if (hpRatio > 0.5) {
+          this.hpBarFill.fillColor = 0xdddd44;
+        } else if (hpRatio > 0.25) {
+          this.hpBarFill.fillColor = 0xff8833;
+        } else {
+          this.hpBarFill.fillColor = 0xff3333;
+        }
+        const vulnPercent = Math.round((1 - hpRatio) * 100);
+        this.hpText.setText(`${Math.ceil(scene.localHp)} HP  (${vulnPercent}% vuln)`);
       }
+
+      // Pulse animation still runs every frame (only when low HP)
       if (hpRatio <= 0.5 && hpRatio > 0) {
         const pulse = 0.7 + 0.3 * Math.sin(scene.time.now * (hpRatio <= 0.25 ? 0.012 : 0.006));
         this.hpBarFill.setAlpha(pulse);
       } else {
         this.hpBarFill.setAlpha(1);
       }
-      const vulnPercent = Math.round((1 - hpRatio) * 100);
-      this.hpText.setText(`${Math.ceil(scene.localHp)} HP  (${vulnPercent}% vuln)`);
     }
   }
 

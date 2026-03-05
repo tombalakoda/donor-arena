@@ -234,10 +234,11 @@ export class ServerSpell {
       const history = this.positionHistory.get(playerId);
       if (history) {
         history.push({ x: body.position.x, y: body.position.y, time: now });
-        // Keep only last 5 seconds of history
-        while (history.length > 0 && history[0].time < now - 5000) {
-          history.shift();
-        }
+        // Keep only last 5 seconds of history — single splice instead of repeated shift
+        const cutoffTime = now - 5000;
+        let cutoff = 0;
+        while (cutoff < history.length && history[cutoff].time < cutoffTime) cutoff++;
+        if (cutoff > 0) history.splice(0, cutoff);
       }
     }
 

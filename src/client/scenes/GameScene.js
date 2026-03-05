@@ -552,6 +552,7 @@ export class GameScene extends Phaser.Scene {
       hp: maxHp || PLAYER.MAX_HP, maxHp: maxHp || PLAYER.MAX_HP,
       facingDir: 'down',
       isMoving: false,
+      _lastHpRatio: null,
     });
   }
 
@@ -670,19 +671,24 @@ export class GameScene extends Phaser.Scene {
       rp.shadow.setPosition(rp.x, rp.y + PLAYER.RADIUS * 0.5);
       rp.nameLabel.setPosition(rp.x, rp.y - 30);
 
-      // Update remote HP bar
+      // Update remote HP bar position (always, since player moves)
       rp.hpBg.setPosition(rp.x, rp.y - 22);
-      const hpRatio = Math.max(0, rp.hp / rp.maxHp);
       rp.hpFill.setPosition(rp.x - 18, rp.y - 22);
-      rp.hpFill.width = 36 * hpRatio;
-      if (hpRatio > 0.75) {
-        rp.hpFill.fillColor = 0x44bbff;
-      } else if (hpRatio > 0.5) {
-        rp.hpFill.fillColor = 0xdddd44;
-      } else if (hpRatio > 0.25) {
-        rp.hpFill.fillColor = 0xff8833;
-      } else {
-        rp.hpFill.fillColor = 0xff3333;
+
+      // Only recalculate width and color when HP changes
+      const hpRatio = Math.max(0, rp.hp / rp.maxHp);
+      if (hpRatio !== rp._lastHpRatio) {
+        rp._lastHpRatio = hpRatio;
+        rp.hpFill.width = 36 * hpRatio;
+        if (hpRatio > 0.75) {
+          rp.hpFill.fillColor = 0x44bbff;
+        } else if (hpRatio > 0.5) {
+          rp.hpFill.fillColor = 0xdddd44;
+        } else if (hpRatio > 0.25) {
+          rp.hpFill.fillColor = 0xff8833;
+        } else {
+          rp.hpFill.fillColor = 0xff3333;
+        }
       }
 
       const speed = Math.sqrt(rp.vx * rp.vx + rp.vy * rp.vy);

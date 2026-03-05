@@ -205,16 +205,21 @@ export class GameLoop {
       shopTimeRemaining: roundState.shopTimeRemaining,
     };
 
+    // Reuse a single envelope object — Socket.IO serializes synchronously
+    // before emit returns, so mutating per-player fields between emits is safe.
+    const envelope = {
+      ...snapshot,
+      cooldowns: null,
+      charges: null,
+      progression: null,
+    };
+
     for (const [playerId, player] of room.players) {
-      const cd = room.spells.getCooldowns(playerId);
-      const charges = room.spells.getCharges(playerId);
+      envelope.cooldowns = room.spells.getCooldowns(playerId);
+      envelope.charges = room.spells.getCharges(playerId);
       const progression = room.progressions.get(playerId);
-      player.socket.emit(MSG.SERVER_STATE, {
-        ...snapshot,
-        cooldowns: cd,
-        charges,
-        progression: progression ? progression.getState() : null,
-      });
+      envelope.progression = progression ? progression.getState() : null;
+      player.socket.emit(MSG.SERVER_STATE, envelope);
     }
   }
 

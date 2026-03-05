@@ -10,6 +10,7 @@ export class ServerPhysics {
     });
     this.world = this.engine.world;
     this.playerBodies = new Map(); // playerId -> Matter.Body
+    this.playerStates = new Map(); // playerId -> pre-allocated { x, y, vx, vy, kb }
     this.knockbackUntil = new Map(); // playerId -> timestamp when knockback grace ends
     this.lastKnockbackFrom = new Map(); // playerId -> { attackerId, timestamp } — for ring-out kill credit
   }
@@ -27,6 +28,7 @@ export class ServerPhysics {
     });
     World.add(this.world, body);
     this.playerBodies.set(playerId, body);
+    this.playerStates.set(playerId, { x: 0, y: 0, vx: 0, vy: 0, kb: 0 });
     this.knockbackUntil.set(playerId, 0);
     this.lastKnockbackFrom.delete(playerId);
     return body;
@@ -37,6 +39,7 @@ export class ServerPhysics {
     if (body) {
       World.remove(this.world, body);
       this.playerBodies.delete(playerId);
+      this.playerStates.delete(playerId);
       this.knockbackUntil.delete(playerId);
       this.lastKnockbackFrom.delete(playerId);
     }
@@ -193,15 +196,16 @@ export class ServerPhysics {
   getPlayerState(playerId) {
     const body = this.playerBodies.get(playerId);
     if (!body) return null;
+    const state = this.playerStates.get(playerId);
+    if (!state) return null;
     const kbUntil = this.knockbackUntil.get(playerId) || 0;
     const kbRemaining = Math.max(0, kbUntil - Date.now());
-    return {
-      x: Math.round(body.position.x * 100) / 100,
-      y: Math.round(body.position.y * 100) / 100,
-      vx: Math.round(body.velocity.x * 1000) / 1000,
-      vy: Math.round(body.velocity.y * 1000) / 1000,
-      kb: kbRemaining > 0 ? kbRemaining : 0,
-    };
+    state.x = Math.round(body.position.x * 100) / 100;
+    state.y = Math.round(body.position.y * 100) / 100;
+    state.vx = Math.round(body.velocity.x * 1000) / 1000;
+    state.vy = Math.round(body.velocity.y * 1000) / 1000;
+    state.kb = kbRemaining > 0 ? kbRemaining : 0;
+    return state;
   }
 
   getAllPlayerStates() {
