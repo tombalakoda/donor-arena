@@ -1,12 +1,12 @@
 import Phaser from 'phaser';
 import { PLAYER, ARENA } from '../../shared/constants.js';
-import { SPELLS, SPELL_TYPES, SLOT_SPELLS } from '../../shared/spellData.js';
-import { SKILL_TREES, computeSpellStats } from '../../shared/skillTreeData.js';
 import { NetworkManager } from '../systems/NetworkManager.js';
 import { ShopOverlay } from '../ui/ShopOverlay.js';
 import { PauseMenu } from '../ui/PauseMenu.js';
 import { MatchEndOverlay } from '../ui/MatchEndOverlay.js';
 import { LobbyOverlay } from '../ui/LobbyOverlay.js';
+import { SpellVisualManager } from '../systems/SpellVisualManager.js';
+import { HUDManager } from '../systems/HUDManager.js';
 
 const MatterBody = Phaser.Physics.Matter.Matter.Body;
 const SPRITE_SCALE = 2.25;
@@ -40,8 +40,7 @@ export class GameScene extends Phaser.Scene {
     this.remotePlayers = new Map();
 
     // Spells
-    this.spellVisuals = new Map();  // spellId -> { sprite/graphics, ... }
-    this.pendingSpellCasts = [];    // Queue of spell cast events to create visuals for
+    this.spellVisualManager = null;
     this.cooldowns = {};            // { spellId: remainingMs }
     this.charges = {};              // { spellId: { remaining, max } } — multi-charge spells
     this.spellKeys = {};            // Phaser key objects for Q/W/E/R
@@ -50,12 +49,8 @@ export class GameScene extends Phaser.Scene {
     this.arenaGraphics = null;
     this.ringRadius = ARENA.RADIUS;
 
-    // HUD
-    this.pingText = null;
-    this.playerCountText = null;
-    this.hpBarBg = null;
-    this.hpBarFill = null;
-    this.spellSlots = [];           // HUD spell slot UI elements
+    // HUD manager
+    this.hudManager = null;
 
     // Round state
     this.roundNumber = 0;
@@ -65,25 +60,10 @@ export class GameScene extends Phaser.Scene {
     this.countdownRemaining = 0;
     this.localEliminated = false;
 
-    // Round HUD elements
-    this.roundText = null;
-    this.timerText = null;
-    this.phaseText = null;
-    this.countdownOverlay = null;
-    this.countdownText = null;
-    this.killFeedTexts = [];
-    this.killFeedTimeouts = [];
-
-    // Ring graphics (dynamic, redrawn as ring shrinks)
-    this.ringGraphics = null;
-    this.outerRingGraphics = null;
-    this.lastDrawnRingRadius = -1;
-
     // Progression / Shop
     this.shopOverlay = null;
     this.progression = null;      // { sp, totalSpEarned, slots, spells }
     this.shopTimeRemaining = 0;
-    this.spText = null;           // SP counter HUD element
 
     // Overlays
     this.pauseMenu = null;
@@ -121,38 +101,24 @@ export class GameScene extends Phaser.Scene {
     this.localHp = 100;
     this.localMaxHp = 100;
     this.remotePlayers = new Map();
-    this.spellVisuals = new Map();
-    this.pendingSpellCasts = [];
+    if (this.spellVisualManager) this.spellVisualManager.destroy();
+    this.spellVisualManager = null;
     this.cooldowns = {};
     this.charges = {};
     this.spellKeys = {};
     this.arenaGraphics = null;
     this.ringRadius = ARENA.RADIUS;
-    this.pingText = null;
-    this.playerCountText = null;
-    this.hpBarBg = null;
-    this.hpBarFill = null;
-    this.spellSlots = [];
+    if (this.hudManager) this.hudManager.destroy();
+    this.hudManager = null;
     this.roundNumber = 0;
     this.totalRounds = 20;
     this.phase = 'waiting';
     this.timeRemaining = 0;
     this.countdownRemaining = 0;
     this.localEliminated = false;
-    this.roundText = null;
-    this.timerText = null;
-    this.phaseText = null;
-    this.countdownOverlay = null;
-    this.countdownText = null;
-    this.killFeedTexts = [];
-    this.killFeedTimeouts = [];
-    this.ringGraphics = null;
-    this.outerRingGraphics = null;
-    this.lastDrawnRingRadius = -1;
     this.shopOverlay = null;
     this.progression = null;
     this.shopTimeRemaining = 0;
-    this.spText = null;
     this.pauseMenu = null;
     this.matchEndOverlay = null;
     this.lobbyOverlay = null;
@@ -160,10 +126,7 @@ export class GameScene extends Phaser.Scene {
     this.obstacleSprites = [];
     this.currentMapIndex = -1;
     this.lastServerSpells = [];
-    this.announcementText = null;
     this.trailGraphics = null;
-    this.edgeVignette = null;
-    this.hpText = null;
   }
 
   create() {
@@ -177,14 +140,18 @@ export class GameScene extends Phaser.Scene {
     // Register Phaser shutdown event so cleanup actually runs
     this.events.once('shutdown', this.shutdown, this);
 
+    // Managers
+    this.spellVisualManager = new SpellVisualManager(this);
+    this.hudManager = new HUDManager(this);
+
     // Fade in from black
     this.cameras.main.fadeIn(500, 0, 0, 0);
 
     this.createArena();
     this.setupInput();
     this.setupCamera();
-    this.createHUD();
-    this.createSpellHUD();
+    this.hudManager.createHUD();
+    this.hudManager.createSpellHUD();
     this.shopOverlay = new ShopOverlay(this);
     this.pauseMenu = new PauseMenu(this);
     this.matchEndOverlay = new MatchEndOverlay(this);
@@ -262,7 +229,7 @@ export class GameScene extends Phaser.Scene {
     };
 
     this.network.onSpellCast = (data) => {
-      this.handleSpellCast(data);
+      this.spellVisualManager.handleSpellCast(data);
     };
 
     this.network.onRoundStart = (data) => {
@@ -326,7 +293,7 @@ export class GameScene extends Phaser.Scene {
           }
           // Floating damage number
           if (hpLost > 0 && this.playerBody) {
-            this.showDamageNumber(this.playerBody.position.x, this.playerBody.position.y, hpLost);
+            this.hudManager.showDamageNumber(this.playerBody.position.x, this.playerBody.position.y, hpLost);
           }
         }
         this.localEliminated = ps.eliminated || false;
@@ -364,7 +331,7 @@ export class GameScene extends Phaser.Scene {
 
     // Sync active spells from server state
     this.lastServerSpells = snapshot.spells || [];
-    this.syncSpellVisuals(this.lastServerSpells);
+    this.spellVisualManager.syncSpellVisuals(this.lastServerSpells);
   }
 
   // --- Round Events ---
@@ -385,7 +352,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Show round start announcement
-    this.showAnnouncement(`Round ${data.round} / ${data.totalRounds}`);
+    this.hudManager.showAnnouncement(`Round ${data.round} / ${data.totalRounds}`);
   }
 
   handleRoundEnd(data) {
@@ -393,7 +360,7 @@ export class GameScene extends Phaser.Scene {
     const msg = data.winnerName
       ? `Round ${data.round} — ${data.winnerName} wins!`
       : `Round ${data.round} — Draw!`;
-    this.showAnnouncement(msg);
+    this.hudManager.showAnnouncement(msg);
   }
 
   handleElimination(data) {
@@ -434,19 +401,19 @@ export class GameScene extends Phaser.Scene {
       this.cameras.main.shake(200, 0.012);
 
       // Big "RING OUT!" announcement
-      this.showAnnouncement('RING OUT!', 1500);
+      this.hudManager.showAnnouncement('RING OUT!', 1500);
 
       // Kill feed with special prefix
       const msg = data.eliminatorName
         ? `${data.eliminatorName} knocked out ${data.playerName}!`
         : `${data.playerName} fell out of the ring!`;
-      this.addKillFeed(msg);
+      this.hudManager.addKillFeed(msg);
     } else {
       // Regular spell kill (should be rare now)
       const msg = data.eliminatorName
         ? `${data.eliminatorName} eliminated ${data.playerName}`
         : `${data.playerName} was eliminated`;
-      this.addKillFeed(msg);
+      this.hudManager.addKillFeed(msg);
     }
 
     // Fade eliminated remote player sprite
@@ -487,94 +454,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  showAnnouncement(text, duration = 2500) {
-    if (this.announcementText) {
-      this.announcementText.destroy();
-    }
-    const camW = this.cameras.main.width;
-    const camH = this.cameras.main.height;
-    this.announcementText = this.add.text(camW / 2, camH / 3, text, {
-      fontSize: '28px',
-      fill: '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 4,
-      align: 'center',
-    }).setScrollFactor(0).setDepth(200).setOrigin(0.5).setAlpha(1);
-
-    // Fade out
-    this.tweens.add({
-      targets: this.announcementText,
-      alpha: 0,
-      delay: duration - 500,
-      duration: 500,
-      onComplete: () => {
-        if (this.announcementText) {
-          this.announcementText.destroy();
-          this.announcementText = null;
-        }
-      },
-    });
-  }
-
-  showDamageNumber(x, y, amount) {
-    const text = this.add.text(x, y - 20, `-${Math.ceil(amount)}`, {
-      fontSize: '14px',
-      fontFamily: 'monospace',
-      color: '#ff4444',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 3,
-    }).setDepth(200).setOrigin(0.5);
-
-    this.tweens.add({
-      targets: text,
-      y: y - 55,
-      alpha: 0,
-      duration: 900,
-      onComplete: () => text.destroy(),
-    });
-  }
-
-  addKillFeed(text) {
-    const camW = this.cameras.main.width;
-    const y = 60 + this.killFeedTexts.length * 18;
-    const feedText = this.add.text(camW - 10, y, text, {
-      fontSize: '12px',
-      fill: '#ff8888',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setScrollFactor(0).setDepth(150).setOrigin(1, 0);
-
-    this.killFeedTexts.push(feedText);
-
-    // Remove oldest if too many
-    if (this.killFeedTexts.length > 5) {
-      const old = this.killFeedTexts.shift();
-      old.destroy();
-      // Reposition remaining
-      this.killFeedTexts.forEach((t, i) => {
-        t.setY(60 + i * 18);
-      });
-    }
-
-    // Auto-remove after 4s
-    const timeoutId = setTimeout(() => {
-      // Remove this timeout from tracking
-      const tIdx = this.killFeedTimeouts.indexOf(timeoutId);
-      if (tIdx !== -1) this.killFeedTimeouts.splice(tIdx, 1);
-
-      const idx = this.killFeedTexts.indexOf(feedText);
-      if (idx !== -1) {
-        this.killFeedTexts.splice(idx, 1);
-        feedText.destroy();
-        this.killFeedTexts.forEach((t, i) => {
-          t.setY(60 + i * 18);
-        });
-      }
-    }, 4000);
-    this.killFeedTimeouts.push(timeoutId);
-  }
 
   reconcileLocalPlayer(serverState) {
     if (!this.playerBody) return;
@@ -718,7 +597,7 @@ export class GameScene extends Phaser.Scene {
           });
         }
       });
-      this.showDamageNumber(rp.targetX, rp.targetY, prevHp - rp.hp);
+      this.hudManager.showDamageNumber(rp.targetX, rp.targetY, prevHp - rp.hp);
     }
 
     // Update name from server if provided
@@ -857,568 +736,6 @@ export class GameScene extends Phaser.Scene {
 
   // --- Spell System ---
 
-  handleSpellCast(data) {
-    // Deduplicate by spell ID
-    if (this.spellVisuals.has(data.id)) return;
-    if (this.pendingSpellCasts.some(p => p.id === data.id)) return;
-    this.pendingSpellCasts.push(data);
-  }
-
-  createSpellVisual(spell) {
-    const def = SPELLS[spell.type];
-    if (!def) return;
-
-    // Use effective spell type from server (can differ from def.type due to upgrades)
-    const effectiveType = spell.spellType || def.type;
-
-    const visual = {
-      type: effectiveType,
-      lifetime: spell.lifetime || 2000,
-      elapsed: 0,
-      ownerId: spell.ownerId,
-    };
-
-    switch (effectiveType) {
-      case SPELL_TYPES.PROJECTILE: {
-        // Animated FX sprite projectile (fireball, frost bolt, etc.)
-        const fx = def.fx || {};
-        const spriteKey = fx.sprite || 'fx-flam';
-        const animKey = fx.animKey || 'fx-flam-play';
-        const scale = fx.scale || 1.5;
-        const color = fx.color || 0xff4400;
-        const glowColor = fx.glowColor || color;
-
-        // Glow circle behind the projectile
-        const glow = this.add.circle(spell.x, spell.y, (spell.radius || 5) + 6, glowColor, 0.25);
-        glow.setDepth(15);
-
-        // Animated FX sprite
-        const sprite = this.add.sprite(spell.x, spell.y, spriteKey);
-        sprite.setScale(scale);
-        sprite.setDepth(16);
-        sprite.play({ key: animKey, repeat: -1 }); // Loop for projectile lifetime
-
-        // Rotate sprite in direction of travel
-        const angle = Math.atan2(spell.vy || 0, spell.vx || 0);
-        sprite.setRotation(angle);
-
-        visual.sprite = sprite;
-        visual.glow = glow;
-        // Scale velocity: server speed is in units/tick (50ms), client runs at ~60fps (~16.7ms)
-        // Factor: 16.7 / 50 ≈ 0.33, but server sends raw vx/vy per tick
-        visual.vx = (spell.vx || 0) * 0.05;
-        visual.vy = (spell.vy || 0) * 0.05;
-        break;
-      }
-
-      case SPELL_TYPES.BLINK: {
-        // Teleport: poof at origin, trail, poof at destination
-        const fx = def.fx || {};
-        const spriteKey = fx.sprite || 'fx-spirit';
-        const animKey = fx.animKey || 'fx-spirit-play';
-        const scale = fx.scale || 2;
-        const color = fx.color || 0x44ddff;
-
-        // Departure poof
-        const departure = this.add.sprite(spell.x, spell.y, spriteKey);
-        departure.setScale(scale);
-        departure.setDepth(16);
-        departure.setAlpha(0.9);
-        departure.play({ key: animKey, repeat: 0 });
-
-        // Arrival poof
-        const destX = spell.targetX || spell.x;
-        const destY = spell.targetY || spell.y;
-        const arrival = this.add.sprite(destX, destY, spriteKey);
-        arrival.setScale(scale);
-        arrival.setDepth(16);
-        arrival.setAlpha(0.9);
-        arrival.play({ key: animKey, repeat: 0 });
-
-        // Trail line between origin and destination
-        const trail = this.add.graphics();
-        trail.setDepth(14);
-        trail.lineStyle(3, color, 0.6);
-        trail.beginPath();
-        trail.moveTo(spell.x, spell.y);
-        trail.lineTo(destX, destY);
-        trail.strokePath();
-
-        visual.sprite = departure;
-        visual.arrival = arrival;
-        visual.trail = trail;
-        visual.lifetime = spell.lifetime || 300;
-        break;
-      }
-
-      case SPELL_TYPES.DASH: {
-        // Dash: orange burst charge — physical, heavy feel (distinct from ethereal blink)
-        const dashColor = 0xffaa33;    // Orange/gold — physical charge
-        const dashSprite = 'fx-boost';
-        const dashAnim = 'fx-boost-play';
-
-        const destX = spell.targetX || spell.x;
-        const destY = spell.targetY || spell.y;
-
-        // Wide blurred trail (background glow)
-        const trail = this.add.graphics();
-        trail.setDepth(14);
-        trail.lineStyle(14, dashColor, 0.15);
-        trail.beginPath();
-        trail.moveTo(spell.x, spell.y);
-        trail.lineTo(destX, destY);
-        trail.strokePath();
-        // Thick bright trail (foreground)
-        trail.lineStyle(6, dashColor, 0.7);
-        trail.beginPath();
-        trail.moveTo(spell.x, spell.y);
-        trail.lineTo(destX, destY);
-        trail.strokePath();
-
-        // Arrival burst effect (orange boost)
-        const arrival = this.add.sprite(destX, destY, dashSprite);
-        arrival.setScale(2.5);
-        arrival.setDepth(16);
-        arrival.setAlpha(0.95);
-        arrival.setTint(dashColor);
-        arrival.play({ key: dashAnim, repeat: 0 });
-
-        visual.sprite = arrival;
-        visual.trail = trail;
-        visual.lifetime = spell.lifetime || 400;
-        break;
-      }
-
-      case SPELL_TYPES.HOOK: {
-        // Hook: rock projectile with chain line back to caster
-        const fx = def.fx || {};
-        const spriteKey = fx.sprite || 'fx-rock';
-        const animKey = fx.animKey || 'fx-rock-play';
-        const scale = fx.scale || 1.5;
-        const chainColor = fx.chainColor || 0xaaaaaa;
-
-        // Animated rock projectile
-        const sprite = this.add.sprite(spell.x, spell.y, spriteKey);
-        sprite.setScale(scale);
-        sprite.setDepth(16);
-        sprite.play({ key: animKey, repeat: -1 });
-
-        // Rotate in direction of travel
-        const hookAngle = Math.atan2(spell.vy || 0, spell.vx || 0);
-        sprite.setRotation(hookAngle);
-
-        // Chain line from caster to projectile
-        const chain = this.add.graphics();
-        chain.setDepth(14);
-
-        // Store origin for chain drawing
-        visual.originX = spell.x;
-        visual.originY = spell.y;
-        visual.chainColor = chainColor;
-        visual.sprite = sprite;
-        visual.chain = chain;
-        visual.hooked = false;
-        visual.vx = (spell.vx || 0) * 0.05;
-        visual.vy = (spell.vy || 0) * 0.05;
-        break;
-      }
-
-      case SPELL_TYPES.ZONE: {
-        // Zone: colored circle + animated FX sprite in center
-        const fx = def.fx || {};
-        const spriteKey = fx.sprite || 'fx-ice';
-        const animKey = fx.animKey || 'fx-ice-play';
-        const color = fx.color || 0x44ddff;
-        const zoneRadius = spell.radius || 35;
-
-        // Zone circle
-        const zone = this.add.circle(spell.x, spell.y, zoneRadius, color, 0.2);
-        zone.setDepth(5);
-        zone.setStrokeStyle(1.5, color, 0.6);
-
-        // FX sprite in center
-        const sprite = this.add.sprite(spell.x, spell.y, spriteKey);
-        sprite.setScale((zoneRadius / 16) * 0.8); // Scale to fill zone area
-        sprite.setDepth(6);
-        sprite.setAlpha(0.7);
-        sprite.play({ key: animKey, repeat: -1 });
-
-        visual.zone = zone;
-        visual.sprite = sprite;
-        visual.baseAlpha = 0.2;
-        break;
-      }
-
-      case SPELL_TYPES.WALL: {
-        // Rock wall — keep simple rectangle approach
-        const wall = this.add.rectangle(
-          spell.x, spell.y,
-          spell.width || 80,
-          spell.height || 20,
-          0x886644, 0.9
-        );
-        wall.setDepth(10);
-        wall.setRotation(spell.angle || 0);
-        wall.setStrokeStyle(2, 0xaa8866, 1);
-        visual.sprite = wall;
-        break;
-      }
-
-      case SPELL_TYPES.INSTANT: {
-        // Shockwave ring that expands briefly
-        const ring = this.add.circle(spell.x, spell.y, spell.radius || 75, 0xffdd44, 0.3);
-        ring.setDepth(5);
-        ring.setStrokeStyle(3, 0xffee66, 0.8);
-        ring.isFilled = false;
-        visual.sprite = ring;
-        visual.lifetime = spell.lifetime || 500;
-        break;
-      }
-
-      case SPELL_TYPES.BUFF: {
-        // Buff visuals follow the caster — differentiate by buffType
-        const fx = def.fx || {};
-        const buffType = spell.buffType || 'flash';
-        visual.followOwner = true;
-        visual.ownerId = spell.ownerId;
-
-        if (buffType === 'shield') {
-          // Shield: blue bubble ring around player
-          const bubble = this.add.circle(spell.x, spell.y, PLAYER.RADIUS + 8, 0x44aaff, 0.15);
-          bubble.setDepth(4);
-          bubble.setStrokeStyle(2.5, 0x88ccff, 0.7);
-          visual.sprite = bubble;
-        } else if (buffType === 'ghost') {
-          // Ghost: ethereal glow around player (low alpha)
-          const ghostGlow = this.add.circle(spell.x, spell.y, PLAYER.RADIUS + 6, 0xaabbff, 0.12);
-          ghostGlow.setDepth(4);
-          ghostGlow.setStrokeStyle(2, 0xccddff, 0.5);
-          visual.sprite = ghostGlow;
-          // Also add animated FX sprite
-          const spriteKey = fx.sprite || 'fx-spirit';
-          const animKey = fx.animKey || 'fx-spirit-play';
-          if (this.anims.exists(animKey)) {
-            const ghostFx = this.add.sprite(spell.x, spell.y, spriteKey);
-            ghostFx.setDepth(5);
-            ghostFx.setScale((fx.scale || 1.5) * 3);
-            ghostFx.setAlpha(0.35);
-            ghostFx.play({ key: animKey, repeat: -1 });
-            visual.glow = ghostFx;
-          }
-        } else {
-          // Flash: golden speed glow
-          const flashGlow = this.add.circle(spell.x, spell.y, PLAYER.RADIUS + 5, 0xffdd00, 0.2);
-          flashGlow.setDepth(4);
-          flashGlow.setStrokeStyle(2, 0xffee44, 0.6);
-          visual.sprite = flashGlow;
-          // Animated boost sprite
-          const spriteKey = fx.sprite || 'fx-boost';
-          const animKey = fx.animKey || 'fx-boost-play';
-          if (this.anims.exists(animKey)) {
-            const flashFx = this.add.sprite(spell.x, spell.y, spriteKey);
-            flashFx.setDepth(5);
-            flashFx.setScale((fx.scale || 1.0) * 3);
-            flashFx.setAlpha(0.5);
-            flashFx.play({ key: animKey, repeat: -1 });
-            visual.glow = flashFx;
-          }
-        }
-        break;
-      }
-
-      case SPELL_TYPES.SWAP: {
-        // Swap projectile: like PROJECTILE but purple/violet
-        const fx = def.fx || {};
-        const spriteKey = fx.sprite || 'fx-spirit';
-        const animKey = fx.animKey || 'fx-spirit-play';
-        const scale = fx.scale || 0.9;
-
-        if (this.anims.exists(animKey)) {
-          const swapSprite = this.add.sprite(spell.x, spell.y, spriteKey);
-          swapSprite.setDepth(15);
-          swapSprite.setScale(scale * 3);
-          swapSprite.play({ key: animKey, repeat: -1 });
-          visual.sprite = swapSprite;
-        } else {
-          visual.sprite = this.add.circle(spell.x, spell.y, spell.radius || 7, fx.color || 0xcc44ff, 0.8);
-          visual.sprite.setDepth(15);
-        }
-
-        // Purple glow trail
-        const swapGlow = this.add.circle(spell.x, spell.y, (spell.radius || 7) + 6, fx.glowColor || 0xdd88ff, 0.3);
-        swapGlow.setDepth(14);
-        visual.glow = swapGlow;
-        visual.vx = spell.vx || 0;
-        visual.vy = spell.vy || 0;
-        break;
-      }
-
-      case SPELL_TYPES.RECALL: {
-        // Recall (Time Shift): instant teleport — poof at departure + arrival (like BLINK)
-        const fx = def.fx || {};
-        const spriteKey = fx.sprite || 'fx-circle';
-        const animKey = fx.animKey || 'fx-circle-play';
-        const scale = fx.scale || 1.0;
-        const recallColor = fx.color || 0x44ddff;
-
-        // Departure poof
-        const departPoof = this.add.circle(spell.targetX || spell.x, spell.targetY || spell.y, 20, recallColor, 0.5);
-        departPoof.setDepth(5);
-        visual.sprite = departPoof;
-
-        // Arrival poof
-        const arrivalPoof = this.add.circle(spell.x, spell.y, 20, recallColor, 0.5);
-        arrivalPoof.setDepth(5);
-        visual.arrival = arrivalPoof;
-
-        // Animated FX at arrival
-        if (this.anims.exists(animKey)) {
-          const recallFx = this.add.sprite(spell.x, spell.y, spriteKey);
-          recallFx.setDepth(6);
-          recallFx.setScale(scale * 3);
-          recallFx.play({ key: animKey, repeat: 0 });
-          visual.glow = recallFx;
-        }
-
-        visual.lifetime = spell.lifetime || 800;
-        break;
-      }
-
-      case SPELL_TYPES.HOMING: {
-        // Homing missile: like PROJECTILE with animated sprite
-        const fx = def.fx || {};
-        const spriteKey = fx.sprite || 'fx-flam';
-        const animKey = fx.animKey || 'fx-flam-play';
-        const scale = fx.scale || 0.8;
-
-        if (this.anims.exists(animKey)) {
-          const homingSprite = this.add.sprite(spell.x, spell.y, spriteKey);
-          homingSprite.setDepth(15);
-          homingSprite.setScale(scale * 3);
-          homingSprite.play({ key: animKey, repeat: -1 });
-          visual.sprite = homingSprite;
-        } else {
-          visual.sprite = this.add.circle(spell.x, spell.y, spell.radius || 7, fx.color || 0xff4400, 0.8);
-          visual.sprite.setDepth(15);
-        }
-
-        // Glow trail
-        const homingGlow = this.add.circle(spell.x, spell.y, (spell.radius || 7) + 5, fx.glowColor || 0xff8844, 0.3);
-        homingGlow.setDepth(14);
-        visual.glow = homingGlow;
-        visual.vx = spell.vx || 0;
-        visual.vy = spell.vy || 0;
-        break;
-      }
-
-      case SPELL_TYPES.BOOMERANG: {
-        // Boomerang: spinning projectile
-        const fx = def.fx || {};
-        const spriteKey = fx.sprite || 'fx-rock-spike';
-        const animKey = fx.animKey || 'fx-rock-spike-play';
-        const scale = fx.scale || 1.0;
-
-        if (this.anims.exists(animKey)) {
-          const boomSprite = this.add.sprite(spell.x, spell.y, spriteKey);
-          boomSprite.setDepth(15);
-          boomSprite.setScale(scale * 3);
-          boomSprite.play({ key: animKey, repeat: -1 });
-          visual.sprite = boomSprite;
-        } else {
-          visual.sprite = this.add.circle(spell.x, spell.y, spell.radius || 8, fx.color || 0x88aa44, 0.8);
-          visual.sprite.setDepth(15);
-        }
-
-        // Glow
-        const boomGlow = this.add.circle(spell.x, spell.y, (spell.radius || 8) + 5, fx.glowColor || 0xaacc66, 0.3);
-        boomGlow.setDepth(14);
-        visual.glow = boomGlow;
-        visual.vx = spell.vx || 0;
-        visual.vy = spell.vy || 0;
-        visual.isBoomerang = true; // For spin rotation in updateSpellVisuals
-        break;
-      }
-
-      default: {
-        // Fallback: simple colored circle
-        const color = (def.fx && def.fx.color) || 0xff00ff;
-        const marker = this.add.circle(spell.x, spell.y, spell.radius || 20, color, 0.6);
-        marker.setDepth(15);
-        visual.sprite = marker;
-        break;
-      }
-    }
-
-    this.spellVisuals.set(spell.id, visual);
-  }
-
-  syncSpellVisuals(serverSpells) {
-    const activeIds = new Set(serverSpells.map(s => s.id));
-
-    // Remove visuals for spells no longer on server
-    for (const [id, visual] of this.spellVisuals) {
-      if (!activeIds.has(id) && visual.elapsed > 200) {
-        // Deactivate grappling if the removed spell was providing grappling state
-        if (visual.pullSelf && visual.ownerId === this.localPlayerId && this.grapplingActive) {
-          this.grapplingActive = false;
-          this.moveTarget = null; // kill stale movement command
-        }
-        this.destroySpellVisual(visual);
-        this.spellVisuals.delete(id);
-      }
-    }
-
-    // Create visuals for server spells that have no client visual yet
-    // (handles late-join, multi-projectile sync, and race conditions)
-    for (const spell of serverSpells) {
-      if (!this.spellVisuals.has(spell.id) && spell.active !== false) {
-        this.handleSpellCast({
-          id: spell.id,
-          type: spell.type,
-          spellType: spell.spellType,
-          ownerId: spell.ownerId,
-          x: spell.x,
-          y: spell.y,
-          vx: spell.vx || 0,
-          vy: spell.vy || 0,
-          radius: spell.radius,
-          lifetime: spell.lifetime,
-          targetX: spell.targetX,
-          targetY: spell.targetY,
-          pullSelf: spell.pullSelf,
-          buffType: spell.buffType || null,
-        });
-      }
-    }
-
-    // Update positions from server for moving spell types
-    for (const spell of serverSpells) {
-      const visual = this.spellVisuals.get(spell.id);
-      if (!visual || !visual.sprite || visual.sprite.destroyed) continue;
-
-      if (visual.type === SPELL_TYPES.PROJECTILE) {
-        // Lerp animated sprite + glow to server position
-        const lerpFactor = 0.3;
-        visual.sprite.x += (spell.x - visual.sprite.x) * lerpFactor;
-        visual.sprite.y += (spell.y - visual.sprite.y) * lerpFactor;
-        if (visual.glow && !visual.glow.destroyed) {
-          visual.glow.x = visual.sprite.x;
-          visual.glow.y = visual.sprite.y;
-        }
-      } else if (visual.type === SPELL_TYPES.HOOK) {
-        // Update chain origin to caster's CURRENT position (not cast position)
-        if (spell.ownerId === this.localPlayerId && this.playerBody) {
-          visual.originX = this.playerBody.position.x;
-          visual.originY = this.playerBody.position.y;
-        } else {
-          const rp = this.remotePlayers.get(spell.ownerId);
-          if (rp) {
-            visual.originX = rp.x;
-            visual.originY = rp.y;
-          }
-        }
-
-        if (spell.hooked && !visual.hooked) {
-          visual.hooked = true;
-          visual.vx = 0;
-          visual.vy = 0;
-        }
-
-        // Store metadata on visual for 60fps chain rendering in updateSpellVisuals
-        visual.pullSelf = spell.pullSelf;
-        visual.serverAnchorX = spell.anchorX || 0;
-        visual.serverAnchorY = spell.anchorY || 0;
-        visual.serverReleased = spell.released;
-
-        // --- Grappling hook: detect activation for local player ---
-        if (spell.pullSelf && spell.hooked && spell.pullActive && !spell.released && spell.ownerId === this.localPlayerId) {
-          this.grapplingActive = true;
-        }
-        // Deactivate grappling when released or no longer pulling
-        if (spell.pullSelf && spell.ownerId === this.localPlayerId && (spell.released || !spell.hooked || !spell.pullActive)) {
-          if (this.grapplingActive) {
-            this.grapplingActive = false;
-            this.moveTarget = null; // kill stale movement command
-          }
-        }
-
-        // Lerp hook position to server
-        const lerpFactor = 0.3;
-        visual.sprite.x += (spell.x - visual.sprite.x) * lerpFactor;
-        visual.sprite.y += (spell.y - visual.sprite.y) * lerpFactor;
-
-        // For Branch B grapple: chain goes from anchor to caster (not caster to hook)
-        // For Branch A swing: chain goes from caster to hooked enemy
-        let chainFromX, chainFromY, chainToX, chainToY;
-        if (spell.pullSelf && spell.hooked) {
-          // Grapple: chain from anchor point to caster
-          chainFromX = spell.anchorX || visual.sprite.x;
-          chainFromY = spell.anchorY || visual.sprite.y;
-          chainToX = visual.originX;
-          chainToY = visual.originY;
-        } else {
-          // Normal / Branch A: chain from caster to hook/enemy
-          chainFromX = visual.originX;
-          chainFromY = visual.originY;
-          chainToX = visual.sprite.x;
-          chainToY = visual.sprite.y;
-        }
-
-        // Hide hook sprite during swing (the swinging player IS the visual)
-        if (spell.hooked && !spell.released) {
-          visual.sprite.setVisible(false);
-        }
-
-        if (visual.chain && !visual.chain.destroyed) {
-          visual.chain.clear();
-          visual.chain.lineStyle(3, visual.chainColor || 0xaaaaaa, 0.7);
-          visual.chain.beginPath();
-          visual.chain.moveTo(chainFromX, chainFromY);
-          visual.chain.lineTo(chainToX, chainToY);
-          visual.chain.strokePath();
-        }
-      }
-      // SWAP, HOMING, BOOMERANG: lerp to server position (same as PROJECTILE)
-      if (visual.type === SPELL_TYPES.SWAP || visual.type === SPELL_TYPES.HOMING || visual.type === SPELL_TYPES.BOOMERANG) {
-        const lerpFactor = 0.3;
-        visual.sprite.x += (spell.x - visual.sprite.x) * lerpFactor;
-        visual.sprite.y += (spell.y - visual.sprite.y) * lerpFactor;
-        if (visual.glow && !visual.glow.destroyed) {
-          visual.glow.x = visual.sprite.x;
-          visual.glow.y = visual.sprite.y;
-        }
-        // Update velocity from server (homing changes direction)
-        visual.vx = spell.vx || 0;
-        visual.vy = spell.vy || 0;
-      }
-
-      // BUFF: position comes from server (follows owner)
-      if (visual.type === SPELL_TYPES.BUFF && visual.followOwner) {
-        // Server sends updated x/y each tick (owner position)
-        visual.sprite.x = spell.x;
-        visual.sprite.y = spell.y;
-        if (visual.glow && !visual.glow.destroyed) {
-          visual.glow.x = spell.x;
-          visual.glow.y = spell.y;
-        }
-      }
-
-      // BLINK, DASH, ZONE, WALL, INSTANT, RECALL: no position sync needed (stationary effects)
-    }
-  }
-
-  destroySpellVisual(visual) {
-    if (visual.sprite && !visual.sprite.destroyed) visual.sprite.destroy();
-    if (visual.glow && !visual.glow.destroyed) visual.glow.destroy();
-    if (visual.chain && !visual.chain.destroyed) visual.chain.destroy();
-    if (visual.trail && !visual.trail.destroyed) visual.trail.destroy();
-    if (visual.arrival && !visual.arrival.destroyed) visual.arrival.destroy();
-    if (visual.zone && !visual.zone.destroyed) visual.zone.destroy();
-    // Legacy cleanup
-    if (visual.circle && !visual.circle.destroyed) visual.circle.destroy();
-    if (visual.rect && !visual.rect.destroyed) visual.rect.destroy();
-    if (visual.core && !visual.core.destroyed) visual.core.destroy();
-  }
 
   castSpell(slotKey) {
     // Look up the chosen spell for this slot from progression
@@ -1510,12 +827,12 @@ export class GameScene extends Phaser.Scene {
 
     // Step 6: Obstacles are loaded dynamically per round (see loadObstaclesForMap)
 
-    // Step 7: Dynamic ring graphics
-    this.ringGraphics = this.add.graphics();
-    this.ringGraphics.setDepth(1);
-    this.outerRingGraphics = this.add.graphics();
-    this.outerRingGraphics.setDepth(1);
-    this.lastDrawnRingRadius = -1;
+    // Step 7: Dynamic ring graphics (owned by HUDManager)
+    this.hudManager.ringGraphics = this.add.graphics();
+    this.hudManager.ringGraphics.setDepth(1);
+    this.hudManager.outerRingGraphics = this.add.graphics();
+    this.hudManager.outerRingGraphics.setDepth(1);
+    this.hudManager.lastDrawnRingRadius = -1;
   }
 
   createDecorationsFromMap(decorations) {
@@ -1724,12 +1041,12 @@ export class GameScene extends Phaser.Scene {
     // Step 3: Decorative props around arena rim
     this.createArenaDecorations();
 
-    // Step 4: Dynamic ring graphics
-    this.ringGraphics = this.add.graphics();
-    this.ringGraphics.setDepth(1);
-    this.outerRingGraphics = this.add.graphics();
-    this.outerRingGraphics.setDepth(1);
-    this.lastDrawnRingRadius = -1;
+    // Step 4: Dynamic ring graphics (owned by HUDManager)
+    this.hudManager.ringGraphics = this.add.graphics();
+    this.hudManager.ringGraphics.setDepth(1);
+    this.hudManager.outerRingGraphics = this.add.graphics();
+    this.hudManager.outerRingGraphics.setDepth(1);
+    this.hudManager.lastDrawnRingRadius = -1;
   }
 
   createArenaDecorations() {
@@ -1821,70 +1138,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  updateRingGraphics() {
-    const r = Math.round(this.ringRadius);
-    // Redraw every frame for pulse animation
-    const g = this.ringGraphics;
-    g.clear();
-
-    // Pulse factor for animated danger feel
-    const pulse = 0.5 + 0.5 * Math.sin(this.time.now * 0.004);
-
-    // Inner glow (safe side hint)
-    g.lineStyle(2, 0xff6666, 0.1 + pulse * 0.05);
-    g.strokeCircle(0, 0, r - 8);
-
-    // Main ring border — thick and bright
-    g.lineStyle(3, 0xff4444, 0.6 + pulse * 0.3);
-    g.strokeCircle(0, 0, r);
-
-    // Danger band — graduated rings outside boundary
-    const bandSteps = 5;
-    for (let i = 1; i <= bandSteps; i++) {
-      const t = i / bandSteps;
-      const alpha = (0.35 - t * 0.3) * (0.7 + pulse * 0.3);
-      g.lineStyle(4, 0xff2222, Math.max(0, alpha));
-      g.strokeCircle(0, 0, r + i * 8);
-    }
-
-    // Outer faint rings — only redraw when radius changes (expensive: ~9 strokeCircle calls)
-    if (r !== this.lastDrawnRingRadius && this.outerRingGraphics) {
-      this.outerRingGraphics.clear();
-      this.outerRingGraphics.lineStyle(1, 0xcc4444, 0.06);
-      for (let dr = r + 60; dr < ARENA.FLOOR_SIZE / 2; dr += 60) {
-        this.outerRingGraphics.strokeCircle(0, 0, dr);
-      }
-    }
-
-    // Screen-edge vignette when player is near ring edge
-    if (this.playerBody) {
-      const px = this.playerBody.position.x;
-      const py = this.playerBody.position.y;
-      const distFromCenter = Math.sqrt(px * px + py * py);
-      const distToEdge = r - distFromCenter;
-
-      if (!this.edgeVignette) {
-        this.edgeVignette = this.add.rectangle(
-          this.cameras.main.width / 2, this.cameras.main.height / 2,
-          this.cameras.main.width, this.cameras.main.height,
-          0xff0000, 0
-        ).setScrollFactor(0).setDepth(99).setOrigin(0.5);
-      }
-
-      if (distToEdge < 80 && distToEdge > -50) {
-        const danger = 1 - Math.max(0, distToEdge) / 80;
-        this.edgeVignette.setAlpha(danger * 0.15 * (0.7 + pulse * 0.3));
-      } else if (distToEdge <= -50) {
-        // Deep outside — strong red flash
-        this.edgeVignette.setAlpha(0.2 + pulse * 0.1);
-      } else {
-        this.edgeVignette.setAlpha(0);
-      }
-    }
-
-    this.lastDrawnRingRadius = r;
-  }
-
   // --- Input ---
 
   setupInput() {
@@ -1959,207 +1212,21 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setZoom(1);
   }
 
-  // --- HUD ---
-
-  createHUD() {
-    this.pingText = this.add.text(10, 10, 'Ping: --', {
-      fontSize: '14px',
-      fill: '#88ccff',
-    }).setScrollFactor(0).setDepth(100);
-
-    this.playerCountText = this.add.text(10, 28, 'Players: 0', {
-      fontSize: '14px',
-      fill: '#88ccff',
-    }).setScrollFactor(0).setDepth(100);
-
-    // Local player HP bar (top center)
-    const camW = this.cameras.main.width;
-    const camH = this.cameras.main.height;
-    this.hpBarBg = this.add.rectangle(camW / 2, 20, 204, 14, 0x333333)
-      .setScrollFactor(0).setDepth(100).setOrigin(0.5);
-    this.hpBarFill = this.add.rectangle(camW / 2 - 100, 20, 200, 10, 0x44dd44)
-      .setScrollFactor(0).setDepth(101).setOrigin(0, 0.5);
-    this.hpText = this.add.text(camW / 2, 20, '100/100', {
-      fontSize: '10px',
-      fill: '#ffffff',
-    }).setScrollFactor(0).setDepth(102).setOrigin(0.5);
-
-    // Round info (top-right)
-    this.roundText = this.add.text(camW - 10, 10, 'Round 0/20', {
-      fontSize: '14px',
-      fill: '#ffdd44',
-      fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(100).setOrigin(1, 0);
-
-    this.timerText = this.add.text(camW - 10, 28, '60s', {
-      fontSize: '14px',
-      fill: '#88ccff',
-    }).setScrollFactor(0).setDepth(100).setOrigin(1, 0);
-
-    this.phaseText = this.add.text(camW / 2, 40, '', {
-      fontSize: '12px',
-      fill: '#aaaaaa',
-    }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
-
-    // Countdown overlay (large center text during countdown)
-    this.countdownText = this.add.text(camW / 2, camH / 2 - 40, '', {
-      fontSize: '64px',
-      fill: '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 6,
-    }).setScrollFactor(0).setDepth(250).setOrigin(0.5).setVisible(false);
-
-    // Sound toggle (top-right, below timer)
-    this.createSoundToggle(camW);
-  }
-
-  createSoundToggle(camW) {
-    const isMuted = this.sound.mute;
-    const btnSize = 28;
-    const x = camW - 24;
-    const y = 52;
-
-    const bg = this.add.rectangle(x, y, btnSize, btnSize, 0x1a1428, 0.8)
-      .setScrollFactor(0).setDepth(100).setStrokeStyle(1, 0x3d2e1e);
-
-    const icon = this.add.text(x, y, isMuted ? '🔇' : '🔊', {
-      fontSize: '14px',
-    }).setScrollFactor(0).setDepth(101).setOrigin(0.5);
-
-    const hitArea = this.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
-      .setScrollFactor(0).setDepth(102).setInteractive({ useHandCursor: true });
-
-    hitArea.on('pointerover', () => bg.setStrokeStyle(1, 0xffdd44));
-    hitArea.on('pointerout', () => bg.setStrokeStyle(1, 0x3d2e1e));
-    hitArea.on('pointerdown', () => {
-      this.sound.mute = !this.sound.mute;
-      localStorage.setItem('soundMuted', this.sound.mute);
-      icon.setText(this.sound.mute ? '🔇' : '🔊');
-    });
-  }
-
-  createSpellHUD() {
-    const camW = this.cameras.main.width;
-    const camH = this.cameras.main.height;
-    const slotSize = 48;
-    const slotGap = 8;
-    const totalWidth = 4 * slotSize + 3 * slotGap;
-    const startX = (camW - totalWidth) / 2;
-    const slotY = camH - 60;
-
-    const slots = ['Q', 'W', 'E', 'R'];
-
-    for (let i = 0; i < slots.length; i++) {
-      const key = slots[i];
-      const x = startX + i * (slotSize + slotGap) + slotSize / 2;
-
-      // Slot background
-      const bg = this.add.rectangle(x, slotY, slotSize, slotSize, 0x222233, 0.8)
-        .setScrollFactor(0).setDepth(100).setStrokeStyle(2, 0x445566);
-
-      // Spell icon — initially null, updated dynamically based on progression
-      let icon = null;
-
-      // Cooldown overlay (semi-transparent dark rect that shrinks)
-      const cdOverlay = this.add.rectangle(x, slotY, slotSize - 4, slotSize - 4, 0x000000, 0.6)
-        .setScrollFactor(0).setDepth(102).setVisible(false);
-
-      // Cooldown text
-      const cdText = this.add.text(x, slotY, '', {
-        fontSize: '14px',
-        fill: '#ffffff',
-        fontStyle: 'bold',
-      }).setScrollFactor(0).setDepth(103).setOrigin(0.5).setVisible(false);
-
-      // Key label
-      this.add.text(x - slotSize / 2 + 4, slotY - slotSize / 2 + 2, key, {
-        fontSize: '10px',
-        fill: '#aaccff',
-        fontStyle: 'bold',
-      }).setScrollFactor(0).setDepth(103);
-
-      // Lock overlay (for locked spell slots)
-      const lockOverlay = this.add.rectangle(x, slotY, slotSize - 2, slotSize - 2, 0x111111, 0.8)
-        .setScrollFactor(0).setDepth(104).setVisible(false);
-      const lockText = this.add.text(x, slotY, '🔒', {
-        fontSize: '16px',
-        fill: '#555555',
-        fontStyle: 'bold',
-      }).setScrollFactor(0).setDepth(105).setOrigin(0.5).setVisible(false);
-
-      // "No spell" text (slot unlocked but no spell chosen)
-      const emptyText = this.add.text(x, slotY, '?', {
-        fontSize: '18px',
-        fill: '#555555',
-        fontStyle: 'bold',
-      }).setScrollFactor(0).setDepth(105).setOrigin(0.5).setVisible(false);
-
-      // Charge counter (bottom-right corner, for multi-charge spells)
-      const chargeText = this.add.text(x + slotSize / 2 - 4, slotY + slotSize / 2 - 4, '', {
-        fontSize: '10px',
-        fill: '#ffdd44',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 2,
-      }).setScrollFactor(0).setDepth(106).setOrigin(1, 1).setVisible(false);
-
-      this.spellSlots.push({
-        key,
-        spellId: null,  // filled dynamically from progression
-        bg,
-        icon,
-        cdOverlay,
-        cdText,
-        lockOverlay,
-        lockText,
-        emptyText,
-        chargeText,
-        x, y: slotY, size: slotSize,
-      });
-    }
-
-    // SP counter below spell HUD
-    this.spText = this.add.text(camW / 2, slotY + slotSize / 2 + 8, 'SP: 0', {
-      fontSize: '12px',
-      fill: '#44ddff',
-      fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
-
-    // Sandbox hint
-    if (this.gameMode === 'sandbox') {
-      this.add.text(camW / 2, slotY + slotSize / 2 + 24, 'Press B to open Shop', {
-        fontSize: '11px',
-        fill: '#666688',
-      }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
-    }
-  }
-
   // --- Update Loop ---
 
   update(time, delta) {
     if (this !== window.__gameScene && window.__gameScene) {
       console.error('[BUG] update() running on WRONG scene! this.scene.key:', this.scene?.key, 'expected:', window.__gameScene?.scene?.key);
     }
-    this.processPendingSpells();
+    this.spellVisualManager.processPending();
     this.updateLocalMovement(delta);
     this.syncLocalVisuals();
     this.interpolateRemotePlayers();
     this.updateSpellInput();
-    this.updateSpellVisuals(delta);
-    this.updateRingGraphics();
+    this.spellVisualManager.update(delta);
     this.updateCamera();
-    this.updateHUD();
-    this.updateRoundHUD();
-    this.updateSpellHUD();
+    this.hudManager.update();
     this.sendInputToServer();
-  }
-
-  processPendingSpells() {
-    while (this.pendingSpellCasts.length > 0) {
-      const spell = this.pendingSpellCasts.shift();
-      this.createSpellVisual(spell);
-    }
   }
 
   updateLocalMovement(delta) {
@@ -2245,140 +1312,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  updateSpellVisuals(delta) {
-    for (const [id, visual] of this.spellVisuals) {
-      visual.elapsed += delta;
-
-      // Per-type client-side movement and effects
-      if (visual.type === SPELL_TYPES.PROJECTILE && visual.sprite && !visual.sprite.destroyed) {
-        // Move animated sprite + glow between server ticks
-        visual.sprite.x += (visual.vx || 0);
-        visual.sprite.y += (visual.vy || 0);
-        if (visual.glow && !visual.glow.destroyed) {
-          visual.glow.x = visual.sprite.x;
-          visual.glow.y = visual.sprite.y;
-        }
-      } else if (visual.type === SPELL_TYPES.HOOK && visual.sprite && !visual.sprite.destroyed) {
-        if (!visual.hooked) {
-          // Move hook projectile between server ticks
-          visual.sprite.x += (visual.vx || 0);
-          visual.sprite.y += (visual.vy || 0);
-        }
-
-        // Update chain origin from current player position (for smooth 60fps tracking)
-        if (visual.ownerId === this.localPlayerId && this.playerBody) {
-          visual.originX = this.playerBody.position.x;
-          visual.originY = this.playerBody.position.y;
-        } else {
-          const rp = this.remotePlayers.get(visual.ownerId);
-          if (rp) {
-            visual.originX = rp.x;
-            visual.originY = rp.y;
-          }
-        }
-
-        // Redraw chain every frame
-        if (visual.chain && !visual.chain.destroyed) {
-          // Hide chain during flight phase (released + pullSelf)
-          if (visual.pullSelf && visual.serverReleased) {
-            visual.chain.clear();
-          } else {
-            let chainFromX, chainFromY, chainToX, chainToY;
-            let lineWidth = 3;
-            let chainColor = visual.chainColor || 0xaaaaaa;
-
-            if (visual.pullSelf && visual.hooked) {
-              // Grappling hook: chain from anchor to caster
-              chainFromX = visual.serverAnchorX || visual.sprite.x;
-              chainFromY = visual.serverAnchorY || visual.sprite.y;
-              chainToX = visual.originX;
-              chainToY = visual.originY;
-              // Thicker chain during swing, color shifts with speed
-              lineWidth = 4;
-              if (visual.ownerId === this.localPlayerId && this.playerBody) {
-                const vel = this.playerBody.velocity;
-                const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
-                const normalMax = PLAYER.SPEED * 0.05;
-                if (speed > normalMax * 3) chainColor = 0xff6600;      // orange at high speed
-                else if (speed > normalMax * 1.5) chainColor = 0xddaa44; // yellow-ish
-              }
-            } else {
-              // Normal / Branch A: chain from caster to hook/enemy
-              chainFromX = visual.originX;
-              chainFromY = visual.originY;
-              chainToX = visual.sprite.x;
-              chainToY = visual.sprite.y;
-            }
-            visual.chain.clear();
-            visual.chain.lineStyle(lineWidth, chainColor, 0.7);
-            visual.chain.beginPath();
-            visual.chain.moveTo(chainFromX, chainFromY);
-            visual.chain.lineTo(chainToX, chainToY);
-            visual.chain.strokePath();
-          }
-        }
-      } else if (visual.type === SPELL_TYPES.BLINK || visual.type === SPELL_TYPES.DASH) {
-        // Fade out over lifetime
-        const alpha = Math.max(0, 1 - visual.elapsed / visual.lifetime);
-        if (visual.sprite && !visual.sprite.destroyed) visual.sprite.setAlpha(alpha);
-        if (visual.arrival && !visual.arrival.destroyed) visual.arrival.setAlpha(alpha);
-        if (visual.trail && !visual.trail.destroyed) visual.trail.setAlpha(alpha);
-      } else if (visual.type === SPELL_TYPES.ZONE) {
-        // Pulse the zone circle alpha
-        if (visual.zone && !visual.zone.destroyed) {
-          const pulse = 0.15 + 0.1 * Math.sin(visual.elapsed * 0.004);
-          visual.zone.setAlpha(pulse);
-        }
-      } else if (visual.type === SPELL_TYPES.BUFF && visual.followOwner && visual.sprite && !visual.sprite.destroyed) {
-        // Buff visuals follow the caster's position
-        let ownerX, ownerY;
-        if (visual.ownerId === this.localPlayerId && this.playerBody) {
-          ownerX = this.playerBody.position.x;
-          ownerY = this.playerBody.position.y;
-        } else {
-          const rp = this.remotePlayers.get(visual.ownerId);
-          if (rp) { ownerX = rp.x; ownerY = rp.y; }
-        }
-        if (ownerX !== undefined) {
-          visual.sprite.x = ownerX;
-          visual.sprite.y = ownerY;
-          if (visual.glow && !visual.glow.destroyed) {
-            visual.glow.x = ownerX;
-            visual.glow.y = ownerY;
-          }
-        }
-        // Pulse alpha for shield bubble
-        if (visual.sprite && !visual.sprite.destroyed) {
-          const pulse = 0.1 + 0.08 * Math.sin(visual.elapsed * 0.005);
-          visual.sprite.setAlpha(pulse);
-        }
-      } else if ((visual.type === SPELL_TYPES.SWAP || visual.type === SPELL_TYPES.HOMING || visual.type === SPELL_TYPES.BOOMERANG) && visual.sprite && !visual.sprite.destroyed) {
-        // Projectile-like movement: move sprite + glow between server ticks
-        visual.sprite.x += (visual.vx || 0);
-        visual.sprite.y += (visual.vy || 0);
-        if (visual.glow && !visual.glow.destroyed) {
-          visual.glow.x = visual.sprite.x;
-          visual.glow.y = visual.sprite.y;
-        }
-        // Boomerang: spin rotation
-        if (visual.isBoomerang) {
-          visual.sprite.rotation += 0.15;
-        }
-      } else if (visual.type === SPELL_TYPES.RECALL) {
-        // Fade out over lifetime (like BLINK)
-        const alpha = Math.max(0, 1 - visual.elapsed / visual.lifetime);
-        if (visual.sprite && !visual.sprite.destroyed) visual.sprite.setAlpha(alpha);
-        if (visual.arrival && !visual.arrival.destroyed) visual.arrival.setAlpha(alpha);
-        if (visual.glow && !visual.glow.destroyed) visual.glow.setAlpha(alpha);
-      }
-
-      // Cleanup when lifetime expired (with grace period for server sync)
-      if (visual.elapsed > visual.lifetime + 500) {
-        this.destroySpellVisual(visual);
-        this.spellVisuals.delete(id);
-      }
-    }
-  }
 
   syncLocalVisuals() {
     if (!this.playerBody || !this.playerSprite) return;
@@ -2451,225 +1384,6 @@ export class GameScene extends Phaser.Scene {
     cam.scrollY += (pos.y - cam.height / 2 - cam.scrollY) * lerpFactor;
   }
 
-  updateHUD() {
-    if (this.network) {
-      this.pingText.setText(`Ping: ${this.network.ping}ms`);
-      const totalPlayers = 1 + this.remotePlayers.size;
-      this.playerCountText.setText(`Players: ${totalPlayers}`);
-    }
-
-    // Update local HP bar
-    if (this.hpBarFill) {
-      const hpRatio = Math.max(0, this.localHp / this.localMaxHp);
-      this.hpBarFill.width = 200 * hpRatio;
-      // Colors communicate knockback vulnerability (Smash Bros style)
-      if (hpRatio > 0.75) {
-        this.hpBarFill.fillColor = 0x44bbff;  // Blue — safe, normal knockback
-      } else if (hpRatio > 0.5) {
-        this.hpBarFill.fillColor = 0xdddd44;  // Yellow — moderate vulnerability
-      } else if (hpRatio > 0.25) {
-        this.hpBarFill.fillColor = 0xff8833;  // Orange — high vulnerability
-      } else {
-        this.hpBarFill.fillColor = 0xff3333;  // Red — extreme, one hit = ring-out
-      }
-      // Pulse effect at high vulnerability
-      if (hpRatio <= 0.5 && hpRatio > 0) {
-        const pulse = 0.7 + 0.3 * Math.sin(this.time.now * (hpRatio <= 0.25 ? 0.012 : 0.006));
-        this.hpBarFill.setAlpha(pulse);
-      } else {
-        this.hpBarFill.setAlpha(1);
-      }
-      const vulnPercent = Math.round((1 - hpRatio) * 100);
-      this.hpText.setText(`${Math.ceil(this.localHp)} HP  (${vulnPercent}% vuln)`);
-    }
-  }
-
-  updateRoundHUD() {
-    // Round counter
-    if (this.roundText) {
-      if (this.gameMode === 'sandbox') {
-        this.roundText.setText('SANDBOX');
-      } else {
-        this.roundText.setText(`Round ${this.roundNumber}/${this.totalRounds}`);
-      }
-    }
-
-    // Timer
-    if (this.timerText) {
-      if (this.phase === 'playing') {
-        const seconds = Math.ceil(this.timeRemaining);
-        this.timerText.setText(`${seconds}s`);
-        this.timerText.setFill(seconds <= 10 ? '#ff4444' : '#88ccff');
-      } else if (this.phase === 'shop') {
-        const seconds = Math.ceil(this.shopTimeRemaining);
-        this.timerText.setText(`Shop: ${seconds}s`);
-        this.timerText.setFill('#ffdd44');
-      } else {
-        this.timerText.setText('');
-      }
-    }
-
-    // Shop overlay management
-    if (this.shopOverlay) {
-      if (this.phase === 'shop') {
-        if (!this.shopOverlay.visible && this.progression) {
-          this.shopOverlay.show(this.progression, this.shopTimeRemaining);
-        } else if (this.shopOverlay.visible) {
-          this.shopOverlay.updateTimer(this.shopTimeRemaining);
-        }
-      } else if (this.shopOverlay.visible && this.gameMode !== 'sandbox') {
-        // In sandbox mode, don't auto-hide shop (player controls it with B key)
-        this.shopOverlay.hide();
-      }
-    }
-
-    // Lobby overlay management
-    if (this.lobbyOverlay) {
-      if (this.phase === 'waiting') {
-        if (!this.lobbyOverlay.visible) {
-          this.lobbyOverlay.show();
-        }
-        // Build player list for lobby from remotePlayers + local
-        const playerList = [];
-        if (this.localPlayerId) {
-          playerList.push({
-            id: this.localPlayerId,
-            name: this.playerName,
-            characterId: this.characterId,
-          });
-        }
-        for (const [id, rp] of this.remotePlayers) {
-          playerList.push({
-            id,
-            name: rp.name || id.slice(-4),
-            characterId: rp.characterId,
-          });
-        }
-        this.lobbyOverlay.updatePlayers(playerList);
-      } else if (this.lobbyOverlay.visible) {
-        this.lobbyOverlay.hide();
-      }
-    }
-
-    // Phase indicator
-    if (this.phaseText) {
-      const phaseLabels = {
-        waiting: 'Waiting for players...',
-        countdown: '',
-        playing: '',
-        roundEnd: 'Round Over',
-        shop: 'Shop Phase',
-        matchEnd: 'Match Complete',
-      };
-      this.phaseText.setText(phaseLabels[this.phase] || '');
-    }
-
-    // Countdown overlay
-    if (this.countdownText) {
-      if (this.phase === 'countdown' && this.countdownRemaining > 0) {
-        const num = Math.ceil(this.countdownRemaining);
-        this.countdownText.setText(num.toString());
-        this.countdownText.setVisible(true);
-        // Pulse effect via scale
-        const frac = this.countdownRemaining % 1;
-        const scale = 1 + frac * 0.3;
-        this.countdownText.setScale(scale);
-        this.countdownText.setAlpha(0.5 + frac * 0.5);
-      } else {
-        this.countdownText.setVisible(false);
-      }
-    }
-
-    // Dim the player sprite if eliminated
-    if (this.localEliminated && this.playerSprite && this.playerSprite.alpha > 0.3) {
-      this.playerSprite.setAlpha(0.3);
-    }
-  }
-
-  updateSpellHUD() {
-    for (const slot of this.spellSlots) {
-      const isLocked = this.progression && this.progression.slots[slot.key] === 'locked';
-      const spellState = this.progression ? this.progression.spells[slot.key] : null;
-      const spellId = spellState ? spellState.chosenSpell : null;
-      const hasSpell = spellId !== null;
-
-      // Update stored spellId for cooldown tracking
-      slot.spellId = spellId;
-
-      // Lock overlay
-      if (slot.lockOverlay && slot.lockText) {
-        slot.lockOverlay.setVisible(isLocked);
-        slot.lockText.setVisible(isLocked);
-      }
-
-      // Empty slot indicator (unlocked but no spell chosen)
-      if (slot.emptyText) {
-        slot.emptyText.setVisible(!isLocked && !hasSpell);
-      }
-
-      if (isLocked) {
-        slot.cdOverlay.setVisible(false);
-        slot.cdText.setVisible(false);
-        if (slot.icon) { slot.icon.setVisible(false); }
-        continue;
-      }
-
-      // Update spell icon dynamically
-      const def = hasSpell ? SPELLS[spellId] : null;
-      if (def && def.icon) {
-        if (!slot.icon || slot._currentIconKey !== def.icon) {
-          // Create or replace icon
-          if (slot.icon && !slot.icon.destroyed) slot.icon.destroy();
-          if (this.textures.exists(def.icon)) {
-            slot.icon = this.add.image(slot.x, slot.y, def.icon)
-              .setScrollFactor(0).setDepth(101);
-            const iconScale = (slot.size - 8) / Math.max(slot.icon.width, slot.icon.height);
-            slot.icon.setScale(iconScale);
-          } else {
-            slot.icon = null;
-          }
-          slot._currentIconKey = def.icon;
-        }
-        if (slot.icon) slot.icon.setVisible(true).setAlpha(1);
-      } else {
-        if (slot.icon && !slot.icon.destroyed) slot.icon.setVisible(false);
-      }
-
-      // Cooldowns
-      if (hasSpell) {
-        const cd = this.cooldowns[spellId];
-        if (cd && cd > 0) {
-          slot.cdOverlay.setVisible(true);
-          slot.cdText.setVisible(true);
-          slot.cdText.setText((cd / 1000).toFixed(1));
-        } else {
-          slot.cdOverlay.setVisible(false);
-          slot.cdText.setVisible(false);
-        }
-
-        // Charge counter
-        const charge = this.charges[spellId];
-        if (slot.chargeText) {
-          if (charge && charge.max > 1) {
-            slot.chargeText.setVisible(true);
-            slot.chargeText.setText(`${charge.remaining}/${charge.max}`);
-            slot.chargeText.setColor(charge.remaining > 0 ? '#ffdd44' : '#ff4444');
-          } else {
-            slot.chargeText.setVisible(false);
-          }
-        }
-      } else {
-        slot.cdOverlay.setVisible(false);
-        slot.cdText.setVisible(false);
-        if (slot.chargeText) slot.chargeText.setVisible(false);
-      }
-    }
-
-    // Update SP counter
-    if (this.spText && this.progression) {
-      this.spText.setText(`SP: ${this.progression.sp}`);
-    }
-  }
 
   shutdown() {
     // Cleanup obstacle sprites
@@ -2682,10 +1396,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Cleanup spell visuals
-    for (const [id, visual] of this.spellVisuals) {
-      this.destroySpellVisual(visual);
+    if (this.spellVisualManager) {
+      this.spellVisualManager.destroy();
     }
-    this.spellVisuals.clear();
 
     // Cleanup remote player sprites, shadows, labels, HP bars (kill tweens first)
     for (const [id, rp] of this.remotePlayers) {
@@ -2700,45 +1413,14 @@ export class GameScene extends Phaser.Scene {
     }
     this.remotePlayers.clear();
 
-    // Cleanup HUD elements
-    const hudElements = [
-      this.hpBarBg, this.hpBarFill, this.hpText,
-      this.pingText, this.playerCountText,
-      this.roundText, this.timerText, this.phaseText,
-      this.countdownText, this.spText,
-    ];
-    for (const el of hudElements) {
-      if (el && !el.destroyed) el.destroy();
+    // Cleanup HUD
+    if (this.hudManager) {
+      this.hudManager.destroy();
     }
-
-    // Cleanup spell HUD slots
-    for (const slot of this.spellSlots) {
-      const slotElements = [slot.bg, slot.icon, slot.cdOverlay, slot.cdText,
-                            slot.lockOverlay, slot.lockText, slot.chargeText];
-      for (const el of slotElements) {
-        if (el && !el.destroyed) el.destroy();
-      }
-    }
-    this.spellSlots = [];
 
     // Cleanup graphics objects
     if (this.trailGraphics && !this.trailGraphics.destroyed) this.trailGraphics.destroy();
-    if (this.ringGraphics && !this.ringGraphics.destroyed) this.ringGraphics.destroy();
-    if (this.outerRingGraphics && !this.outerRingGraphics.destroyed) this.outerRingGraphics.destroy();
-    if (this.edgeVignette && !this.edgeVignette.destroyed) this.edgeVignette.destroy();
     if (this.arenaTexture && !this.arenaTexture.destroyed) this.arenaTexture.destroy();
-
-    // Clear kill feed timeouts and texts
-    if (this.killFeedTimeouts) {
-      for (const id of this.killFeedTimeouts) {
-        clearTimeout(id);
-      }
-      this.killFeedTimeouts = [];
-    }
-    for (const t of this.killFeedTexts) {
-      if (t && !t.destroyed) t.destroy();
-    }
-    this.killFeedTexts = [];
 
     // Destroy overlay systems
     if (this.shopOverlay) this.shopOverlay.destroy();
