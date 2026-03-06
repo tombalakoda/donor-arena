@@ -161,20 +161,20 @@ export class MenuScene extends Phaser.Scene {
       const bg = this.add.nineslice(x, y, 'ui-inventory-cell', null, cellW, cellH, 7, 7, 7, 7)
         .setDepth(10);
 
-      // Face portrait (left side of cell)
+      // Face portrait (centered, shifted up)
       let portrait;
       if (this.textures.exists(`${char.id}-face`)) {
-        portrait = this.add.image(x - 24, y, `${char.id}-face`)
+        portrait = this.add.image(x, y - 10, `${char.id}-face`)
           .setScale(1.6).setDepth(11);
       } else {
-        portrait = this.add.sprite(x - 24, y, `${char.id}-idle`, 0)
+        portrait = this.add.sprite(x, y - 10, `${char.id}-idle`, 0)
           .setScale(3).setDepth(11);
       }
 
-      // Character name (right side of cell)
-      const nameText = this.add.text(x + 22, y, char.name, {
+      // Character name (centered below portrait)
+      const nameText = this.add.text(x, y + 26, char.name, {
         fontSize: '11px', fontFamily: UI_FONT, fill: '#3a2218',
-      }).setOrigin(0, 0.5).setDepth(12);
+      }).setOrigin(0.5, 0.5).setDepth(12);
 
       // Selection highlight
       const highlight = this.add.nineslice(x, y, 'ui-focus', null, cellW + 6, cellH + 6, 7, 7, 7, 7)

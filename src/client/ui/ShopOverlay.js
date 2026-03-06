@@ -73,7 +73,7 @@ export class ShopOverlay {
 
     // Timer
     this.timerText = scene.add.text(camW / 2, 62, `Dükkân ${Math.ceil(this.shopTimer)}s içinde kapanır`, {
-      fontSize: '11px', fontFamily: UI_FONT, fill: '#888888',
+      fontSize: '13px', fontFamily: UI_FONT, fill: '#888888',
     }).setScrollFactor(0).setDepth(301).setOrigin(0.5, 0);
     this.elements.push(this.timerText);
 
@@ -122,7 +122,7 @@ export class ShopOverlay {
 
     const slotNames = { Q: 'SÖZ', W: 'EL', E: 'DİL', R: 'BEL' };
     const slotNameLabel = scene.add.text(x + 40, y + 8, slotNames[slot], {
-      fontSize: '14px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
+      fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(302);
     this.elements.push(slotNameLabel);
 
@@ -137,18 +137,18 @@ export class ShopOverlay {
       this.elements.push(lockIcon);
 
       const lockLabel = scene.add.text(x + width / 2, lockY + 35, 'KİLİTLİ', {
-        fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
+        fontSize: '18px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(302).setOrigin(0.5);
       this.elements.push(lockLabel);
 
       const costLabel = scene.add.text(x + width / 2, lockY + 56, `Aç: ${SP.SLOT_UNLOCK_COST} İlham`, {
-        fontSize: '13px', fontFamily: UI_FONT, fill: '#5a3a28',
+        fontSize: '14px', fontFamily: UI_FONT, fill: '#5a3a28',
       }).setScrollFactor(0).setDepth(302).setOrigin(0.5);
       this.elements.push(costLabel);
 
       const canUnlock = prog && prog.sp >= SP.SLOT_UNLOCK_COST;
       const { elements: btnEls } = createNinesliceButton(scene, x + width / 2, lockY + 85, 'Aç', {
-        width: 160, height: 32, depth: 303, fontSize: '12px',
+        width: 160, height: 36, depth: 303, fontSize: '14px',
         enabled: canUnlock,
         onClick: () => {
           if (scene.network && scene.network.connected) {
@@ -211,7 +211,7 @@ export class ShopOverlay {
 
       // Spell name below cell
       const nameLabel = scene.add.text(cellX, cellY + cellSize / 2 + 3, def.name, {
-        fontSize: '8px', fontFamily: UI_FONT, fill: isChosen ? '#44ddff' : '#888888',
+        fontSize: '10px', fontFamily: UI_FONT, fill: isChosen ? '#44ddff' : '#888888',
         fontStyle: isChosen ? 'bold' : 'normal',
       }).setScrollFactor(0).setDepth(303).setOrigin(0.5, 0);
       this.elements.push(nameLabel);
@@ -277,7 +277,7 @@ export class ShopOverlay {
       const stats = computeSpellStats(chosenSpellId, currentTier);
       const statsStr = this.formatStats(stats);
       const statsLabel = scene.add.text(x + 10, contentY, statsStr, {
-        fontSize: '10px', fontFamily: UI_FONT, fill: '#2a4466', lineSpacing: 2,
+        fontSize: '12px', fontFamily: UI_FONT, fill: '#2a4466', lineSpacing: 3,
       }).setScrollFactor(0).setDepth(302);
       this.elements.push(statsLabel);
       contentY += statsLabel.height + 8;
@@ -316,7 +316,7 @@ export class ShopOverlay {
         const tNum = scene.add.text(
           dotX, dotY,
           `${t + 1}`,
-          { fontSize: '9px', fontFamily: UI_FONT, fill: filled ? '#000000' : '#555555', fontStyle: 'bold' }
+          { fontSize: '10px', fontFamily: UI_FONT, fill: filled ? '#000000' : '#555555', fontStyle: 'bold' }
         ).setScrollFactor(0).setDepth(303).setOrigin(0.5);
         this.elements.push(tNum);
       }
@@ -326,7 +326,7 @@ export class ShopOverlay {
       for (let t = 0; t < currentTier && t < tree.tiers.length; t++) {
         const tier = tree.tiers[t];
         const tierLabel = scene.add.text(x + 12, contentY, `T${t + 1}: ${tier.name}`, {
-          fontSize: '10px', fontFamily: UI_FONT, fill: '#1a7733',
+          fontSize: '12px', fontFamily: UI_FONT, fill: '#1a7733',
         }).setScrollFactor(0).setDepth(302);
         this.elements.push(tierLabel);
         contentY += 14;
@@ -347,12 +347,12 @@ export class ShopOverlay {
         this.elements.push(nextBox);
 
         const nextLabel = scene.add.text(x + 15, contentY + 8, `Next: ${nextTier.name}`, {
-          fontSize: '12px', fontFamily: UI_FONT, fill: '#2a1a08', fontStyle: 'bold',
+          fontSize: '14px', fontFamily: UI_FONT, fill: '#2a1a08', fontStyle: 'bold',
         }).setScrollFactor(0).setDepth(303);
         this.elements.push(nextLabel);
 
-        const nextDesc = scene.add.text(x + 15, contentY + 24, nextTier.description, {
-          fontSize: '9px', fontFamily: UI_FONT, fill: '#3a2a18', wordWrap: { width: width - 30 },
+        const nextDesc = scene.add.text(x + 15, contentY + 26, nextTier.description, {
+          fontSize: '11px', fontFamily: UI_FONT, fill: '#3a2a18', wordWrap: { width: width - 30 },
         }).setScrollFactor(0).setDepth(303);
         this.elements.push(nextDesc);
 
@@ -363,18 +363,18 @@ export class ShopOverlay {
             return `${k}: ${v > 0 ? '+' : ''}${v}`;
           })
           .join(', ');
-        const modLabel = scene.add.text(x + 15, contentY + 40, modText, {
-          fontSize: '8px', fontFamily: UI_FONT, fill: '#2a4466', wordWrap: { width: width - 30 },
+        const modLabel = scene.add.text(x + 15, contentY + 44, modText, {
+          fontSize: '10px', fontFamily: UI_FONT, fill: '#2a4466', wordWrap: { width: width - 30 },
         }).setScrollFactor(0).setDepth(303);
         this.elements.push(modLabel);
 
-        contentY += 70;
+        contentY += 76;
 
         // Upgrade button — nineslice button
         const cost = nextTier.cost;
         const canUpgrade = prog && prog.sp >= cost;
         const { elements: btnEls } = createNinesliceButton(scene, x + width / 2, contentY, `Pişir (${cost} İlham)`, {
-          width: 160, height: 32, depth: 303, fontSize: '12px',
+          width: 180, height: 36, depth: 303, fontSize: '14px',
           enabled: canUpgrade,
           onClick: () => {
             if (scene.network && scene.network.connected) {
@@ -386,7 +386,7 @@ export class ShopOverlay {
       } else {
         contentY += 10;
         const maxLabel = scene.add.text(x + width / 2, contentY, 'EN ÜST PÂYE', {
-          fontSize: '13px', fontFamily: UI_FONT, fill: '#ffdd44', fontStyle: 'bold',
+          fontSize: '15px', fontFamily: UI_FONT, fill: '#ffdd44', fontStyle: 'bold',
         }).setScrollFactor(0).setDepth(302).setOrigin(0.5);
         this.elements.push(maxLabel);
       }
@@ -394,7 +394,7 @@ export class ShopOverlay {
       // No spell chosen yet — prompt
       contentY += 10;
       const promptLabel = scene.add.text(x + width / 2, contentY, `Hüner seç (${SP.SPELL_CHOICE_COST} İlham)`, {
-        fontSize: '12px', fontFamily: UI_FONT, fill: '#5a3a28',
+        fontSize: '14px', fontFamily: UI_FONT, fill: '#5a3a28',
       }).setScrollFactor(0).setDepth(302).setOrigin(0.5);
       this.elements.push(promptLabel);
     }
@@ -415,8 +415,8 @@ export class ShopOverlay {
 
     // Tooltip text (create first to measure height)
     const tipText = scene.add.text(x, y - 20, text, {
-      fontSize: '9px', fontFamily: UI_FONT, fill: '#2a1a08', lineSpacing: 2,
-      wordWrap: { width: 190 }, align: 'center',
+      fontSize: '11px', fontFamily: UI_FONT, fill: '#2a1a08', lineSpacing: 3,
+      wordWrap: { width: 220 }, align: 'center',
     }).setScrollFactor(0).setDepth(311).setOrigin(0.5, 1);
 
     // Tooltip background — nineslice ui-panel-2
@@ -424,7 +424,7 @@ export class ShopOverlay {
     const tipBg = scene.add.nineslice(
       x, y - 5 - tipH / 2,
       'ui-panel-2', null,
-      200, tipH,
+      230, tipH,
       7, 7, 7, 7
     ).setScrollFactor(0).setDepth(310);
     this.elements.push(tipBg);
