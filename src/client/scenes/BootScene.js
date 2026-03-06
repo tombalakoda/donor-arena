@@ -249,6 +249,9 @@ export class BootScene extends Phaser.Scene {
       'BookWind',
       'Fireball', 'Explosion', 'Mist',
       'Upgrade', 'Permutation',
+      'OrbLight', 'Cut', 'Necromancy', 'Vision', 'WaterCanon',
+      'DefenseUpgrade', 'Alchemy', 'AttackUpgrade', 'MagicWeapon',
+      'Death', 'Camouflage', 'Counter',
     ];
     for (const icon of spellIcons) {
       const path = `assets/ui/skill-icons/spell/${icon}.png`;

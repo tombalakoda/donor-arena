@@ -103,7 +103,7 @@ export const SPELLS = {
       sound: 'sfx-blink',
       color: 0x44ddff,
     },
-    icon: 'spell-BookLight',
+    icon: 'spell-OrbLight',
   },
   'dash': {
     id: 'dash',
@@ -119,7 +119,7 @@ export const SPELLS = {
       color: 0xff8844,
       glowColor: 0xffaa66,
     },
-    icon: 'spell-BookWind',
+    icon: 'spell-Cut',
   },
   'flash': {
     id: 'flash',
@@ -151,7 +151,7 @@ export const SPELLS = {
       color: 0xaabbff,
       glowColor: 0xccddff,
     },
-    icon: 'spell-BookDarkness',
+    icon: 'spell-Necromancy',
   },
   'swap': {
     id: 'swap',
@@ -167,7 +167,7 @@ export const SPELLS = {
       color: 0xcc44ff,
       glowColor: 0xdd88ff,
     },
-    icon: 'spell-Permutation',
+    icon: 'spell-Mist',
   },
   'timeshift': {
     id: 'timeshift',
@@ -203,7 +203,7 @@ export const SPELLS = {
       color: 0x44ddff,
       glowColor: 0x88eeff,
     },
-    icon: 'spell-BookIce',
+    icon: 'spell-Vision',
   },
   'blizzard': {
     id: 'blizzard',
@@ -219,7 +219,7 @@ export const SPELLS = {
       color: 0x66ccff,
       glowColor: 0xaaddff,
     },
-    icon: 'spell-Mist',
+    icon: 'spell-WaterCanon',
   },
   'icewall': {
     id: 'icewall',
@@ -267,7 +267,7 @@ export const SPELLS = {
       color: 0x44aaff,
       glowColor: 0x88ccff,
     },
-    icon: 'spell-BookLight',
+    icon: 'spell-DefenseUpgrade',
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -287,7 +287,7 @@ export const SPELLS = {
       color: 0x886644,
       chainColor: 0xaaaaaa,
     },
-    icon: 'spell-BookDeath',
+    icon: 'spell-BookDarkness',
   },
   'grappling': {
     id: 'grappling',
@@ -303,7 +303,7 @@ export const SPELLS = {
       color: 0x666688,
       chainColor: 0x888888,
     },
-    icon: 'spell-BookDarkness',
+    icon: 'spell-Alchemy',
   },
   'lightning': {
     id: 'lightning',
@@ -319,7 +319,7 @@ export const SPELLS = {
       color: 0xffff44,
       glowColor: 0xffffaa,
     },
-    icon: 'spell-BookThunder',
+    icon: 'spell-AttackUpgrade',
   },
   'homing': {
     id: 'homing',
@@ -335,7 +335,7 @@ export const SPELLS = {
       color: 0xff4488,
       glowColor: 0xff88aa,
     },
-    icon: 'spell-BookFire',
+    icon: 'spell-MagicWeapon',
   },
   'meteor': {
     id: 'meteor',
@@ -351,7 +351,7 @@ export const SPELLS = {
       color: 0xff6600,
       glowColor: 0xff8800,
     },
-    icon: 'spell-Explosion',
+    icon: 'spell-Death',
   },
   'rocketswarm': {
     id: 'rocketswarm',
@@ -367,7 +367,7 @@ export const SPELLS = {
       color: 0xff8844,
       glowColor: 0xffaa66,
     },
-    icon: 'spell-BookWind',
+    icon: 'spell-Camouflage',
   },
   'boomerang': {
     id: 'boomerang',
@@ -383,7 +383,7 @@ export const SPELLS = {
       color: 0xaa8866,
       glowColor: 0xccaa88,
     },
-    icon: 'spell-BookRock',
+    icon: 'spell-Counter',
   },
 };
 
