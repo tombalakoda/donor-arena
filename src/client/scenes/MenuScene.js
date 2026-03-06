@@ -99,7 +99,7 @@ export class MenuScene extends Phaser.Scene {
 
   createTitleArea(camW) {
     // Panel backing
-    this.add.nineslice(camW / 2, 44, 'ui-panel', null, 420, 60, 4, 4, 4, 4)
+    this.add.nineslice(camW / 2, 44, 'ui-panel', null, 420, 60, 7, 7, 7, 7)
       .setAlpha(0.55).setDepth(15);
 
     // Glow text
@@ -157,7 +157,7 @@ export class MenuScene extends Phaser.Scene {
       const y = gridOriginY + row * (cellH + gapY) + cellH / 2;
 
       // Cell background
-      const bg = this.add.nineslice(x, y, 'ui-inventory-cell', null, cellW, cellH, 4, 4, 4, 4)
+      const bg = this.add.nineslice(x, y, 'ui-inventory-cell', null, cellW, cellH, 7, 7, 7, 7)
         .setDepth(10);
 
       // Face portrait (left side of cell)
@@ -176,8 +176,8 @@ export class MenuScene extends Phaser.Scene {
       }).setOrigin(0, 0.5).setDepth(12);
 
       // Selection highlight
-      const highlight = this.add.nineslice(x, y, 'ui-focus', null, cellW + 6, cellH + 6, 3, 3, 3, 3)
-        .setDepth(13).setVisible(false);
+      const highlight = this.add.nineslice(x, y, 'ui-focus', null, cellW + 6, cellH + 6, 7, 7, 7, 7)
+        .setTint(0xffdd44).setDepth(13).setVisible(false);
 
       // Hit area
       const hitArea = this.add.rectangle(x, y, cellW, cellH, 0xffffff, 0)
@@ -214,7 +214,7 @@ export class MenuScene extends Phaser.Scene {
     const panelH = 340;
 
     // Outer wood frame panel
-    this.add.nineslice(panelCX, panelCY, 'ui-panel', null, panelW, panelH, 4, 4, 4, 4)
+    this.add.nineslice(panelCX, panelCY, 'ui-panel', null, panelW, panelH, 7, 7, 7, 7)
       .setDepth(10);
 
     // Parchment interior — warm beige using graphics + nineslice overlay
@@ -222,7 +222,7 @@ export class MenuScene extends Phaser.Scene {
     parchment.fillStyle(0xd4c4a0, 1);  // warm parchment beige
     parchment.fillRoundedRect(panelCX - (panelW - 20) / 2, panelCY - (panelH - 20) / 2, panelW - 20, panelH - 20, 2);
     // Subtle texture overlay using bg panel
-    this.add.nineslice(panelCX, panelCY, 'ui-bg', null, panelW - 20, panelH - 20, 4, 4, 4, 4)
+    this.add.nineslice(panelCX, panelCY, 'ui-bg', null, panelW - 20, panelH - 20, 7, 7, 7, 7)
       .setAlpha(0.15).setDepth(11);
 
     // ── Left side: walking sprite with FX ──
@@ -296,7 +296,7 @@ export class MenuScene extends Phaser.Scene {
     const faceX = rightX + 160;
     const faceY = panelCY + 50;
     // Dark inventory cell frame behind portrait
-    this.previewFaceFrame = this.add.nineslice(faceX, faceY, 'ui-inventory-cell', null, 150, 150, 4, 4, 4, 4)
+    this.previewFaceFrame = this.add.nineslice(faceX, faceY, 'ui-inventory-cell', null, 150, 150, 7, 7, 7, 7)
       .setDepth(12);
     if (this.textures.exists('boy-face')) {
       this.previewFace = this.add.image(faceX, faceY, 'boy-face')
@@ -339,7 +339,7 @@ export class MenuScene extends Phaser.Scene {
   createNameInput(camW, _camH) {
     const nameY = 510;
 
-    this.add.nineslice(camW / 2, nameY, 'ui-panel', null, 380, 44, 4, 4, 4, 4)
+    this.add.nineslice(camW / 2, nameY, 'ui-panel', null, 380, 44, 7, 7, 7, 7)
       .setDepth(10);
 
     this.add.text(camW / 2 - 150, nameY, 'Mahlas:', {
@@ -384,12 +384,9 @@ export class MenuScene extends Phaser.Scene {
     const w = 180;
     const h = 40;
 
-    const btnNormal = this.add.nineslice(x, y, 'ui-button', null, w, h, 4, 4, 2, 2)
+    // Single nineslice button — tint-based states
+    const btn = this.add.nineslice(x, y, 'ui-button', null, w, h, 16, 16, 2, 4)
       .setDepth(10);
-    const btnHover = this.add.nineslice(x, y, 'ui-button-hover', null, w, h, 4, 4, 2, 2)
-      .setDepth(10).setVisible(false);
-    const btnPressed = this.add.nineslice(x, y, 'ui-button-pressed', null, w, h, 4, 4, 2, 2)
-      .setDepth(10).setVisible(false);
 
     const text = this.add.text(x, y - 1, label, {
       fontSize: '16px', fontFamily: 'monospace',
@@ -401,19 +398,19 @@ export class MenuScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true }).setDepth(12);
 
     hitArea.on('pointerover', () => {
-      btnNormal.setVisible(false); btnHover.setVisible(true); btnPressed.setVisible(false);
+      btn.setTint(0xffe8cc);
       this.playSfx('sfx-move');
     });
     hitArea.on('pointerout', () => {
-      btnNormal.setVisible(true); btnHover.setVisible(false); btnPressed.setVisible(false);
+      btn.clearTint();
       text.setY(y - 1);
     });
     hitArea.on('pointerdown', () => {
-      btnNormal.setVisible(false); btnHover.setVisible(false); btnPressed.setVisible(true);
+      btn.setTint(0xccaa88);
       text.setY(y + 1);
     });
     hitArea.on('pointerup', () => {
-      btnNormal.setVisible(true); btnHover.setVisible(false); btnPressed.setVisible(false);
+      btn.clearTint();
       text.setY(y - 1);
       this.playSfx('sfx-accept');
       callback();
@@ -426,7 +423,7 @@ export class MenuScene extends Phaser.Scene {
 
   createBottomBar(camW, camH) {
     // Bottom bar: wood panel with gold decorative line
-    this.add.nineslice(camW / 2, camH - 18, 'ui-panel', null, 560, 30, 4, 4, 4, 4)
+    this.add.nineslice(camW / 2, camH - 18, 'ui-panel', null, 560, 30, 7, 7, 7, 7)
       .setDepth(10);
 
     // Gold line above the tip panel
@@ -459,7 +456,7 @@ export class MenuScene extends Phaser.Scene {
     const x = camW - 28;
     const y = 28;
 
-    const bg = this.add.nineslice(x, y, 'ui-panel', null, 34, 34, 4, 4, 4, 4).setDepth(10);
+    const bg = this.add.nineslice(x, y, 'ui-panel', null, 34, 34, 7, 7, 7, 7).setDepth(10);
     const icon = this.add.text(x, y, isMuted ? '🔇' : '🔊', { fontSize: '16px' }).setOrigin(0.5).setDepth(12);
     const hitArea = this.add.rectangle(x, y, 34, 34, 0xffffff, 0)
       .setInteractive({ useHandCursor: true }).setDepth(14);

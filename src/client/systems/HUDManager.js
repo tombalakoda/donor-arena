@@ -64,7 +64,7 @@ export class HUDManager {
     const camH = scene.cameras.main.height;
 
     // HP bar: nineslice frame + colored fill rectangle inside
-    this.hpBarBg = scene.add.nineslice(camW / 2, 20, 'ui-panel-2', null, 208, 18, 4, 4, 4, 4)
+    this.hpBarBg = scene.add.nineslice(camW / 2, 20, 'ui-panel-2', null, 208, 18, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(100).setOrigin(0.5);
     this.hpBarFill = scene.add.rectangle(camW / 2 - 100, 20, 200, 10, 0x44dd44)
       .setScrollFactor(0).setDepth(101).setOrigin(0, 0.5);
@@ -107,7 +107,7 @@ export class HUDManager {
     const x = camW - 24;
     const y = 52;
 
-    const bg = scene.add.nineslice(x, y, 'ui-inventory-cell', null, btnSize, btnSize, 4, 4, 4, 4)
+    const bg = scene.add.nineslice(x, y, 'ui-inventory-cell', null, btnSize, btnSize, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(100);
 
     const icon = scene.add.text(x, y, isMuted ? '🔇' : '🔊', {
@@ -143,7 +143,7 @@ export class HUDManager {
       const x = startX + i * (slotSize + slotGap) + slotSize / 2;
 
       // Nineslice inventory cell instead of plain rectangle
-      const bg = scene.add.nineslice(x, slotY, 'ui-inventory-cell', null, slotSize, slotSize, 4, 4, 4, 4)
+      const bg = scene.add.nineslice(x, slotY, 'ui-inventory-cell', null, slotSize, slotSize, 7, 7, 7, 7)
         .setScrollFactor(0).setDepth(100);
 
       let icon = null;
@@ -201,7 +201,7 @@ export class HUDManager {
     }
 
     // SP counter with panel background
-    this.spBg = scene.add.nineslice(camW / 2, slotY + slotSize / 2 + 14, 'ui-panel-2', null, 80, 20, 4, 4, 4, 4)
+    this.spBg = scene.add.nineslice(camW / 2, slotY + slotSize / 2 + 14, 'ui-panel-2', null, 80, 20, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(99).setAlpha(0.7);
 
     this.spText = scene.add.text(camW / 2, slotY + slotSize / 2 + 14, 'İlham: 0', {

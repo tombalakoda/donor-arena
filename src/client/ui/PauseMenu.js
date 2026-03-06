@@ -62,7 +62,7 @@ export class PauseMenu {
     // Panel — nineslice
     const panelW = 320;
     const panelH = 260;
-    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 4, 4, 4, 4)
+    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.elements.push(panel);
 
@@ -122,7 +122,7 @@ export class PauseMenu {
     // Confirm panel — nineslice (panel-2 variant)
     const pw = 300;
     const ph = 160;
-    const confirmPanel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel-2', null, pw, ph, 4, 4, 4, 4)
+    const confirmPanel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel-2', null, pw, ph, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.elements.push(confirmPanel);
 

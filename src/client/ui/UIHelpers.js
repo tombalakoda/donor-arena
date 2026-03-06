@@ -1,8 +1,8 @@
 import { UI_FONT } from '../config.js';
 
 /**
- * Create a nineslice button with normal/hover/pressed states.
- * Matches the MenuScene button pattern exactly.
+ * Create a nineslice button with tint-based hover/pressed states.
+ * Uses a single nineslice with setTint() for state changes.
  *
  * @param {Phaser.Scene} scene
  * @param {number} x - Center X
@@ -28,22 +28,18 @@ export function createNinesliceButton(scene, x, y, label, opts = {}) {
   const sfx = opts.sfx !== false;
   const elements = [];
 
+  // Single nineslice button — tint-based states
+  const btn = scene.add.nineslice(x, y, 'ui-button', null, w, h, 16, 16, 2, 4)
+    .setScrollFactor(0).setDepth(depth);
+
   if (!enabled) {
-    const btn = scene.add.nineslice(x, y, 'ui-button-disabled', null, w, h, 4, 4, 2, 2)
-      .setScrollFactor(0).setDepth(depth);
+    btn.setTint(0x888888).setAlpha(0.6);
     const text = scene.add.text(x, y - 1, label, {
       fontSize, fontFamily: UI_FONT, fill: '#666666', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(depth + 1).setOrigin(0.5);
     elements.push(btn, text);
     return { elements };
   }
-
-  const btnNormal = scene.add.nineslice(x, y, 'ui-button', null, w, h, 4, 4, 2, 2)
-    .setScrollFactor(0).setDepth(depth);
-  const btnHover = scene.add.nineslice(x, y, 'ui-button-hover', null, w, h, 4, 4, 2, 2)
-    .setScrollFactor(0).setDepth(depth).setVisible(false);
-  const btnPressed = scene.add.nineslice(x, y, 'ui-button-pressed', null, w, h, 4, 4, 2, 2)
-    .setScrollFactor(0).setDepth(depth).setVisible(false);
 
   const text = scene.add.text(x, y - 1, label, {
     fontSize, fontFamily: UI_FONT, fill: '#ffffff', fontStyle: 'bold',
@@ -54,23 +50,23 @@ export function createNinesliceButton(scene, x, y, label, opts = {}) {
     .setInteractive({ useHandCursor: true }).setScrollFactor(0).setDepth(depth + 2);
 
   hitArea.on('pointerover', () => {
-    btnNormal.setVisible(false); btnHover.setVisible(true); btnPressed.setVisible(false);
+    btn.setTint(0xffe8cc);
     if (sfx) try { scene.sound.play('sfx-move', { volume: 0.5 }); } catch (e) { /* audio unavailable */ }
   });
   hitArea.on('pointerout', () => {
-    btnNormal.setVisible(true); btnHover.setVisible(false); btnPressed.setVisible(false);
+    btn.clearTint();
     text.setY(y - 1);
   });
   hitArea.on('pointerdown', () => {
-    btnNormal.setVisible(false); btnHover.setVisible(false); btnPressed.setVisible(true);
+    btn.setTint(0xccaa88);
     text.setY(y + 1);
   });
   hitArea.on('pointerup', () => {
-    btnNormal.setVisible(true); btnHover.setVisible(false); btnPressed.setVisible(false);
+    btn.clearTint();
     text.setY(y - 1);
     onClick();
   });
 
-  elements.push(btnNormal, btnHover, btnPressed, text, hitArea);
+  elements.push(btn, text, hitArea);
   return { elements };
 }

@@ -60,7 +60,7 @@ export class MatchEndOverlay {
     const panelH = 440;
     const py = camH / 2 - panelH / 2;
     const px = camW / 2 - panelW / 2;
-    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 4, 4, 4, 4)
+    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.elements.push(panel);
 
@@ -154,7 +154,7 @@ export class MatchEndOverlay {
 
       // Alternating row background for even rows
       if (i % 2 === 0) {
-        const rowBgAlt = scene.add.nineslice(camW / 2, ry + 6, 'ui-bg', null, panelW - 30, rowH - 2, 4, 4, 4, 4)
+        const rowBgAlt = scene.add.nineslice(camW / 2, ry + 6, 'ui-bg', null, panelW - 30, rowH - 2, 7, 7, 7, 7)
           .setAlpha(0.15)
           .setScrollFactor(0).setDepth(DEPTH + 1);
         this.elements.push(rowBgAlt);
@@ -162,8 +162,8 @@ export class MatchEndOverlay {
 
       // Highlight row for local player — nineslice focus
       if (isLocal) {
-        const rowHighlight = scene.add.nineslice(camW / 2, ry + 6, 'ui-focus', null, panelW - 30, rowH - 2, 3, 3, 3, 3)
-          .setAlpha(0.3)
+        const rowHighlight = scene.add.nineslice(camW / 2, ry + 6, 'ui-focus', null, panelW - 30, rowH - 2, 7, 7, 7, 7)
+          .setTint(0xffdd44).setAlpha(0.3)
           .setScrollFactor(0).setDepth(DEPTH + 1);
         this.elements.push(rowHighlight);
       }

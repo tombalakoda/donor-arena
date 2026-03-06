@@ -69,7 +69,7 @@ export class LobbyOverlay {
     // Main panel — nineslice
     const panelW = 440;
     const panelH = 350;
-    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 4, 4, 4, 4)
+    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.elements.push(panel);
 
@@ -130,12 +130,12 @@ export class LobbyOverlay {
         const sy = gridStartY + row * (slotSize + gap + 8);
 
         // Focus highlight (behind slot, initially hidden)
-        const focusHighlight = scene.add.nineslice(sx, sy, 'ui-focus', null, slotSize + 6, slotSize + 6, 3, 3, 3, 3)
-          .setScrollFactor(0).setDepth(DEPTH + 2).setVisible(false);
+        const focusHighlight = scene.add.nineslice(sx, sy, 'ui-focus', null, slotSize + 6, slotSize + 6, 7, 7, 7, 7)
+          .setTint(0xffdd44).setScrollFactor(0).setDepth(DEPTH + 2).setVisible(false);
         this.elements.push(focusHighlight);
 
         // Slot background — nineslice inventory cell
-        const slotBg = scene.add.nineslice(sx, sy, 'ui-inventory-cell', null, slotSize, slotSize, 4, 4, 4, 4)
+        const slotBg = scene.add.nineslice(sx, sy, 'ui-inventory-cell', null, slotSize, slotSize, 7, 7, 7, 7)
           .setScrollFactor(0).setDepth(DEPTH + 2);
         this.elements.push(slotBg);
 

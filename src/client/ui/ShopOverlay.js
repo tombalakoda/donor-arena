@@ -107,7 +107,7 @@ export class ShopOverlay {
       x + width / 2, y + height / 2,
       'ui-panel', null,
       width, height,
-      4, 4, 4, 4
+      7, 7, 7, 7
     ).setScrollFactor(0).setDepth(301);
     if (isLocked) panelBg.setTint(0x666666);
     this.elements.push(panelBg);
@@ -184,7 +184,7 @@ export class ShopOverlay {
         cellX, cellY,
         'ui-inventory-cell', null,
         cellSize, cellSize,
-        4, 4, 4, 4
+        7, 7, 7, 7
       ).setScrollFactor(0).setDepth(302);
       this.elements.push(cellBg);
 
@@ -195,8 +195,8 @@ export class ShopOverlay {
           cellX, cellY,
           'ui-focus', null,
           cellSize + 4, cellSize + 4,
-          3, 3, 3, 3
-        ).setScrollFactor(0).setDepth(302);
+          7, 7, 7, 7
+        ).setTint(0xffdd44).setScrollFactor(0).setDepth(302);
         this.elements.push(focusHighlight);
       }
 
@@ -299,8 +299,8 @@ export class ShopOverlay {
             dotX, dotY,
             'ui-focus', null,
             dotSize, dotSize,
-            3, 3, 3, 3
-          ).setScrollFactor(0).setDepth(302);
+            4, 4, 4, 4
+          ).setTint(0xffdd44).setScrollFactor(0).setDepth(302);
           this.elements.push(dot);
         } else {
           // Empty tier dot — ui-inventory-cell
@@ -342,7 +342,7 @@ export class ShopOverlay {
           x + width / 2, contentY + 30,
           'ui-bg', null,
           width - 20, 60,
-          4, 4, 4, 4
+          7, 7, 7, 7
         ).setScrollFactor(0).setDepth(302);
         this.elements.push(nextBox);
 
@@ -425,7 +425,7 @@ export class ShopOverlay {
       x, y - 5 - tipH / 2,
       'ui-panel-2', null,
       200, tipH,
-      4, 4, 4, 4
+      7, 7, 7, 7
     ).setScrollFactor(0).setDepth(310);
     this.elements.push(tipBg);
 
