@@ -36,12 +36,12 @@ for (const [slot, spells] of Object.entries(SLOT_SPELLS)) {
 // Full spell metadata — name, description, type, FX, icons
 export const SPELLS = {
   // ═══════════════════════════════════════════════════════════════
-  // Q — FIREBALL VARIANTS (3 paths)
+  // Q — SÖZ (3 paths)
   // ═══════════════════════════════════════════════════════════════
   'fireball-focus': {
     id: 'fireball-focus',
-    name: 'Focus',
-    description: 'Long range, piercing shots.',
+    name: 'Uzun Hava',
+    description: 'Uzun menzil, delici sözler.',
     type: SPELL_TYPES.PROJECTILE,
     slot: 'Q',
     fx: {
@@ -56,8 +56,8 @@ export const SPELLS = {
   },
   'fireball-speed': {
     id: 'fireball-speed',
-    name: 'Speed',
-    description: 'Rapid fire, fast cooldown.',
+    name: 'Tekerleme',
+    description: 'Art arda, hızlı sözler.',
     type: SPELL_TYPES.PROJECTILE,
     slot: 'Q',
     fx: {
@@ -72,8 +72,8 @@ export const SPELLS = {
   },
   'fireball-power': {
     id: 'fireball-power',
-    name: 'Power',
-    description: 'Heavy knockback, explosive impact.',
+    name: 'Taşlama',
+    description: 'Ağır nakavt, yıkıcı söz.',
     type: SPELL_TYPES.PROJECTILE,
     slot: 'Q',
     fx: {
@@ -88,12 +88,12 @@ export const SPELLS = {
   },
 
   // ═══════════════════════════════════════════════════════════════
-  // W — MOBILITY (6 spells)
+  // W — EL (6 spells)
   // ═══════════════════════════════════════════════════════════════
   'blink': {
     id: 'blink',
-    name: 'Blink',
-    description: 'Instant teleport to target position.',
+    name: 'Hop',
+    description: 'Gözünü açıp kapayıncaya dek ışınlan.',
     type: SPELL_TYPES.BLINK,
     slot: 'W',
     fx: {
@@ -107,8 +107,8 @@ export const SPELLS = {
   },
   'dash': {
     id: 'dash',
-    name: 'Dash',
-    description: 'Charge forward, slamming enemies in your path.',
+    name: 'Koşma',
+    description: 'İleri atıl, yolundaki rakipleri savur.',
     type: SPELL_TYPES.DASH,
     slot: 'W',
     fx: {
@@ -123,8 +123,8 @@ export const SPELLS = {
   },
   'flash': {
     id: 'flash',
-    name: 'Flash',
-    description: 'Burst of speed for a short duration.',
+    name: 'Seğirtme',
+    description: 'Kısa süre hız patlaması.',
     type: SPELL_TYPES.BUFF,
     slot: 'W',
     fx: {
@@ -139,8 +139,8 @@ export const SPELLS = {
   },
   'ghost': {
     id: 'ghost',
-    name: 'Ghost',
-    description: 'Become intangible. Spells pass through you.',
+    name: 'Gayb',
+    description: 'Gayba karış. Hünerler senden geçer.',
     type: SPELL_TYPES.BUFF,
     slot: 'W',
     fx: {
@@ -155,8 +155,8 @@ export const SPELLS = {
   },
   'swap': {
     id: 'swap',
-    name: 'Swap',
-    description: 'Fire a projectile. On hit, swap positions with the enemy.',
+    name: 'Çelme',
+    description: 'Söz fırlat. İsabet ederse yer değiştir.',
     type: SPELL_TYPES.SWAP,
     slot: 'W',
     fx: {
@@ -171,8 +171,8 @@ export const SPELLS = {
   },
   'timeshift': {
     id: 'timeshift',
-    name: 'Time Shift',
-    description: 'Teleport back to where you were 3 seconds ago.',
+    name: 'Devir',
+    description: 'Üç sâniye evvelki yerine dön.',
     type: SPELL_TYPES.RECALL,
     slot: 'W',
     fx: {
@@ -187,12 +187,12 @@ export const SPELLS = {
   },
 
   // ═══════════════════════════════════════════════════════════════
-  // E — DEBUFF / CONTROL (5 spells)
+  // E — DİL (5 spells)
   // ═══════════════════════════════════════════════════════════════
   'frostbolt': {
     id: 'frostbolt',
-    name: 'Frostbolt',
-    description: 'Slows and briefly roots enemies on hit.',
+    name: 'Yârin Gözü',
+    description: 'Yavaşlatır, kısa süre dili bağlar.',
     type: SPELL_TYPES.PROJECTILE,
     slot: 'E',
     fx: {
@@ -207,8 +207,8 @@ export const SPELLS = {
   },
   'blizzard': {
     id: 'blizzard',
-    name: 'Blizzard',
-    description: 'Drop a frost zone that slows all enemies inside.',
+    name: 'Yârin Sözü',
+    description: 'Ayaz bölgesi bırakır, içindeki herkesi yavaşlatır.',
     type: SPELL_TYPES.ZONE,
     slot: 'E',
     fx: {
@@ -223,8 +223,8 @@ export const SPELLS = {
   },
   'icewall': {
     id: 'icewall',
-    name: 'Ice Wall',
-    description: 'Create a temporary barrier that blocks movement and projectiles.',
+    name: 'Mâni',
+    description: 'Geçici set kurar; yol ve hünerleri engeller.',
     type: SPELL_TYPES.WALL,
     slot: 'E',
     fx: {
@@ -239,8 +239,8 @@ export const SPELLS = {
   },
   'bouncer': {
     id: 'bouncer',
-    name: 'Bouncer',
-    description: 'Bounces off obstacles. Destroys enemy spells on contact.',
+    name: 'Karşılama',
+    description: 'Duvardan sekerken rakip hünerlerini yok eder.',
     type: SPELL_TYPES.PROJECTILE,
     slot: 'E',
     fx: {
@@ -255,8 +255,8 @@ export const SPELLS = {
   },
   'shield': {
     id: 'shield',
-    name: 'Shield',
-    description: 'Temporary shield that absorbs incoming hits.',
+    name: 'Himmet',
+    description: 'Geçici siper; gelen darbeleri emer.',
     type: SPELL_TYPES.BUFF,
     slot: 'E',
     fx: {
@@ -271,12 +271,12 @@ export const SPELLS = {
   },
 
   // ═══════════════════════════════════════════════════════════════
-  // R — ULTIMATE (7 spells)
+  // R — BEL (7 spells)
   // ═══════════════════════════════════════════════════════════════
   'hook': {
     id: 'hook',
-    name: 'Hook',
-    description: 'Hook an enemy, swing them around, and fling them.',
+    name: 'Bağlama',
+    description: 'Rakibi yakala, döndür, savur.',
     type: SPELL_TYPES.HOOK,
     slot: 'R',
     fx: {
@@ -291,8 +291,8 @@ export const SPELLS = {
   },
   'grappling': {
     id: 'grappling',
-    name: 'Grappling',
-    description: 'Hook a point, pull yourself there, collide with enemies.',
+    name: 'Sallama',
+    description: 'Bir noktaya tutun, kendini çek, yoldakilere çarp.',
     type: SPELL_TYPES.HOOK,
     slot: 'R',
     fx: {
@@ -307,8 +307,8 @@ export const SPELLS = {
   },
   'lightning': {
     id: 'lightning',
-    name: 'Lightning',
-    description: 'Instant blast that pushes the nearest enemy in close range.',
+    name: 'Sitem',
+    description: 'Yakın mesafede anlık itme.',
     type: SPELL_TYPES.INSTANT,
     slot: 'R',
     fx: {
@@ -323,8 +323,8 @@ export const SPELLS = {
   },
   'homing': {
     id: 'homing',
-    name: 'Homing',
-    description: 'Missile that chases the nearest enemy.',
+    name: 'Hasret',
+    description: 'Rakibi kovalayan güdümlü söz.',
     type: SPELL_TYPES.HOMING,
     slot: 'R',
     fx: {
@@ -339,8 +339,8 @@ export const SPELLS = {
   },
   'meteor': {
     id: 'meteor',
-    name: 'Meteor',
-    description: 'Call down a meteor. Delayed impact, massive AoE push.',
+    name: 'Nazar',
+    description: 'Gecikmeli, geniş alan etkili ağır darbe.',
     type: SPELL_TYPES.ZONE,
     slot: 'R',
     fx: {
@@ -355,8 +355,8 @@ export const SPELLS = {
   },
   'rocketswarm': {
     id: 'rocketswarm',
-    name: 'Rocket Swarm',
-    description: 'Launch a swarm of small missiles that chase nearby enemies.',
+    name: 'Gıybet',
+    description: 'Bir yığın küçük söz, yakındaki herkesi kovalar.',
     type: SPELL_TYPES.HOMING,
     slot: 'R',
     fx: {
@@ -371,8 +371,8 @@ export const SPELLS = {
   },
   'boomerang': {
     id: 'boomerang',
-    name: 'Boomerang',
-    description: 'Projectile that returns. More knockback the further it flew.',
+    name: 'Beddua',
+    description: 'Gidip döner. Ne kadar uzağa gittiyse o kadar sert döner.',
     type: SPELL_TYPES.BOOMERANG,
     slot: 'R',
     fx: {

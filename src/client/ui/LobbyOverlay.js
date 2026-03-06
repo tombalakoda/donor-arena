@@ -4,13 +4,13 @@ import { UI_FONT } from '../config.js';
 
 // Loading-screen style tips
 const TIPS = [
-  'Right-click to move on ice',
-  'Q / W / E / R to cast spells',
-  'Stay inside the ring!',
-  'Upgrade spells in the shop',
-  'Knock enemies out of bounds!',
-  'Ice physics: plan your path!',
-  'Heavier hits send you flying',
+  'Sağ tıkla buzda yürü',
+  'Q / W / E / R ile hünerlerini göster',
+  'Meydanın içinde kal!',
+  'Dükkânda hünerlerini pişir',
+  'Rakibi meydandan aşağı düşür!',
+  'Buz zemini: yolunu iyi hesapla!',
+  'Sert vuruş seni uçurur',
 ];
 
 /**
@@ -75,7 +75,7 @@ export class LobbyOverlay {
 
     // Title
     const py = camH / 2 - panelH / 2;
-    const title = scene.add.text(camW / 2, py + 30, 'WAITING FOR PLAYERS', {
+    const title = scene.add.text(camW / 2, py + 30, 'ÂŞIKLAR BEKLENİYOR', {
       fontSize: '22px',
       fontFamily: UI_FONT,
       fill: '#ffdd44',
@@ -92,14 +92,14 @@ export class LobbyOverlay {
       callback: () => {
         dots = (dots + 1) % 4;
         if (title && !title.destroyed) {
-          title.setText('WAITING FOR PLAYERS' + '.'.repeat(dots));
+          title.setText('ÂŞIKLAR BEKLENİYOR' + '.'.repeat(dots));
         }
       },
     });
     this.elements.push(dotsTimer);
 
     // Subtitle
-    const sub = scene.add.text(camW / 2, py + 55, 'DÖNER FIGHT', {
+    const sub = scene.add.text(camW / 2, py + 55, 'ÂŞIKLAR MEYDANE', {
       fontSize: '12px',
       fontFamily: UI_FONT,
       fill: '#555577',
@@ -107,7 +107,7 @@ export class LobbyOverlay {
     this.elements.push(sub);
 
     // Player count
-    this.countText = scene.add.text(camW / 2, py + 80, `0 / ${MATCH.MAX_PLAYERS} players`, {
+    this.countText = scene.add.text(camW / 2, py + 80, `0 / ${MATCH.MAX_PLAYERS} âşık`, {
       fontSize: '15px',
       fontFamily: UI_FONT,
       fill: '#44aadd',
@@ -190,7 +190,7 @@ export class LobbyOverlay {
 
     // Update count text
     if (this.countText && !this.countText.destroyed) {
-      this.countText.setText(`${players.length} / ${MATCH.MAX_PLAYERS} players`);
+      this.countText.setText(`${players.length} / ${MATCH.MAX_PLAYERS} âşık`);
     }
 
     // Update slots

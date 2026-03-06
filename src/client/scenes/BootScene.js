@@ -2,14 +2,14 @@ import Phaser from 'phaser';
 
 // Character IDs and their folder names
 export const CHARACTERS = [
-  { id: 'boy', folder: 'Boy', name: 'Boy' },
-  { id: 'ninja-green', folder: 'NinjaGreen', name: 'Green Ninja' },
-  { id: 'ninja-red', folder: 'NinjaRed', name: 'Red Ninja' },
-  { id: 'knight', folder: 'Knight', name: 'Knight' },
-  { id: 'eskimo', folder: 'Eskimo', name: 'Eskimo' },
-  { id: 'demon-red', folder: 'DemonRed', name: 'Demon' },
-  { id: 'mask-racoon', folder: 'MaskRacoon', name: 'Racoon' },
-  { id: 'fighter-white', folder: 'FighterWhite', name: 'Fighter' },
+  { id: 'boy', folder: 'Boy', name: 'Cevheri' },
+  { id: 'ninja-green', folder: 'NinjaGreen', name: 'Gövel Ayşe' },
+  { id: 'ninja-red', folder: 'NinjaRed', name: 'Ateş Fatma' },
+  { id: 'knight', folder: 'Knight', name: 'Top Can' },
+  { id: 'eskimo', folder: 'Eskimo', name: 'Aybars' },
+  { id: 'demon-red', folder: 'DemonRed', name: 'Cin' },
+  { id: 'mask-racoon', folder: 'MaskRacoon', name: 'Kemal' },
+  { id: 'fighter-white', folder: 'FighterWhite', name: 'Boran' },
 ];
 
 // Animation names mapped to their spritesheet files
@@ -52,13 +52,13 @@ const FX_MAGIC = {
 
 // Loading screen tips
 const TIPS = [
-  'Right-click to move on ice',
-  'Q / W / E / R to cast spells',
-  'Stay inside the ring!',
-  'Upgrade spells in the shop',
-  'Knock enemies out of bounds!',
-  'Ice physics: plan your path!',
-  'Heavier hits send you flying',
+  'Sağ tıkla buzda yürü',
+  'Q / W / E / R ile hünerlerini göster',
+  'Meydanın içinde kal!',
+  'Dükkânda hünerlerini pişir',
+  'Rakibi meydandan aşağı düşür!',
+  'Buz zemini: yolunu iyi hesapla!',
+  'Sert vuruş seni uçurur',
 ];
 
 export class BootScene extends Phaser.Scene {
@@ -75,15 +75,15 @@ export class BootScene extends Phaser.Scene {
     cam.setBackgroundColor('#0a0a1e');
 
     // --- Title ---
-    this.add.text(cx, cy - 120, 'DÖNER FIGHT', {
+    this.add.text(cx, cy - 120, 'ÂŞIKLAR MEYDANE', {
       fontFamily: 'monospace',
-      fontSize: '52px',
+      fontSize: '44px',
       fill: '#ffdd44',
       stroke: '#000000',
       strokeThickness: 6,
     }).setOrigin(0.5);
 
-    this.add.text(cx, cy - 75, 'Prepare for battle...', {
+    this.add.text(cx, cy - 75, 'Meydana hazırlan...', {
       fontFamily: 'monospace',
       fontSize: '14px',
       fill: '#888899',
@@ -238,6 +238,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-tab', 'assets/ui/theme-wood/tab_selected.png');
     this.load.image('ui-button-disabled', 'assets/ui/theme-wood/button_disabled.png');
     this.load.image('ui-tab-unselected', 'assets/ui/theme-wood/tab_unselected.png');
+    this.load.image('menu-bg', 'assets/ui/menu-bg.png');
 
     // --- Load Spell Icons ---
     const spellIcons = [

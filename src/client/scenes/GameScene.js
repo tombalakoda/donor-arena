@@ -362,14 +362,14 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Show round start announcement
-    this.hudManager.showAnnouncement(`Round ${data.round} / ${data.totalRounds}`);
+    this.hudManager.showAnnouncement(`Fasıl ${data.round} / ${data.totalRounds}`);
   }
 
   handleRoundEnd(data) {
     console.log('[ROUND] Round', data.round, 'ended. Winner:', data.winnerName);
     const msg = data.winnerName
-      ? `Round ${data.round} — ${data.winnerName} wins!`
-      : `Round ${data.round} — Draw!`;
+      ? `Fasıl ${data.round} — ${data.winnerName} aldı!`
+      : `Fasıl ${data.round} — Berabere!`;
     this.hudManager.showAnnouncement(msg);
   }
 
@@ -411,18 +411,18 @@ export class GameScene extends Phaser.Scene {
       this.cameras.main.shake(200, 0.012);
 
       // Big "RING OUT!" announcement
-      this.hudManager.showAnnouncement('RING OUT!', 1500);
+      this.hudManager.showAnnouncement('MEYDANDAN DÜŞTÜ!', 1500);
 
       // Kill feed with special prefix
       const msg = data.eliminatorName
-        ? `${data.eliminatorName} knocked out ${data.playerName}!`
-        : `${data.playerName} fell out of the ring!`;
+        ? `${data.eliminatorName}, ${data.playerName} âşığı susturdu!`
+        : `${data.playerName} meydandan düştü!`;
       this.hudManager.addKillFeed(msg);
     } else {
       // Regular spell kill (should be rare now)
       const msg = data.eliminatorName
-        ? `${data.eliminatorName} eliminated ${data.playerName}`
-        : `${data.playerName} was eliminated`;
+        ? `${data.eliminatorName}, ${data.playerName} âşığı susturdu`
+        : `${data.playerName} susturuldu`;
       this.hudManager.addKillFeed(msg);
     }
 

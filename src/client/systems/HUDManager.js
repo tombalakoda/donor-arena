@@ -55,7 +55,7 @@ export class HUDManager {
       fill: '#88ccff',
     }).setScrollFactor(0).setDepth(100);
 
-    this.playerCountText = scene.add.text(10, 28, 'Players: 0', {
+    this.playerCountText = scene.add.text(10, 28, 'Âşıklar: 0', {
       fontSize: '14px', fontFamily: UI_FONT,
       fill: '#88ccff',
     }).setScrollFactor(0).setDepth(100);
@@ -73,7 +73,7 @@ export class HUDManager {
       fill: '#ffffff',
     }).setScrollFactor(0).setDepth(102).setOrigin(0.5);
 
-    this.roundText = scene.add.text(camW - 10, 10, 'Round 0/20', {
+    this.roundText = scene.add.text(camW - 10, 10, 'Fasıl 0/20', {
       fontSize: '14px', fontFamily: UI_FONT,
       fill: '#ffdd44',
       fontStyle: 'bold',
@@ -204,14 +204,14 @@ export class HUDManager {
     this.spBg = scene.add.nineslice(camW / 2, slotY + slotSize / 2 + 14, 'ui-panel-2', null, 80, 20, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(99).setAlpha(0.7);
 
-    this.spText = scene.add.text(camW / 2, slotY + slotSize / 2 + 14, 'SP: 0', {
+    this.spText = scene.add.text(camW / 2, slotY + slotSize / 2 + 14, 'İlham: 0', {
       fontSize: '12px', fontFamily: UI_FONT,
       fill: '#44ddff',
       fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(100).setOrigin(0.5);
 
     if (scene.gameMode === 'sandbox') {
-      scene.add.text(camW / 2, slotY + slotSize / 2 + 30, 'Press B to open Shop', {
+      scene.add.text(camW / 2, slotY + slotSize / 2 + 30, "Dükkânı açmak için B'ye bas", {
         fontSize: '11px', fontFamily: UI_FONT,
         fill: '#666688',
       }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
@@ -373,7 +373,7 @@ export class HUDManager {
       }
       const totalPlayers = 1 + scene.remotePlayers.size;
       if (totalPlayers !== this._lastPlayerCount) {
-        this.playerCountText.setText(`Players: ${totalPlayers}`);
+        this.playerCountText.setText(`Âşıklar: ${totalPlayers}`);
         this._lastPlayerCount = totalPlayers;
       }
     }
@@ -395,7 +395,7 @@ export class HUDManager {
           this.hpBarFill.fillColor = 0xff3333;
         }
         const vulnPercent = Math.round((1 - hpRatio) * 100);
-        this.hpText.setText(`${Math.ceil(scene.localHp)} HP  (${vulnPercent}% vuln)`);
+        this.hpText.setText(`${Math.ceil(scene.localHp)} Nefes  (${vulnPercent}% açık)`);
       }
 
       // Pulse animation still runs every frame (only when low HP)
@@ -413,9 +413,9 @@ export class HUDManager {
 
     if (this.roundText) {
       if (scene.gameMode === 'sandbox') {
-        this.roundText.setText('SANDBOX');
+        this.roundText.setText('SERBEST MEYDAN');
       } else {
-        this.roundText.setText(`Round ${scene.roundNumber}/${scene.totalRounds}`);
+        this.roundText.setText(`Fasıl ${scene.roundNumber}/${scene.totalRounds}`);
       }
     }
 
@@ -426,7 +426,7 @@ export class HUDManager {
         this.timerText.setFill(seconds <= 10 ? '#ff4444' : '#88ccff');
       } else if (scene.phase === 'shop') {
         const seconds = Math.ceil(scene.shopTimeRemaining);
-        this.timerText.setText(`Shop: ${seconds}s`);
+        this.timerText.setText(`Dükkân: ${seconds}s`);
         this.timerText.setFill('#ffdd44');
       } else {
         this.timerText.setText('');
@@ -473,12 +473,12 @@ export class HUDManager {
 
     if (this.phaseText) {
       const phaseLabels = {
-        waiting: 'Waiting for players...',
+        waiting: 'Âşıklar bekleniyor...',
         countdown: '',
         playing: '',
-        roundEnd: 'Round Over',
-        shop: 'Shop Phase',
-        matchEnd: 'Match Complete',
+        roundEnd: 'Fasıl Tamam',
+        shop: 'Dükkân Vakti',
+        matchEnd: 'Atışma Tamam',
       };
       this.phaseText.setText(phaseLabels[scene.phase] || '');
     }
@@ -577,7 +577,7 @@ export class HUDManager {
     }
 
     if (this.spText && scene.progression) {
-      this.spText.setText(`SP: ${scene.progression.sp}`);
+      this.spText.setText(`İlham: ${scene.progression.sp}`);
     }
   }
 

@@ -65,7 +65,7 @@ export class MatchEndOverlay {
     this.elements.push(panel);
 
     // Title
-    const title = scene.add.text(camW / 2, py + 30, 'MATCH OVER', {
+    const title = scene.add.text(camW / 2, py + 30, 'ATIŞMA BİTTİ', {
       fontSize: '32px',
       fontFamily: UI_FONT,
       fill: '#ffdd44',
@@ -74,7 +74,7 @@ export class MatchEndOverlay {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
     this.elements.push(title);
 
-    const sub = scene.add.text(camW / 2, py + 60, 'DÖNER FIGHT', {
+    const sub = scene.add.text(camW / 2, py + 60, 'ÂŞIKLAR MEYDANE', {
       fontSize: '13px',
       fontFamily: UI_FONT,
       fill: '#666688',
@@ -127,10 +127,10 @@ export class MatchEndOverlay {
     const headerStyle = { fontSize: '12px', fontFamily: UI_FONT, fill: '#888899' };
     const headers = [
       scene.add.text(cols.rank, tableY, '#', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
-      scene.add.text(cols.name, tableY, 'Player', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
-      scene.add.text(cols.pts, tableY, 'Pts', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
-      scene.add.text(cols.elims, tableY, 'Elims', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
-      scene.add.text(cols.wins, tableY, 'Wins', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
+      scene.add.text(cols.name, tableY, 'Âşık', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
+      scene.add.text(cols.pts, tableY, 'Puan', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
+      scene.add.text(cols.elims, tableY, 'Düşür', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
+      scene.add.text(cols.wins, tableY, 'Fasıl', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
     ];
     this.elements.push(...headers);
 
@@ -213,7 +213,7 @@ export class MatchEndOverlay {
     // --- Buttons ---
     const btnY = py + panelH - 45;
 
-    const { elements: menuEls } = createNinesliceButton(scene, camW / 2 - 90, btnY, 'Menu', {
+    const { elements: menuEls } = createNinesliceButton(scene, camW / 2 - 90, btnY, 'Meydan', {
       width: 150, height: 40, depth: DEPTH + 3, fontSize: '15px',
       onClick: () => {
         this.playSfx('sfx-accept');
@@ -223,7 +223,7 @@ export class MatchEndOverlay {
     });
     this.elements.push(...menuEls);
 
-    const { elements: playEls } = createNinesliceButton(scene, camW / 2 + 90, btnY, 'Play Again', {
+    const { elements: playEls } = createNinesliceButton(scene, camW / 2 + 90, btnY, 'Bir Daha', {
       width: 150, height: 40, depth: DEPTH + 3, fontSize: '15px',
       onClick: () => {
         this.playSfx('sfx-accept');

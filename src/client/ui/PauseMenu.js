@@ -67,7 +67,7 @@ export class PauseMenu {
     this.elements.push(panel);
 
     // Title
-    const title = scene.add.text(camW / 2, camH / 2 - 90, 'PAUSED', {
+    const title = scene.add.text(camW / 2, camH / 2 - 90, 'ARA', {
       fontSize: '36px',
       fontFamily: UI_FONT,
       fill: '#ffdd44',
@@ -77,7 +77,7 @@ export class PauseMenu {
     this.elements.push(title);
 
     // Subtitle
-    const sub = scene.add.text(camW / 2, camH / 2 - 55, 'DÖNER FIGHT', {
+    const sub = scene.add.text(camW / 2, camH / 2 - 55, 'ÂŞIKLAR MEYDANE', {
       fontSize: '14px',
       fontFamily: UI_FONT,
       fill: '#666688',
@@ -85,7 +85,7 @@ export class PauseMenu {
     this.elements.push(sub);
 
     // Resume button
-    const { elements: resumeEls } = createNinesliceButton(scene, camW / 2, camH / 2, 'Resume', {
+    const { elements: resumeEls } = createNinesliceButton(scene, camW / 2, camH / 2, 'Devam', {
       width: 240, height: 44, depth: DEPTH + 2, fontSize: '16px',
       onClick: () => {
         this.playSfx('sfx-accept');
@@ -96,7 +96,7 @@ export class PauseMenu {
     this.elements.push(...resumeEls);
 
     // Return to Menu button
-    const { elements: menuEls } = createNinesliceButton(scene, camW / 2, camH / 2 + 60, 'Return to Menu', {
+    const { elements: menuEls } = createNinesliceButton(scene, camW / 2, camH / 2 + 60, 'Meydana Dön', {
       width: 240, height: 44, depth: DEPTH + 2, fontSize: '16px',
       onClick: () => {
         this.playSfx('sfx-accept');
@@ -126,7 +126,7 @@ export class PauseMenu {
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.elements.push(confirmPanel);
 
-    const msg = scene.add.text(camW / 2, camH / 2 - 35, 'Leave the match?', {
+    const msg = scene.add.text(camW / 2, camH / 2 - 35, 'Atışmadan ayrılacak mısın?', {
       fontSize: '18px',
       fontFamily: UI_FONT,
       fill: '#ffdd44',
@@ -134,7 +134,7 @@ export class PauseMenu {
     this.elements.push(msg);
 
     // Yes button
-    const { elements: yesEls } = createNinesliceButton(scene, camW / 2 - 70, camH / 2 + 25, 'Yes', {
+    const { elements: yesEls } = createNinesliceButton(scene, camW / 2 - 70, camH / 2 + 25, 'He', {
       width: 110, height: 40, depth: DEPTH + 2, fontSize: '15px',
       onClick: () => {
         this.returnToMenu();
@@ -144,7 +144,7 @@ export class PauseMenu {
     this.elements.push(...yesEls);
 
     // No button
-    const { elements: noEls } = createNinesliceButton(scene, camW / 2 + 70, camH / 2 + 25, 'No', {
+    const { elements: noEls } = createNinesliceButton(scene, camW / 2 + 70, camH / 2 + 25, 'Yok', {
       width: 110, height: 40, depth: DEPTH + 2, fontSize: '15px',
       onClick: () => {
         this.playSfx('sfx-cancel');

@@ -42,7 +42,7 @@ export class ShopOverlay {
   updateTimer(remaining) {
     this.shopTimer = remaining;
     if (this.timerText && !this.timerText.destroyed) {
-      this.timerText.setText(`Shop closes in ${Math.ceil(remaining)}s`);
+      this.timerText.setText(`Dükkân ${Math.ceil(remaining)}s içinde kapanır`);
     }
   }
 
@@ -58,7 +58,7 @@ export class ShopOverlay {
     this.elements.push(this.bg);
 
     // Title
-    const title = scene.add.text(camW / 2, 16, 'SPELL SHOP', {
+    const title = scene.add.text(camW / 2, 16, 'HÜNER DÜKKÂNI', {
       fontSize: '22px', fontFamily: UI_FONT, fill: '#ffdd44', fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 3,
     }).setScrollFactor(0).setDepth(301).setOrigin(0.5, 0);
@@ -66,13 +66,13 @@ export class ShopOverlay {
 
     // SP counter
     const sp = prog ? prog.sp : 0;
-    this.spText = scene.add.text(camW / 2, 42, `SP ${sp}`, {
+    this.spText = scene.add.text(camW / 2, 42, `İlham ${sp}`, {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#44ddff', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(301).setOrigin(0.5, 0);
     this.elements.push(this.spText);
 
     // Timer
-    this.timerText = scene.add.text(camW / 2, 62, `Shop closes in ${Math.ceil(this.shopTimer)}s`, {
+    this.timerText = scene.add.text(camW / 2, 62, `Dükkân ${Math.ceil(this.shopTimer)}s içinde kapanır`, {
       fontSize: '11px', fontFamily: UI_FONT, fill: '#888888',
     }).setScrollFactor(0).setDepth(301).setOrigin(0.5, 0);
     this.elements.push(this.timerText);
@@ -120,7 +120,7 @@ export class ShopOverlay {
     }).setScrollFactor(0).setDepth(302);
     this.elements.push(slotLabel);
 
-    const slotNames = { Q: 'ATTACK', W: 'MOBILITY', E: 'CONTROL', R: 'ULTIMATE' };
+    const slotNames = { Q: 'SÖZ', W: 'EL', E: 'DİL', R: 'BEL' };
     const slotNameLabel = scene.add.text(x + 40, y + 8, slotNames[slot], {
       fontSize: '14px', fontFamily: UI_FONT, fill: '#aaaaaa', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(302);
@@ -136,18 +136,18 @@ export class ShopOverlay {
       }).setScrollFactor(0).setDepth(302).setOrigin(0.5);
       this.elements.push(lockIcon);
 
-      const lockLabel = scene.add.text(x + width / 2, lockY + 35, 'LOCKED', {
+      const lockLabel = scene.add.text(x + width / 2, lockY + 35, 'KİLİTLİ', {
         fontSize: '16px', fontFamily: UI_FONT, fill: '#555555', fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(302).setOrigin(0.5);
       this.elements.push(lockLabel);
 
-      const costLabel = scene.add.text(x + width / 2, lockY + 56, `Unlock: ${SP.SLOT_UNLOCK_COST} SP`, {
+      const costLabel = scene.add.text(x + width / 2, lockY + 56, `Aç: ${SP.SLOT_UNLOCK_COST} İlham`, {
         fontSize: '13px', fontFamily: UI_FONT, fill: '#888888',
       }).setScrollFactor(0).setDepth(302).setOrigin(0.5);
       this.elements.push(costLabel);
 
       const canUnlock = prog && prog.sp >= SP.SLOT_UNLOCK_COST;
-      const { elements: btnEls } = createNinesliceButton(scene, x + width / 2, lockY + 85, 'Unlock', {
+      const { elements: btnEls } = createNinesliceButton(scene, x + width / 2, lockY + 85, 'Aç', {
         width: 160, height: 32, depth: 303, fontSize: '12px',
         enabled: canUnlock,
         onClick: () => {
@@ -373,7 +373,7 @@ export class ShopOverlay {
         // Upgrade button — nineslice button
         const cost = nextTier.cost;
         const canUpgrade = prog && prog.sp >= cost;
-        const { elements: btnEls } = createNinesliceButton(scene, x + width / 2, contentY, `Upgrade (${cost} SP)`, {
+        const { elements: btnEls } = createNinesliceButton(scene, x + width / 2, contentY, `Pişir (${cost} İlham)`, {
           width: 160, height: 32, depth: 303, fontSize: '12px',
           enabled: canUpgrade,
           onClick: () => {
@@ -385,7 +385,7 @@ export class ShopOverlay {
         this.elements.push(...btnEls);
       } else {
         contentY += 10;
-        const maxLabel = scene.add.text(x + width / 2, contentY, 'MAX LEVEL', {
+        const maxLabel = scene.add.text(x + width / 2, contentY, 'EN ÜST PÂYE', {
           fontSize: '13px', fontFamily: UI_FONT, fill: '#ffdd44', fontStyle: 'bold',
         }).setScrollFactor(0).setDepth(302).setOrigin(0.5);
         this.elements.push(maxLabel);
@@ -393,7 +393,7 @@ export class ShopOverlay {
     } else {
       // No spell chosen yet — prompt
       contentY += 10;
-      const promptLabel = scene.add.text(x + width / 2, contentY, `Choose a spell (${SP.SPELL_CHOICE_COST} SP)`, {
+      const promptLabel = scene.add.text(x + width / 2, contentY, `Hüner seç (${SP.SPELL_CHOICE_COST} İlham)`, {
         fontSize: '12px', fontFamily: UI_FONT, fill: '#888888',
       }).setScrollFactor(0).setDepth(302).setOrigin(0.5);
       this.elements.push(promptLabel);

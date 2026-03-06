@@ -4,20 +4,20 @@ import { getPassive } from '../../shared/characterPassives.js';
 
 // Loading-screen style tips for re-use
 const TIPS = [
-  'Right-click to move on ice',
-  'Q / W / E / R to cast spells',
-  'Stay inside the ring!',
-  'Upgrade spells in the shop',
-  'Knock enemies out of bounds!',
-  'Ice physics: plan your path!',
-  'Heavier hits send you flying',
+  'Sağ tıkla buzda yürü',
+  'Q / W / E / R ile hünerlerini göster',
+  'Meydanın içinde kal!',
+  'Dükkânda hünerlerini pişir',
+  'Rakibi meydandan aşağı düşür!',
+  'Buz zemini: yolunu iyi hesapla!',
+  'Sert vuruş seni uçurur',
 ];
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MenuScene' });
     this.selectedCharIndex = 0;
-    this.playerName = 'Player';
+    this.playerName = 'Âşık';
     this.charCells = [];
     this.previewSprite = null;
     this.nameInput = null;
@@ -53,20 +53,21 @@ export class MenuScene extends Phaser.Scene {
   // =========================================================================
 
   createBackground(camW, camH) {
-    // Layer 1: Tiled wood floor via RenderTexture
-    const rt = this.add.renderTexture(0, 0, camW, camH).setOrigin(0).setDepth(0);
-    const stamp = this.make.sprite({ x: 0, y: 0, key: 'tile-floor', frame: 113, add: false });
-    stamp.setOrigin(0);
-    for (let y = 0; y < camH; y += 16) {
-      for (let x = 0; x < camW; x += 16) {
-        rt.draw(stamp, x, y);
-      }
+    // Layer 1: Full-bleed background image — scale to cover the canvas
+    if (this.textures.exists('menu-bg')) {
+      const bg = this.add.image(camW / 2, camH / 2, 'menu-bg').setDepth(0);
+      const scaleX = camW / bg.width;
+      const scaleY = camH / bg.height;
+      const scale = Math.max(scaleX, scaleY); // cover, not contain
+      bg.setScale(scale);
+    } else {
+      // Fallback: solid dark background
+      this.cameras.main.setBackgroundColor('#0a0a1e');
     }
-    stamp.destroy();
 
-    // Layer 2: Dark warm overlay
+    // Layer 2: Subtle dark vignette overlay so UI text is readable
     const overlay = this.add.graphics().setDepth(1);
-    overlay.fillStyle(0x0d0a06, 0.7);
+    overlay.fillStyle(0x000000, 0.25);
     overlay.fillRect(0, 0, camW, camH);
 
     // Layer 3: Atmospheric floating spirit particles
@@ -102,7 +103,7 @@ export class MenuScene extends Phaser.Scene {
       .setAlpha(0.55).setDepth(15);
 
     // Glow text
-    const titleGlow = this.add.text(camW / 2, 42, 'DÖNER FIGHT', {
+    const titleGlow = this.add.text(camW / 2, 42, 'ÂŞIKLAR MEYDANE', {
       fontSize: '48px', fontFamily: 'monospace',
       fill: '#ffaa33', stroke: '#ffaa33', strokeThickness: 16,
     }).setOrigin(0.5).setAlpha(0.12).setDepth(16);
@@ -115,7 +116,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // Main title
-    const titleText = this.add.text(camW / 2, 42, 'DÖNER FIGHT', {
+    const titleText = this.add.text(camW / 2, 42, 'ÂŞIKLAR MEYDANE', {
       fontSize: '48px', fontFamily: 'monospace',
       fill: '#ffdd44', stroke: '#000000', strokeThickness: 6,
     }).setOrigin(0.5).setDepth(17);
@@ -127,7 +128,7 @@ export class MenuScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    this.add.text(camW / 2, 80, 'Choose your fighter', {
+    this.add.text(camW / 2, 80, 'Aşığını seç', {
       fontSize: '13px', fontFamily: 'monospace', fill: '#887766',
     }).setOrigin(0.5).setDepth(17);
   }
@@ -341,13 +342,13 @@ export class MenuScene extends Phaser.Scene {
     this.add.nineslice(camW / 2, nameY, 'ui-panel', null, 380, 44, 4, 4, 4, 4)
       .setDepth(10);
 
-    this.add.text(camW / 2 - 150, nameY, 'Name:', {
+    this.add.text(camW / 2 - 150, nameY, 'Mahlas:', {
       fontSize: '15px', fontFamily: 'monospace', fill: '#ddccaa',
     }).setOrigin(0, 0.5).setDepth(12);
 
     const inputElement = document.createElement('input');
     inputElement.type = 'text';
-    inputElement.value = 'Player';
+    inputElement.value = 'Âşık';
     inputElement.maxLength = 16;
     inputElement.style.cssText = `
       font-size: 15px; font-family: monospace;
@@ -366,15 +367,15 @@ export class MenuScene extends Phaser.Scene {
   createButtons(camW, _camH) {
     const btnY = 570;
 
-    this.createButton(camW / 2 - 110, btnY, 'PLAY', () => {
+    this.createButton(camW / 2 - 110, btnY, 'MEYDANE', () => {
       this.startGame('normal');
     });
 
-    this.createButton(camW / 2 + 110, btnY, 'SANDBOX', () => {
+    this.createButton(camW / 2 + 110, btnY, 'SERBEST', () => {
       this.startGame('sandbox');
     });
 
-    this.add.text(camW / 2, btnY + 34, 'Sandbox: Free SP, training dummies, no ring shrink', {
+    this.add.text(camW / 2, btnY + 34, 'Serbest Meydan: Sınırsız İlham, talim kuklaları, meydan daralmasız', {
       fontSize: '10px', fontFamily: 'monospace', fill: '#665544',
     }).setOrigin(0.5).setDepth(12);
   }
@@ -559,7 +560,7 @@ export class MenuScene extends Phaser.Scene {
     this.transitioning = true;
 
     const char = CHARACTERS[this.selectedCharIndex];
-    const name = this.nameInput ? this.nameInput.node.value.trim() || 'Player' : 'Player';
+    const name = this.nameInput ? this.nameInput.node.value.trim() || 'Âşık' : 'Âşık';
 
     this.playSfx('sfx-accept');
 
