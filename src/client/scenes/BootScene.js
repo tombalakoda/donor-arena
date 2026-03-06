@@ -237,6 +237,8 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-tab',             'assets/ui/humble/btn_tab_a.png');
     this.load.image('ui-button-disabled', 'assets/ui/humble/button.png');          // tint-based
     this.load.image('ui-tab-unselected',  'assets/ui/humble/btn_tab_b.png');
+    this.load.image('ui-nameplate',       'assets/ui/humble/nameplate.png');
+    this.load.image('ui-title-bar',       'assets/ui/humble/title_bar.png');
     this.load.image('menu-bg', 'assets/ui/menu-bg.png');
 
     // --- Load Spell Icons ---
