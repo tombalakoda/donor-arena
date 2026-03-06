@@ -263,10 +263,9 @@ export class BootScene extends Phaser.Scene {
     this.load.audio('jingle-success', 'assets/audio/jingles/Success1.wav');
     this.load.audio('jingle-gameover', 'assets/audio/jingles/GameOver.wav');
     this.load.audio('jingle-levelup', 'assets/audio/jingles/LevelUp1.wav');
-    // Menu music
-    this.load.audio('music-menu', 'assets/audio/music/4 - Village.ogg');
-    // Fight music
-    this.load.audio('music-fight', 'assets/audio/music/17 - Fight.ogg');
+    // Background music (single track for menu + fight)
+    this.load.audio('music-menu', 'assets/audio/music/mesnoremix.mp3');
+    this.load.audio('music-fight', 'assets/audio/music/mesnoremix.mp3');
   }
 
   create() {
