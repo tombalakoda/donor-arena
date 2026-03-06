@@ -278,12 +278,12 @@ export class ShopOverlay {
     this.content.push(leftPanel);
 
     // Section header — inside panel, near top
-    const headerY = panelTop + 22;
-    const headerBg = s.add.nineslice(LCX, headerY, 'ui-nameplate', null, LW - 40, 32, 7, 7, 7, 7)
+    const headerY = panelTop + 24;
+    const headerBg = s.add.nineslice(LCX, headerY, 'ui-nameplate', null, LW - 40, 38, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(headerBg);
 
-    const headerText = s.add.text(LCX, headerY, `${SLOT_NAMES[slot]} Hünerleri`, {
+    const headerText = s.add.text(LCX, headerY - 4, `${SLOT_NAMES[slot]} Hünerleri`, {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
     this.content.push(headerText);
@@ -332,13 +332,13 @@ export class ShopOverlay {
       }
 
       // Spell name (nameplate)
-      const nameBg = s.add.nineslice(nameX, rowY, 'ui-nameplate', null, nameW, 28, 7, 7, 7, 7)
+      const nameBg = s.add.nineslice(nameX, rowY, 'ui-nameplate', null, nameW, 36, 7, 7, 7, 7)
         .setScrollFactor(0).setDepth(DEPTH + 3);
       if (isChosen) nameBg.setTint(SLOT_COLORS[slot].tint);
       this.content.push(nameBg);
 
       const nameColor = isChosen ? '#ffffff' : '#3a2218';
-      const nameText = s.add.text(nameX, rowY, def.name, {
+      const nameText = s.add.text(nameX, rowY - 4, def.name, {
         fontSize: '16px', fontFamily: UI_FONT, fill: nameColor,
         fontStyle: isChosen ? 'bold' : 'normal',
       }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
@@ -455,12 +455,12 @@ export class ShopOverlay {
     this.content.push(desc);
 
     // ── Middle: Stat Bars ──
-    const statsStartY = frameY + 60;
-    const statsHeaderBg = s.add.nineslice(RCX, statsStartY, 'ui-nameplate', null, Math.min(320, RW - 60), 28, 7, 7, 7, 7)
+    const statsStartY = frameY + 64;
+    const statsHeaderBg = s.add.nineslice(RCX, statsStartY, 'ui-nameplate', null, Math.min(320, RW - 60), 38, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(statsHeaderBg);
 
-    const statsHeader = s.add.text(RCX, statsStartY, 'Değerler', {
+    const statsHeader = s.add.text(RCX, statsStartY - 4, 'Değerler', {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
     this.content.push(statsHeader);
@@ -479,11 +479,11 @@ export class ShopOverlay {
     const tierCX = tierLeftX + 100;
 
     // Tier header
-    const tierHeaderBg = s.add.nineslice(tierCX, tierY, 'ui-nameplate', null, 160, 28, 7, 7, 7, 7)
+    const tierHeaderBg = s.add.nineslice(tierCX, tierY, 'ui-nameplate', null, 160, 38, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(tierHeaderBg);
 
-    const tierHeader = s.add.text(tierCX, tierY, `Pâye ${currentTier}/${maxTier}`, {
+    const tierHeader = s.add.text(tierCX, tierY - 4, `Pâye ${currentTier}/${maxTier}`, {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
     this.content.push(tierHeader);
@@ -592,11 +592,11 @@ export class ShopOverlay {
     const barR = RR - 60;
     const barW = barR - barL;
     const barCX = barL + barW / 2;
-    const barH = 22;
+    const barH = 24;
     const fillMaxW = barW - 20;
 
-    // Label
-    const label = s.add.text(labelX, y, `${statDef.label}:`, {
+    // Label — nudge up 4px so KiwiSoda descenders don't clip the bar
+    const label = s.add.text(labelX, y - 4, `${statDef.label}:`, {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0, 0.5);
     this.content.push(label);
@@ -621,9 +621,9 @@ export class ShopOverlay {
     ).setScrollFactor(0).setDepth(DEPTH + 4).setTint(SLOT_COLORS[slot].tint);
     this.content.push(fill);
 
-    // Value text
+    // Value text — nudge up 4px to match label
     const displayVal = statDef.fmt(value);
-    const valText = s.add.text(barR + 6, y, displayVal, {
+    const valText = s.add.text(barR + 6, y - 4, displayVal, {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#2a4466',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0, 0.5);
     this.content.push(valText);
