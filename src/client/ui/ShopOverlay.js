@@ -94,6 +94,21 @@ export class ShopOverlay {
     const W = s.cameras.main.width;
     const H = s.cameras.main.height;
 
+    // Store layout metrics for content builders
+    this._W = W;
+    this._H = H;
+    this._margin = 20;
+    this._bodyTop = 112;   // below tab row
+    this._bodyBot = 660;   // above bottom bar
+    this._bodyCY = (this._bodyTop + this._bodyBot) / 2;
+    this._bodyH = this._bodyBot - this._bodyTop;
+
+    // Left/right panel split
+    this._leftW = Math.min(340, Math.round(W * 0.28));
+    this._leftCX = this._margin + this._leftW / 2;
+    this._rightCX = this._leftCX + this._leftW / 2 + (W - 2 * this._margin - this._leftW) / 2;
+    this._rightW = W - 2 * this._margin - this._leftW - 10; // 10px gap between panels
+
     // ── Dimmer ──
     const dimmer = s.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.82)
       .setScrollFactor(0).setDepth(DEPTH).setInteractive();
@@ -106,10 +121,8 @@ export class ShopOverlay {
     this._buildTabRow(W);
 
     // ── Main Body Panel (outer) ──
-    const bodyW = W - 40;
-    const bodyH = 548;
-    const bodyCY = 386;
-    const body = s.add.nineslice(W / 2, bodyCY, 'ui-panel', null, bodyW, bodyH, 7, 7, 7, 7)
+    const bodyW = W - 2 * this._margin;
+    const body = s.add.nineslice(W / 2, this._bodyCY, 'ui-panel', null, bodyW, this._bodyH, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.chrome.push(body);
 
@@ -204,13 +217,14 @@ export class ShopOverlay {
   // ═══════════════════════════════════════════════════════════════════
   _buildBottomBar(W) {
     const s = this.scene;
+    const barY = this._bodyBot + 30;
 
-    const bar = s.add.nineslice(W / 2, 688, 'ui-scroll', null, W - 40, 48, 7, 7, 7, 7)
+    const bar = s.add.nineslice(W / 2, barY, 'ui-scroll', null, W - 2 * this._margin, 48, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.chrome.push(bar);
 
     const sp = this.progression ? this.progression.sp : 0;
-    this._spTextBottom = s.add.text(120, 688, `İlham: ${sp}`, {
+    this._spTextBottom = s.add.text(this._margin + 100, barY, `İlham: ${sp}`, {
       fontSize: '32px', fontFamily: UI_FONT, fill: '#44ddff', fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 2,
     }).setScrollFactor(0).setDepth(DEPTH + 2).setOrigin(0.5);
@@ -251,27 +265,41 @@ export class ShopOverlay {
     const chosenSpellId = spellState ? spellState.chosenSpell : null;
     const availableSpells = SLOT_SPELLS[slot] || [];
 
+    const LCX = this._leftCX;
+    const LW = this._leftW;
+    const panelTop = this._bodyTop + 8;
+    const panelBot = this._bodyBot - 8;
+    const panelH = panelBot - panelTop;
+    const panelCY = (panelTop + panelBot) / 2;
+
     // Left panel background
-    const leftPanel = s.add.nineslice(200, 386, 'ui-panel-2', null, 320, 520, 7, 7, 7, 7)
+    const leftPanel = s.add.nineslice(LCX, panelCY, 'ui-panel-2', null, LW, panelH, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 2);
     this.content.push(leftPanel);
 
-    // Section header
-    const headerBg = s.add.nineslice(200, 134, 'ui-nameplate', null, 280, 32, 7, 7, 7, 7)
+    // Section header — inside panel, near top
+    const headerY = panelTop + 22;
+    const headerBg = s.add.nineslice(LCX, headerY, 'ui-nameplate', null, LW - 40, 32, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(headerBg);
 
-    const headerText = s.add.text(200, 134, `${SLOT_NAMES[slot]} Hünerleri`, {
+    const headerText = s.add.text(LCX, headerY, `${SLOT_NAMES[slot]} Hünerleri`, {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
     this.content.push(headerText);
 
-    // Spell rows
+    // Spell rows — below header, centered vertically in remaining space
+    const listTop = headerY + 28;
+    const listBot = panelBot - 10;
+    const listH = listBot - listTop;
     const spellCount = availableSpells.length;
-    // Center the rows vertically within the panel
-    const rowH = 66;
+    const rowH = Math.min(66, Math.floor(listH / Math.max(spellCount, 1)));
     const totalListH = spellCount * rowH;
-    const listStartY = 386 - totalListH / 2 + rowH / 2 + 16; // +16 to account for header
+    const listStartY = listTop + (listH - totalListH) / 2 + rowH / 2;
+
+    const cellX = LCX - LW / 2 + 44;       // icon cell position
+    const nameX = LCX + 20;                  // nameplate center
+    const nameW = LW - 100;                  // nameplate width
 
     for (let i = 0; i < spellCount; i++) {
       const spellId = availableSpells[i];
@@ -284,49 +312,50 @@ export class ShopOverlay {
       const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
 
       // Cell background
-      const cellBg = s.add.nineslice(100, rowY, 'ui-inventory-cell', null, 56, 56, 7, 7, 7, 7)
+      const cellBg = s.add.nineslice(cellX, rowY, 'ui-inventory-cell', null, 56, 56, 7, 7, 7, 7)
         .setScrollFactor(0).setDepth(DEPTH + 3);
       this.content.push(cellBg);
 
       // Chosen highlight
       if (isChosen) {
-        const focus = s.add.nineslice(100, rowY, 'ui-focus', null, 62, 62, 7, 7, 7, 7)
+        const focus = s.add.nineslice(cellX, rowY, 'ui-focus', null, 62, 62, 7, 7, 7, 7)
           .setTint(0xffdd44).setScrollFactor(0).setDepth(DEPTH + 3);
         this.content.push(focus);
       }
 
       // Spell icon
       if (def.icon && s.textures.exists(def.icon)) {
-        const icon = s.add.image(100, rowY, def.icon).setScrollFactor(0).setDepth(DEPTH + 4);
+        const icon = s.add.image(cellX, rowY, def.icon).setScrollFactor(0).setDepth(DEPTH + 4);
         const scale = 40 / Math.max(icon.width, icon.height);
         icon.setScale(scale);
         this.content.push(icon);
       }
 
       // Spell name (nameplate)
-      const nameBg = s.add.nineslice(248, rowY, 'ui-nameplate', null, 180, 28, 7, 7, 7, 7)
+      const nameBg = s.add.nineslice(nameX, rowY, 'ui-nameplate', null, nameW, 28, 7, 7, 7, 7)
         .setScrollFactor(0).setDepth(DEPTH + 3);
       if (isChosen) nameBg.setTint(SLOT_COLORS[slot].tint);
       this.content.push(nameBg);
 
       const nameColor = isChosen ? '#ffffff' : '#3a2218';
-      const nameText = s.add.text(248, rowY, def.name, {
+      const nameText = s.add.text(nameX, rowY, def.name, {
         fontSize: '16px', fontFamily: UI_FONT, fill: nameColor,
         fontStyle: isChosen ? 'bold' : 'normal',
       }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
       this.content.push(nameText);
 
       // Hit area for the whole row
-      const hit = s.add.nineslice(200, rowY, 'ui-inventory-cell', null, 310, rowH - 4, 7, 7, 7, 7)
+      const hit = s.add.nineslice(LCX, rowY, 'ui-inventory-cell', null, LW - 10, rowH - 4, 7, 7, 7, 7)
         .setScrollFactor(0).setDepth(DEPTH + 5).setAlpha(0.001)
         .setInteractive({ useHandCursor: !isChosen && canAfford });
       this.content.push(hit);
 
+      const tooltipX = LCX + LW / 2 + 10;
       if (!isChosen && canAfford) {
         hit.on('pointerover', () => {
           cellBg.setTint(0xddccaa);
           nameBg.setTint(0xddccaa);
-          this._showTooltip(350, rowY, def, spellId, isFirstChoice);
+          this._showTooltip(tooltipX, rowY, def, spellId, isFirstChoice);
         });
         hit.on('pointerout', () => {
           cellBg.clearTint();
@@ -340,7 +369,7 @@ export class ShopOverlay {
         });
       } else if (isChosen) {
         hit.on('pointerover', () => {
-          this._showTooltip(350, rowY, def, spellId, false);
+          this._showTooltip(tooltipX, rowY, def, spellId, false);
         });
         hit.on('pointerout', () => {
           this._hideTooltip();
@@ -360,14 +389,22 @@ export class ShopOverlay {
     const chosenSpellId = spellState ? spellState.chosenSpell : null;
     const currentTier = spellState ? spellState.tier : 0;
 
+    const RCX = this._rightCX;
+    const RW = this._rightW;
+    const panelTop = this._bodyTop + 8;
+    const panelBot = this._bodyBot - 8;
+    const panelH = panelBot - panelTop;
+    const panelCY = (panelTop + panelBot) / 2;
+    const RL = RCX - RW / 2;  // right panel left edge
+    const RR = RCX + RW / 2;  // right panel right edge
+
     // Right panel background
-    const rightPanel = s.add.nineslice(740, 386, 'ui-panel', null, 860, 520, 7, 7, 7, 7)
+    const rightPanel = s.add.nineslice(RCX, panelCY, 'ui-panel', null, RW, panelH, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 2);
     this.content.push(rightPanel);
 
     if (!chosenSpellId) {
-      // No spell chosen — prompt
-      const prompt = s.add.text(740, 386, `Soldan bir hüner seç\n(${SP.SPELL_CHOICE_COST} İlham)`, {
+      const prompt = s.add.text(RCX, panelCY, `Soldan bir hüner seç\n(${SP.SPELL_CHOICE_COST} İlham)`, {
         fontSize: '32px', fontFamily: UI_FONT, fill: '#5a3a28', align: 'center',
       }).setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5);
       this.content.push(prompt);
@@ -382,15 +419,13 @@ export class ShopOverlay {
     const maxTier = getMaxTier(chosenSpellId);
 
     // ── Top: Spell Identity ──
-    // Large inventory cell as icon frame (portrait_frame.png is a character portrait, not a frame)
-    const frameX = 500;
-    const frameY = 170;
+    const frameX = RL + 60;
+    const frameY = panelTop + 60;
 
     const frameBg = s.add.nineslice(frameX, frameY, 'ui-inventory-cell', null, 80, 80, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(frameBg);
 
-    // Spell icon inside the cell
     if (def.icon && s.textures.exists(def.icon)) {
       const bigIcon = s.add.image(frameX, frameY, def.icon)
         .setScrollFactor(0).setDepth(DEPTH + 4);
@@ -399,32 +434,33 @@ export class ShopOverlay {
       this.content.push(bigIcon);
     }
 
-    // Spell name title bar
-    const nameCX = 800;
-    const nameBar = s.add.nineslice(nameCX, 155, 'ui-title-bar', null, 400, 44, 7, 7, 7, 7)
+    // Spell name title bar — to the right of the icon
+    const nameCX = frameX + 50 + (RR - frameX - 50) / 2;
+    const nameTitleW = Math.min(RR - frameX - 70, 400);
+    const nameBar = s.add.nineslice(nameCX, frameY - 15, 'ui-title-bar', null, nameTitleW, 44, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(nameBar);
 
-    const nameText = s.add.text(nameCX, 155, def.name, {
+    const nameText = s.add.text(nameCX, frameY - 15, def.name, {
       fontSize: '32px', fontFamily: UI_FONT, fill: SLOT_COLORS[slot].hex, fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 2,
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
     this.content.push(nameText);
 
     // Description
-    const desc = s.add.text(nameCX, 190, def.description, {
+    const desc = s.add.text(nameCX, frameY + 10, def.description, {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#5a3a28',
-      wordWrap: { width: 400 }, align: 'center',
+      wordWrap: { width: nameTitleW - 20 }, align: 'center',
     }).setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5, 0);
     this.content.push(desc);
 
     // ── Middle: Stat Bars ──
-    const statsStartY = 240;
-    const statsHeaderBg = s.add.nineslice(740, statsStartY, 'ui-nameplate', null, 320, 28, 7, 7, 7, 7)
+    const statsStartY = frameY + 60;
+    const statsHeaderBg = s.add.nineslice(RCX, statsStartY, 'ui-nameplate', null, Math.min(320, RW - 60), 28, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(statsHeaderBg);
 
-    const statsHeader = s.add.text(740, statsStartY, 'Değerler', {
+    const statsHeader = s.add.text(RCX, statsStartY, 'Değerler', {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
     this.content.push(statsHeader);
@@ -439,13 +475,15 @@ export class ShopOverlay {
 
     // ── Tier Progress ──
     const tierY = statY + 44;
+    const tierLeftX = RL + 30;
+    const tierCX = tierLeftX + 100;
 
     // Tier header
-    const tierHeaderBg = s.add.nineslice(580, tierY, 'ui-nameplate', null, 160, 28, 7, 7, 7, 7)
+    const tierHeaderBg = s.add.nineslice(tierCX, tierY, 'ui-nameplate', null, 160, 28, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(tierHeaderBg);
 
-    const tierHeader = s.add.text(580, tierY, `Pâye ${currentTier}/${maxTier}`, {
+    const tierHeader = s.add.text(tierCX, tierY, `Pâye ${currentTier}/${maxTier}`, {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
     this.content.push(tierHeader);
@@ -454,7 +492,7 @@ export class ShopOverlay {
     const dotSize = 28;
     const dotGap = 6;
     const dotsW = maxTier * dotSize + (maxTier - 1) * dotGap;
-    const dotsStartX = 580 - dotsW / 2 + dotSize / 2;
+    const dotsStartX = tierCX - dotsW / 2 + dotSize / 2;
 
     for (let t = 0; t < maxTier; t++) {
       const filled = t < currentTier;
@@ -481,7 +519,7 @@ export class ShopOverlay {
     let completedY = tierY + 58;
     for (let t = 0; t < currentTier && t < tree.tiers.length; t++) {
       const tier = tree.tiers[t];
-      const check = s.add.text(500, completedY, `✓ T${t + 1}: ${tier.name}`, {
+      const check = s.add.text(tierLeftX, completedY, `✓ T${t + 1}: ${tier.name}`, {
         fontSize: '16px', fontFamily: UI_FONT, fill: '#1a7733',
       }).setScrollFactor(0).setDepth(DEPTH + 3);
       this.content.push(check);
@@ -490,12 +528,13 @@ export class ShopOverlay {
 
     // ── Upgrade Box ──
     const nextTier = getNextTierInfo(chosenSpellId, currentTier);
+    const upgradeX = RCX + RW / 4 + 20;
+    const upgBoxW = Math.min(340, RW / 2 - 20);
+
     if (nextTier) {
-      const upgradeX = 900;
       const upgradeY = tierY;
 
-      // Upgrade box
-      const upgBox = s.add.nineslice(upgradeX, upgradeY + 20, 'ui-panel-2', null, 340, 96, 7, 7, 7, 7)
+      const upgBox = s.add.nineslice(upgradeX, upgradeY + 20, 'ui-panel-2', null, upgBoxW, 96, 7, 7, 7, 7)
         .setScrollFactor(0).setDepth(DEPTH + 3);
       this.content.push(upgBox);
 
@@ -506,33 +545,30 @@ export class ShopOverlay {
 
       const upgDesc = s.add.text(upgradeX, upgradeY + 18, nextTier.description, {
         fontSize: '16px', fontFamily: UI_FONT, fill: '#5a3a28',
-        wordWrap: { width: 300 }, align: 'center',
+        wordWrap: { width: upgBoxW - 30 }, align: 'center',
       }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5, 0);
       this.content.push(upgDesc);
 
-      // Mod preview
       const modText = Object.entries(nextTier.mods)
         .map(([k, v]) => typeof v === 'boolean' ? `${k}: ${v}` : `${k}: ${v > 0 ? '+' : ''}${v}`)
         .join(', ');
       const upgMods = s.add.text(upgradeX, upgradeY + 38, modText, {
         fontSize: '16px', fontFamily: UI_FONT, fill: '#2a4466',
-        wordWrap: { width: 300 }, align: 'center',
+        wordWrap: { width: upgBoxW - 30 }, align: 'center',
       }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5, 0);
       this.content.push(upgMods);
 
-      // Resize box to fit content
       const boxBottom = upgMods.y + upgMods.height + 8;
       const boxH = boxBottom - (upgradeY - 10);
-      upgBox.setSize(340, boxH);
+      upgBox.setSize(upgBoxW, boxH);
       upgBox.setY(upgradeY - 10 + boxH / 2);
 
     } else {
-      // MAX TIER badge
-      const maxBadge = s.add.nineslice(900, tierY + 20, 'ui-panel-interior', null, 240, 48, 7, 7, 7, 7)
+      const maxBadge = s.add.nineslice(upgradeX, tierY + 20, 'ui-panel-interior', null, 240, 48, 7, 7, 7, 7)
         .setScrollFactor(0).setDepth(DEPTH + 3);
       this.content.push(maxBadge);
 
-      const maxLabel = s.add.text(900, tierY + 20, '✦ EN ÜST PÂYE ✦', {
+      const maxLabel = s.add.text(upgradeX, tierY + 20, '✦ EN ÜST PÂYE ✦', {
         fontSize: '16px', fontFamily: UI_FONT, fill: '#ffdd44', fontStyle: 'bold',
         stroke: '#000000', strokeThickness: 2,
       }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
@@ -545,13 +581,22 @@ export class ShopOverlay {
   // ═══════════════════════════════════════════════════════════════════
   _buildStatBar(statDef, value, y, slot) {
     const s = this.scene;
-    const barCX = 780;
-    const barW = 280;
+    const RCX = this._rightCX;
+    const RW = this._rightW;
+    const RL = RCX - RW / 2;
+    const RR = RCX + RW / 2;
+
+    const labelX = RL + 20;
+    const labelW = 100;
+    const barL = labelX + labelW + 8;
+    const barR = RR - 60;
+    const barW = barR - barL;
+    const barCX = barL + barW / 2;
     const barH = 22;
-    const fillMaxW = barW - 20; // padding inside container
+    const fillMaxW = barW - 20;
 
     // Label
-    const label = s.add.text(560, y, `${statDef.label}:`, {
+    const label = s.add.text(labelX, y, `${statDef.label}:`, {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0, 0.5);
     this.content.push(label);
@@ -563,11 +608,11 @@ export class ShopOverlay {
 
     // Bar fill
     let ratio = statDef.invert
-      ? 1 - (value / statDef.max)  // lower cooldown = more fill
+      ? 1 - (value / statDef.max)
       : value / statDef.max;
     ratio = Math.max(0, Math.min(1, ratio));
     const fillW = Math.max(4, ratio * fillMaxW);
-    const fillLeftEdge = barCX - barW / 2 + 10; // 10px padding from container left
+    const fillLeftEdge = barCX - barW / 2 + 10;
 
     const fill = s.add.nineslice(
       fillLeftEdge + fillW / 2, y,
@@ -578,7 +623,7 @@ export class ShopOverlay {
 
     // Value text
     const displayVal = statDef.fmt(value);
-    const valText = s.add.text(barCX + barW / 2 + 8, y, displayVal, {
+    const valText = s.add.text(barR + 6, y, displayVal, {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#2a4466',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0, 0.5);
     this.content.push(valText);
@@ -602,7 +647,9 @@ export class ShopOverlay {
     const cost = nextTier.cost;
     const canUpgrade = prog && prog.sp >= cost;
 
-    const { elements: btnEls } = createNinesliceButton(s, 1040, 688, `Pişir (${cost} İlham)`, {
+    const barY = this._bodyBot + 30;
+    const btnX = this._W - this._margin - 140;
+    const { elements: btnEls } = createNinesliceButton(s, btnX, barY, `Pişir (${cost} İlham)`, {
       width: 240, height: 40, depth: DEPTH + 3, fontSize: '16px',
       enabled: canUpgrade,
       onClick: () => {
@@ -621,25 +668,30 @@ export class ShopOverlay {
     const s = this.scene;
     const slot = this.activeSlot;
     const prog = this.progression;
-    const W = s.cameras.main.width;
 
-    const lockIcon = s.add.text(W / 2, 340, '🔒', { fontSize: '48px' })
+    // Use relative layout metrics
+    const cx = this._W / 2;
+    const cy = this._bodyCY;
+
+    const lockIcon = s.add.text(cx, cy - 46, '🔒', { fontSize: '48px' })
       .setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5);
     this.content.push(lockIcon);
 
-    const label = s.add.text(W / 2, 400, `[${slot}] ${SLOT_NAMES[slot]} — KİLİTLİ`, {
+    const label = s.add.text(cx, cy + 14, `[${slot}] ${SLOT_NAMES[slot]} — KİLİTLİ`, {
       fontSize: '32px', fontFamily: UI_FONT, fill: '#5a3a28', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5);
     this.content.push(label);
 
-    const costLabel = s.add.text(W / 2, 440, `Açmak için ${SP.SLOT_UNLOCK_COST} İlham gerekir`, {
+    const costLabel = s.add.text(cx, cy + 54, `Açmak için ${SP.SLOT_UNLOCK_COST} İlham gerekir`, {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#8a7a6a',
     }).setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5);
     this.content.push(costLabel);
 
     // Unlock button in bottom bar
     const canUnlock = prog && prog.sp >= SP.SLOT_UNLOCK_COST;
-    const { elements: btnEls } = createNinesliceButton(s, 1040, 688, `Kilidi Aç (${SP.SLOT_UNLOCK_COST} İlham)`, {
+    const barY = this._bodyBot + 30;
+    const btnX = this._W - this._margin - 140;
+    const { elements: btnEls } = createNinesliceButton(s, btnX, barY, `Kilidi Aç (${SP.SLOT_UNLOCK_COST} İlham)`, {
       width: 260, height: 40, depth: DEPTH + 3, fontSize: '16px',
       enabled: canUnlock,
       onClick: () => {
