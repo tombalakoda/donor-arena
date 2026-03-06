@@ -77,7 +77,7 @@ export class MatchEndOverlay {
     const sub = scene.add.text(camW / 2, py + 60, 'ÂŞIKLAR MEYDANE', {
       fontSize: '13px',
       fontFamily: UI_FONT,
-      fill: '#666688',
+      fill: '#3a2218',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
     this.elements.push(sub);
 
@@ -124,7 +124,7 @@ export class MatchEndOverlay {
     const cols = { rank: px + 25, face: px + 60, name: px + 100, pts: px + 300, elims: px + 370, wins: px + 440 };
 
     // Header
-    const headerStyle = { fontSize: '12px', fontFamily: UI_FONT, fill: '#888899' };
+    const headerStyle = { fontSize: '12px', fontFamily: UI_FONT, fill: '#5a3a28' };
     const headers = [
       scene.add.text(cols.rank, tableY, '#', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
       scene.add.text(cols.name, tableY, 'Âşık', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),

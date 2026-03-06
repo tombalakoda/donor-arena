@@ -122,7 +122,7 @@ export class ShopOverlay {
 
     const slotNames = { Q: 'SÖZ', W: 'EL', E: 'DİL', R: 'BEL' };
     const slotNameLabel = scene.add.text(x + 40, y + 8, slotNames[slot], {
-      fontSize: '14px', fontFamily: UI_FONT, fill: '#aaaaaa', fontStyle: 'bold',
+      fontSize: '14px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(302);
     this.elements.push(slotNameLabel);
 
@@ -137,12 +137,12 @@ export class ShopOverlay {
       this.elements.push(lockIcon);
 
       const lockLabel = scene.add.text(x + width / 2, lockY + 35, 'KİLİTLİ', {
-        fontSize: '16px', fontFamily: UI_FONT, fill: '#555555', fontStyle: 'bold',
+        fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(302).setOrigin(0.5);
       this.elements.push(lockLabel);
 
       const costLabel = scene.add.text(x + width / 2, lockY + 56, `Aç: ${SP.SLOT_UNLOCK_COST} İlham`, {
-        fontSize: '13px', fontFamily: UI_FONT, fill: '#888888',
+        fontSize: '13px', fontFamily: UI_FONT, fill: '#5a3a28',
       }).setScrollFactor(0).setDepth(302).setOrigin(0.5);
       this.elements.push(costLabel);
 
@@ -277,7 +277,7 @@ export class ShopOverlay {
       const stats = computeSpellStats(chosenSpellId, currentTier);
       const statsStr = this.formatStats(stats);
       const statsLabel = scene.add.text(x + 10, contentY, statsStr, {
-        fontSize: '10px', fontFamily: UI_FONT, fill: '#88aacc', lineSpacing: 2,
+        fontSize: '10px', fontFamily: UI_FONT, fill: '#2a4466', lineSpacing: 2,
       }).setScrollFactor(0).setDepth(302);
       this.elements.push(statsLabel);
       contentY += statsLabel.height + 8;
@@ -326,7 +326,7 @@ export class ShopOverlay {
       for (let t = 0; t < currentTier && t < tree.tiers.length; t++) {
         const tier = tree.tiers[t];
         const tierLabel = scene.add.text(x + 12, contentY, `T${t + 1}: ${tier.name}`, {
-          fontSize: '10px', fontFamily: UI_FONT, fill: '#44dd66',
+          fontSize: '10px', fontFamily: UI_FONT, fill: '#1a7733',
         }).setScrollFactor(0).setDepth(302);
         this.elements.push(tierLabel);
         contentY += 14;
@@ -347,12 +347,12 @@ export class ShopOverlay {
         this.elements.push(nextBox);
 
         const nextLabel = scene.add.text(x + 15, contentY + 8, `Next: ${nextTier.name}`, {
-          fontSize: '12px', fontFamily: UI_FONT, fill: '#ffffff', fontStyle: 'bold',
+          fontSize: '12px', fontFamily: UI_FONT, fill: '#2a1a08', fontStyle: 'bold',
         }).setScrollFactor(0).setDepth(303);
         this.elements.push(nextLabel);
 
         const nextDesc = scene.add.text(x + 15, contentY + 24, nextTier.description, {
-          fontSize: '9px', fontFamily: UI_FONT, fill: '#aaaaaa', wordWrap: { width: width - 30 },
+          fontSize: '9px', fontFamily: UI_FONT, fill: '#3a2a18', wordWrap: { width: width - 30 },
         }).setScrollFactor(0).setDepth(303);
         this.elements.push(nextDesc);
 
@@ -364,7 +364,7 @@ export class ShopOverlay {
           })
           .join(', ');
         const modLabel = scene.add.text(x + 15, contentY + 40, modText, {
-          fontSize: '8px', fontFamily: UI_FONT, fill: '#88aacc', wordWrap: { width: width - 30 },
+          fontSize: '8px', fontFamily: UI_FONT, fill: '#2a4466', wordWrap: { width: width - 30 },
         }).setScrollFactor(0).setDepth(303);
         this.elements.push(modLabel);
 
@@ -394,7 +394,7 @@ export class ShopOverlay {
       // No spell chosen yet — prompt
       contentY += 10;
       const promptLabel = scene.add.text(x + width / 2, contentY, `Hüner seç (${SP.SPELL_CHOICE_COST} İlham)`, {
-        fontSize: '12px', fontFamily: UI_FONT, fill: '#888888',
+        fontSize: '12px', fontFamily: UI_FONT, fill: '#5a3a28',
       }).setScrollFactor(0).setDepth(302).setOrigin(0.5);
       this.elements.push(promptLabel);
     }
@@ -415,7 +415,7 @@ export class ShopOverlay {
 
     // Tooltip text (create first to measure height)
     const tipText = scene.add.text(x, y - 20, text, {
-      fontSize: '9px', fontFamily: UI_FONT, fill: '#cccccc', lineSpacing: 2,
+      fontSize: '9px', fontFamily: UI_FONT, fill: '#2a1a08', lineSpacing: 2,
       wordWrap: { width: 190 }, align: 'center',
     }).setScrollFactor(0).setDepth(311).setOrigin(0.5, 1);
 

@@ -129,7 +129,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     this.add.text(camW / 2, 80, 'Aşığını seç', {
-      fontSize: '13px', fontFamily: 'monospace', fill: '#887766',
+      fontSize: '13px', fontFamily: 'monospace', fill: '#3a2218',
     }).setOrigin(0.5).setDepth(17);
   }
 
@@ -172,7 +172,7 @@ export class MenuScene extends Phaser.Scene {
 
       // Character name (right side of cell)
       const nameText = this.add.text(x + 22, y, char.name, {
-        fontSize: '11px', fontFamily: 'monospace', fill: '#c4a882',
+        fontSize: '11px', fontFamily: 'monospace', fill: '#3a2218',
       }).setOrigin(0, 0.5).setDepth(12);
 
       // Selection highlight
@@ -264,7 +264,7 @@ export class MenuScene extends Phaser.Scene {
     // Character name — large italic serif-style
     this.previewName = this.add.text(rightX, panelCY - 115, 'Boy', {
       fontSize: '30px', fontFamily: 'Georgia, serif',
-      fill: '#3a2a18', fontStyle: 'italic',
+      fill: '#2a1a08', fontStyle: 'italic',
     }).setOrigin(0, 0.5).setDepth(14);
 
     // Separator line (dark, like ink)
@@ -274,20 +274,20 @@ export class MenuScene extends Phaser.Scene {
 
     // PASSIVE label
     this.add.text(rightX, panelCY - 75, 'PASSIVE:', {
-      fontSize: '10px', fontFamily: 'monospace', fill: '#8a7a68',
+      fontSize: '10px', fontFamily: 'monospace', fill: '#5a3a28',
       letterSpacing: 1,
     }).setOrigin(0, 0.5).setDepth(14);
 
     // Passive icon + name (with shield emoji)
     this.passiveName = this.add.text(rightX + 4, panelCY - 52, '', {
       fontSize: '16px', fontFamily: 'Georgia, serif',
-      fill: '#2255aa', fontStyle: 'bold',
+      fill: '#1a3388', fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(14);
 
     // Passive description
     this.passiveDesc = this.add.text(rightX + 4, panelCY - 30, '', {
       fontSize: '12px', fontFamily: 'monospace',
-      fill: '#6a5a48', fontStyle: 'italic',
+      fill: '#3a2a18', fontStyle: 'italic',
       wordWrap: { width: 190 },
     }).setOrigin(0, 0.5).setDepth(14);
 
@@ -343,7 +343,7 @@ export class MenuScene extends Phaser.Scene {
       .setDepth(10);
 
     this.add.text(camW / 2 - 150, nameY, 'Mahlas:', {
-      fontSize: '15px', fontFamily: 'monospace', fill: '#ddccaa',
+      fontSize: '15px', fontFamily: 'monospace', fill: '#3a2218',
     }).setOrigin(0, 0.5).setDepth(12);
 
     const inputElement = document.createElement('input');
@@ -376,7 +376,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     this.add.text(camW / 2, btnY + 34, 'Serbest Meydan: Sınırsız İlham, talim kuklaları, meydan daralmasız', {
-      fontSize: '10px', fontFamily: 'monospace', fill: '#665544',
+      fontSize: '10px', fontFamily: 'monospace', fill: '#5a3a28',
     }).setOrigin(0.5).setDepth(12);
   }
 
@@ -432,7 +432,7 @@ export class MenuScene extends Phaser.Scene {
     goldLine.lineBetween(camW / 2 - 270, camH - 34, camW / 2 + 270, camH - 34);
 
     const tipText = this.add.text(camW / 2, camH - 18, TIPS[0], {
-      fontSize: '11px', fontFamily: 'monospace', fill: '#ddccaa', fontStyle: 'italic',
+      fontSize: '11px', fontFamily: 'monospace', fill: '#3a2218', fontStyle: 'italic',
     }).setOrigin(0.5).setDepth(12);
 
     let tipIndex = 0;

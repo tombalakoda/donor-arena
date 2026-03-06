@@ -80,7 +80,7 @@ export class PauseMenu {
     const sub = scene.add.text(camW / 2, camH / 2 - 55, 'ÂŞIKLAR MEYDANE', {
       fontSize: '14px',
       fontFamily: UI_FONT,
-      fill: '#666688',
+      fill: '#3a2218',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
     this.elements.push(sub);
 
