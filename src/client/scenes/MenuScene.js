@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { CHARACTERS } from './BootScene.js';
 import { getPassive } from '../../shared/characterPassives.js';
+import { UI_FONT } from '../config.js';
 
 // Loading-screen style tips for re-use
 const TIPS = [
@@ -104,7 +105,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Glow text
     const titleGlow = this.add.text(camW / 2, 42, 'ÂŞIKLAR MEYDANE', {
-      fontSize: '48px', fontFamily: 'monospace',
+      fontSize: '48px', fontFamily: UI_FONT,
       fill: '#ffaa33', stroke: '#ffaa33', strokeThickness: 16,
     }).setOrigin(0.5).setAlpha(0.12).setDepth(16);
 
@@ -117,7 +118,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Main title
     const titleText = this.add.text(camW / 2, 42, 'ÂŞIKLAR MEYDANE', {
-      fontSize: '48px', fontFamily: 'monospace',
+      fontSize: '48px', fontFamily: UI_FONT,
       fill: '#ffdd44', stroke: '#000000', strokeThickness: 6,
     }).setOrigin(0.5).setDepth(17);
 
@@ -129,7 +130,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     this.add.text(camW / 2, 80, 'Aşığını seç', {
-      fontSize: '13px', fontFamily: 'monospace', fill: '#3a2218',
+      fontSize: '13px', fontFamily: UI_FONT, fill: '#3a2218',
     }).setOrigin(0.5).setDepth(17);
   }
 
@@ -172,7 +173,7 @@ export class MenuScene extends Phaser.Scene {
 
       // Character name (right side of cell)
       const nameText = this.add.text(x + 22, y, char.name, {
-        fontSize: '11px', fontFamily: 'monospace', fill: '#3a2218',
+        fontSize: '11px', fontFamily: UI_FONT, fill: '#3a2218',
       }).setOrigin(0, 0.5).setDepth(12);
 
       // Selection highlight
@@ -263,7 +264,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Character name — large italic serif-style
     this.previewName = this.add.text(rightX, panelCY - 115, 'Boy', {
-      fontSize: '30px', fontFamily: 'Georgia, serif',
+      fontSize: '30px', fontFamily: UI_FONT,
       fill: '#2a1a08', fontStyle: 'italic',
     }).setOrigin(0, 0.5).setDepth(14);
 
@@ -274,19 +275,19 @@ export class MenuScene extends Phaser.Scene {
 
     // PASSIVE label
     this.add.text(rightX, panelCY - 75, 'PASSIVE:', {
-      fontSize: '10px', fontFamily: 'monospace', fill: '#5a3a28',
+      fontSize: '10px', fontFamily: UI_FONT, fill: '#5a3a28',
       letterSpacing: 1,
     }).setOrigin(0, 0.5).setDepth(14);
 
     // Passive icon + name (with shield emoji)
     this.passiveName = this.add.text(rightX + 4, panelCY - 52, '', {
-      fontSize: '16px', fontFamily: 'Georgia, serif',
+      fontSize: '16px', fontFamily: UI_FONT,
       fill: '#1a3388', fontStyle: 'bold',
     }).setOrigin(0, 0.5).setDepth(14);
 
     // Passive description
     this.passiveDesc = this.add.text(rightX + 4, panelCY - 30, '', {
-      fontSize: '12px', fontFamily: 'monospace',
+      fontSize: '12px', fontFamily: UI_FONT,
       fill: '#3a2a18', fontStyle: 'italic',
       wordWrap: { width: 190 },
     }).setOrigin(0, 0.5).setDepth(14);
@@ -343,7 +344,7 @@ export class MenuScene extends Phaser.Scene {
       .setDepth(10);
 
     this.add.text(camW / 2 - 150, nameY, 'Mahlas:', {
-      fontSize: '15px', fontFamily: 'monospace', fill: '#3a2218',
+      fontSize: '15px', fontFamily: UI_FONT, fill: '#3a2218',
     }).setOrigin(0, 0.5).setDepth(12);
 
     const inputElement = document.createElement('input');
@@ -351,7 +352,7 @@ export class MenuScene extends Phaser.Scene {
     inputElement.value = 'Âşık';
     inputElement.maxLength = 16;
     inputElement.style.cssText = `
-      font-size: 15px; font-family: monospace;
+      font-size: 15px; font-family: 'KiwiSoda', monospace;
       padding: 4px 10px; width: 200px;
       background: transparent; color: #ffdd44;
       border: none; outline: none; caret-color: #ffdd44;
@@ -376,7 +377,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     this.add.text(camW / 2, btnY + 34, 'Serbest Meydan: Sınırsız İlham, talim kuklaları, meydan daralmasız', {
-      fontSize: '10px', fontFamily: 'monospace', fill: '#5a3a28',
+      fontSize: '10px', fontFamily: UI_FONT, fill: '#5a3a28',
     }).setOrigin(0.5).setDepth(12);
   }
 
@@ -389,7 +390,7 @@ export class MenuScene extends Phaser.Scene {
       .setDepth(10);
 
     const text = this.add.text(x, y - 1, label, {
-      fontSize: '16px', fontFamily: 'monospace',
+      fontSize: '16px', fontFamily: UI_FONT,
       fill: '#ffffff', fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(11);
@@ -432,7 +433,7 @@ export class MenuScene extends Phaser.Scene {
     goldLine.lineBetween(camW / 2 - 270, camH - 34, camW / 2 + 270, camH - 34);
 
     const tipText = this.add.text(camW / 2, camH - 18, TIPS[0], {
-      fontSize: '11px', fontFamily: 'monospace', fill: '#3a2218', fontStyle: 'italic',
+      fontSize: '11px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'italic',
     }).setOrigin(0.5).setDepth(12);
 
     let tipIndex = 0;
