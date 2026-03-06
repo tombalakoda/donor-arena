@@ -130,7 +130,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     this.add.text(camW / 2, 80, 'Aşığını seç', {
-      fontSize: '13px', fontFamily: UI_FONT, fill: '#3a2218',
+      fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218',
     }).setOrigin(0.5).setDepth(17);
   }
 
@@ -173,7 +173,7 @@ export class MenuScene extends Phaser.Scene {
 
       // Character name (centered below portrait)
       const nameText = this.add.text(x, y + 26, char.name, {
-        fontSize: '11px', fontFamily: UI_FONT, fill: '#3a2218',
+        fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218',
       }).setOrigin(0.5, 0.5).setDepth(12);
 
       // Selection highlight
@@ -264,7 +264,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Character name — large italic serif-style
     this.previewName = this.add.text(rightX, panelCY - 115, 'Boy', {
-      fontSize: '30px', fontFamily: UI_FONT,
+      fontSize: '32px', fontFamily: UI_FONT,
       fill: '#2a1a08', fontStyle: 'italic',
     }).setOrigin(0, 0.5).setDepth(14);
 
@@ -275,8 +275,7 @@ export class MenuScene extends Phaser.Scene {
 
     // PASSIVE label
     this.add.text(rightX, panelCY - 75, 'PASSIVE:', {
-      fontSize: '10px', fontFamily: UI_FONT, fill: '#5a3a28',
-      letterSpacing: 1,
+      fontSize: '16px', fontFamily: UI_FONT, fill: '#5a3a28',
     }).setOrigin(0, 0.5).setDepth(14);
 
     // Passive icon + name (with shield emoji)
@@ -287,7 +286,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Passive description
     this.passiveDesc = this.add.text(rightX + 4, panelCY - 30, '', {
-      fontSize: '12px', fontFamily: UI_FONT,
+      fontSize: '16px', fontFamily: UI_FONT,
       fill: '#3a2a18', fontStyle: 'italic',
       wordWrap: { width: 190 },
     }).setOrigin(0, 0.5).setDepth(14);
@@ -344,7 +343,7 @@ export class MenuScene extends Phaser.Scene {
       .setDepth(10);
 
     this.add.text(camW / 2 - 150, nameY, 'Mahlas:', {
-      fontSize: '15px', fontFamily: UI_FONT, fill: '#3a2218',
+      fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218',
     }).setOrigin(0, 0.5).setDepth(12);
 
     const inputElement = document.createElement('input');
@@ -352,7 +351,7 @@ export class MenuScene extends Phaser.Scene {
     inputElement.value = 'Âşık';
     inputElement.maxLength = 16;
     inputElement.style.cssText = `
-      font-size: 15px; font-family: 'KiwiSoda', monospace;
+      font-size: 16px; font-family: 'KiwiSoda', monospace;
       padding: 4px 10px; width: 200px;
       background: transparent; color: #ffdd44;
       border: none; outline: none; caret-color: #ffdd44;
@@ -377,7 +376,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     this.add.text(camW / 2, btnY + 34, 'Serbest Meydan: Sınırsız İlham, talim kuklaları, meydan daralmasız', {
-      fontSize: '10px', fontFamily: UI_FONT, fill: '#5a3a28',
+      fontSize: '16px', fontFamily: UI_FONT, fill: '#5a3a28',
     }).setOrigin(0.5).setDepth(12);
   }
 
@@ -433,7 +432,7 @@ export class MenuScene extends Phaser.Scene {
     goldLine.lineBetween(camW / 2 - 270, camH - 34, camW / 2 + 270, camH - 34);
 
     const tipText = this.add.text(camW / 2, camH - 18, TIPS[0], {
-      fontSize: '11px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'italic',
+      fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'italic',
     }).setOrigin(0.5).setDepth(12);
 
     let tipIndex = 0;

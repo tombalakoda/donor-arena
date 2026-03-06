@@ -51,12 +51,12 @@ export class HUDManager {
   createHUD() {
     const scene = this.scene;
     this.pingText = scene.add.text(10, 10, 'Ping: --', {
-      fontSize: '14px', fontFamily: UI_FONT,
+      fontSize: '16px', fontFamily: UI_FONT,
       fill: '#88ccff',
     }).setScrollFactor(0).setDepth(100);
 
-    this.playerCountText = scene.add.text(10, 28, 'Âşıklar: 0', {
-      fontSize: '14px', fontFamily: UI_FONT,
+    this.playerCountText = scene.add.text(10, 30, 'Âşıklar: 0', {
+      fontSize: '16px', fontFamily: UI_FONT,
       fill: '#88ccff',
     }).setScrollFactor(0).setDepth(100);
 
@@ -69,23 +69,23 @@ export class HUDManager {
     this.hpBarFill = scene.add.rectangle(camW / 2 - 100, 20, 200, 10, 0x44dd44)
       .setScrollFactor(0).setDepth(101).setOrigin(0, 0.5);
     this.hpText = scene.add.text(camW / 2, 20, '100/100', {
-      fontSize: '10px', fontFamily: UI_FONT,
+      fontSize: '16px', fontFamily: UI_FONT,
       fill: '#ffffff',
     }).setScrollFactor(0).setDepth(102).setOrigin(0.5);
 
     this.roundText = scene.add.text(camW - 10, 10, 'Fasıl 0/20', {
-      fontSize: '14px', fontFamily: UI_FONT,
+      fontSize: '16px', fontFamily: UI_FONT,
       fill: '#ffdd44',
       fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(100).setOrigin(1, 0);
 
-    this.timerText = scene.add.text(camW - 10, 28, '60s', {
-      fontSize: '14px', fontFamily: UI_FONT,
+    this.timerText = scene.add.text(camW - 10, 30, '60s', {
+      fontSize: '16px', fontFamily: UI_FONT,
       fill: '#88ccff',
     }).setScrollFactor(0).setDepth(100).setOrigin(1, 0);
 
     this.phaseText = scene.add.text(camW / 2, 40, '', {
-      fontSize: '12px', fontFamily: UI_FONT,
+      fontSize: '16px', fontFamily: UI_FONT,
       fill: '#aaaaaa',
     }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
 
@@ -111,7 +111,7 @@ export class HUDManager {
       .setScrollFactor(0).setDepth(100);
 
     const icon = scene.add.text(x, y, isMuted ? '🔇' : '🔊', {
-      fontSize: '14px',
+      fontSize: '16px',
     }).setScrollFactor(0).setDepth(101).setOrigin(0.5);
 
     const hitArea = scene.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
@@ -152,13 +152,13 @@ export class HUDManager {
         .setScrollFactor(0).setDepth(102).setVisible(false);
 
       const cdText = scene.add.text(x, slotY, '', {
-        fontSize: '14px', fontFamily: UI_FONT,
+        fontSize: '16px', fontFamily: UI_FONT,
         fill: '#ffffff',
         fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(103).setOrigin(0.5).setVisible(false);
 
       scene.add.text(x - slotSize / 2 + 4, slotY - slotSize / 2 + 2, key, {
-        fontSize: '10px', fontFamily: UI_FONT,
+        fontSize: '16px', fontFamily: UI_FONT,
         fill: '#aaccff',
         fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(103);
@@ -172,13 +172,13 @@ export class HUDManager {
       }).setScrollFactor(0).setDepth(105).setOrigin(0.5).setVisible(false);
 
       const emptyText = scene.add.text(x, slotY, '?', {
-        fontSize: '18px', fontFamily: UI_FONT,
+        fontSize: '16px', fontFamily: UI_FONT,
         fill: '#555555',
         fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(105).setOrigin(0.5).setVisible(false);
 
       const chargeText = scene.add.text(x + slotSize / 2 - 4, slotY + slotSize / 2 - 4, '', {
-        fontSize: '10px', fontFamily: UI_FONT,
+        fontSize: '16px', fontFamily: UI_FONT,
         fill: '#ffdd44',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -205,14 +205,14 @@ export class HUDManager {
       .setScrollFactor(0).setDepth(99).setAlpha(0.7);
 
     this.spText = scene.add.text(camW / 2, slotY + slotSize / 2 + 14, 'İlham: 0', {
-      fontSize: '12px', fontFamily: UI_FONT,
+      fontSize: '16px', fontFamily: UI_FONT,
       fill: '#44ddff',
       fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(100).setOrigin(0.5);
 
     if (scene.gameMode === 'sandbox') {
       scene.add.text(camW / 2, slotY + slotSize / 2 + 30, "Dükkânı açmak için B'ye bas", {
-        fontSize: '11px', fontFamily: UI_FONT,
+        fontSize: '16px', fontFamily: UI_FONT,
         fill: '#666688',
       }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
     }
@@ -226,7 +226,7 @@ export class HUDManager {
     const camW = scene.cameras.main.width;
     const camH = scene.cameras.main.height;
     this.announcementText = scene.add.text(camW / 2, camH / 3, text, {
-      fontSize: '28px', fontFamily: UI_FONT,
+      fontSize: '32px', fontFamily: UI_FONT,
       fill: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -251,7 +251,7 @@ export class HUDManager {
   showDamageNumber(x, y, amount) {
     const scene = this.scene;
     const text = scene.add.text(x, y - 20, `-${Math.ceil(amount)}`, {
-      fontSize: '14px', fontFamily: UI_FONT,
+      fontSize: '16px', fontFamily: UI_FONT,
       color: '#ff4444',
       fontStyle: 'bold',
       stroke: '#000000',
@@ -272,7 +272,7 @@ export class HUDManager {
     const camW = scene.cameras.main.width;
     const y = 72 + this.killFeedTexts.length * 18;
     const feedText = scene.add.text(camW - 10, y, text, {
-      fontSize: '12px', fontFamily: UI_FONT,
+      fontSize: '16px', fontFamily: UI_FONT,
       fill: '#ff8888',
       stroke: '#000000',
       strokeThickness: 2,

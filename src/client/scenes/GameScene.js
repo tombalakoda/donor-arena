@@ -3,6 +3,7 @@ import { PLAYER, ARENA } from '../../shared/constants.js';
 import { MSG } from '../../shared/messageTypes.js';
 import { SPELLS, SPELL_TYPES } from '../../shared/spellData.js';
 import { NetworkManager } from '../systems/NetworkManager.js';
+import { UI_FONT } from '../config.js';
 import { ShopOverlay } from '../ui/ShopOverlay.js';
 import { PauseMenu } from '../ui/PauseMenu.js';
 import { MatchEndOverlay } from '../ui/MatchEndOverlay.js';
@@ -542,7 +543,8 @@ export class GameScene extends Phaser.Scene {
     const isDummy = playerId.startsWith('dummy-');
     const displayName = isDummy ? 'Dummy' : (playerName || playerId.slice(-4));
     const nameLabel = this.add.text(x, y - 30, displayName, {
-      fontSize: '10px',
+      fontSize: '16px',
+      fontFamily: UI_FONT,
       fill: isDummy ? '#ff8866' : '#aaaaaa',
       align: 'center',
     }).setOrigin(0.5).setDepth(11);

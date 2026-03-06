@@ -68,7 +68,7 @@ export class PauseMenu {
 
     // Title
     const title = scene.add.text(camW / 2, camH / 2 - 90, 'ARA', {
-      fontSize: '36px',
+      fontSize: '32px',
       fontFamily: UI_FONT,
       fill: '#ffdd44',
       stroke: '#000000',
@@ -78,7 +78,7 @@ export class PauseMenu {
 
     // Subtitle
     const sub = scene.add.text(camW / 2, camH / 2 - 55, 'ÂŞIKLAR MEYDANE', {
-      fontSize: '14px',
+      fontSize: '16px',
       fontFamily: UI_FONT,
       fill: '#3a2218',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
@@ -127,7 +127,7 @@ export class PauseMenu {
     this.elements.push(confirmPanel);
 
     const msg = scene.add.text(camW / 2, camH / 2 - 35, 'Atışmadan ayrılacak mısın?', {
-      fontSize: '18px',
+      fontSize: '16px',
       fontFamily: UI_FONT,
       fill: '#ffdd44',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
@@ -135,7 +135,7 @@ export class PauseMenu {
 
     // Yes button
     const { elements: yesEls } = createNinesliceButton(scene, camW / 2 - 70, camH / 2 + 25, 'He', {
-      width: 110, height: 40, depth: DEPTH + 2, fontSize: '15px',
+      width: 110, height: 40, depth: DEPTH + 2, fontSize: '16px',
       onClick: () => {
         this.returnToMenu();
       },
@@ -145,7 +145,7 @@ export class PauseMenu {
 
     // No button
     const { elements: noEls } = createNinesliceButton(scene, camW / 2 + 70, camH / 2 + 25, 'Yok', {
-      width: 110, height: 40, depth: DEPTH + 2, fontSize: '15px',
+      width: 110, height: 40, depth: DEPTH + 2, fontSize: '16px',
       onClick: () => {
         this.playSfx('sfx-cancel');
         // Remove confirm elements (rebuild the pause menu)

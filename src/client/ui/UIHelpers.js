@@ -22,7 +22,7 @@ export function createNinesliceButton(scene, x, y, label, opts = {}) {
   const w = opts.width || 180;
   const h = opts.height || 40;
   const depth = opts.depth || 10;
-  const fontSize = opts.fontSize || '14px';
+  const fontSize = opts.fontSize || '16px';
   const enabled = opts.enabled !== false;
   const onClick = opts.onClick || (() => {});
   const sfx = opts.sfx !== false;

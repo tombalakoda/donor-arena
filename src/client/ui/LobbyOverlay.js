@@ -76,7 +76,7 @@ export class LobbyOverlay {
     // Title
     const py = camH / 2 - panelH / 2;
     const title = scene.add.text(camW / 2, py + 30, 'ÂŞIKLAR BEKLENİYOR', {
-      fontSize: '22px',
+      fontSize: '32px',
       fontFamily: UI_FONT,
       fill: '#ffdd44',
       stroke: '#000000',
@@ -100,7 +100,7 @@ export class LobbyOverlay {
 
     // Subtitle
     const sub = scene.add.text(camW / 2, py + 55, 'ÂŞIKLAR MEYDANE', {
-      fontSize: '12px',
+      fontSize: '16px',
       fontFamily: UI_FONT,
       fill: '#3a2218',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
@@ -108,7 +108,7 @@ export class LobbyOverlay {
 
     // Player count
     this.countText = scene.add.text(camW / 2, py + 80, `0 / ${MATCH.MAX_PLAYERS} âşık`, {
-      fontSize: '15px',
+      fontSize: '16px',
       fontFamily: UI_FONT,
       fill: '#1a5588',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
@@ -141,7 +141,7 @@ export class LobbyOverlay {
 
         // Placeholder "?"
         const placeholder = scene.add.text(sx, sy - 8, '?', {
-          fontSize: '28px',
+          fontSize: '32px',
           fontFamily: UI_FONT,
           fill: '#5a3a28',
         }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 3);
@@ -149,7 +149,7 @@ export class LobbyOverlay {
 
         // Name (empty initially)
         const nameText = scene.add.text(sx, sy + 28, '', {
-          fontSize: '9px',
+          fontSize: '16px',
           fontFamily: UI_FONT,
           fill: '#5a3a28',
         }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 3);
@@ -162,7 +162,7 @@ export class LobbyOverlay {
     // --- Tip text ---
     this.tipIndex = 0;
     this.tipText = scene.add.text(camW / 2, py + panelH - 30, TIPS[0], {
-      fontSize: '11px',
+      fontSize: '16px',
       fontFamily: UI_FONT,
       fill: '#5a3a28',
       fontStyle: 'italic',
