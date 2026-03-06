@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { UI_FONT } from '../config.js';
 
 // Character IDs and their folder names
 export const CHARACTERS = [
@@ -76,16 +77,16 @@ export class BootScene extends Phaser.Scene {
 
     // --- Title ---
     this.add.text(cx, cy - 120, 'ÂŞIKLAR MEYDANE', {
-      fontFamily: 'monospace',
-      fontSize: '44px',
+      fontFamily: UI_FONT,
+      fontSize: '48px',
       fill: '#ffdd44',
       stroke: '#000000',
       strokeThickness: 6,
     }).setOrigin(0.5);
 
     this.add.text(cx, cy - 75, 'Meydana hazırlan...', {
-      fontFamily: 'monospace',
-      fontSize: '14px',
+      fontFamily: UI_FONT,
+      fontSize: '16px',
       fill: '#888899',
     }).setOrigin(0.5);
 
@@ -106,15 +107,15 @@ export class BootScene extends Phaser.Scene {
     const progressBar = this.add.graphics();
 
     const percentText = this.add.text(cx, cy + 24, '0%', {
-      fontFamily: 'monospace',
-      fontSize: '14px',
+      fontFamily: UI_FONT,
+      fontSize: '16px',
       fill: '#44aadd',
     }).setOrigin(0.5);
 
     // --- Rotating Tips ---
     const tipText = this.add.text(cx, cy + 70, TIPS[0], {
-      fontFamily: 'monospace',
-      fontSize: '12px',
+      fontFamily: UI_FONT,
+      fontSize: '16px',
       fill: '#666688',
       fontStyle: 'italic',
     }).setOrigin(0.5);
