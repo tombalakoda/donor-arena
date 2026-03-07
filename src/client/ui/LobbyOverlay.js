@@ -1,6 +1,7 @@
 import { CHARACTERS } from '../scenes/BootScene.js';
 import { MATCH } from '../../shared/constants.js';
 import { UI_FONT } from '../config.js';
+import { createNinesliceButton } from './UIHelpers.js';
 
 // Loading-screen style tips
 const TIPS = [
@@ -16,17 +17,25 @@ const TIPS = [
 /**
  * LobbyOverlay — Shown during the 'waiting' phase before the match starts.
  * Displays connected players with their character sprites and a waiting message.
+ * In lobby mode, also shows a BAŞLAT button for the host.
  */
 export class LobbyOverlay {
   constructor(scene) {
     this.scene = scene;
     this.visible = false;
     this.elements = [];
-    this.playerSlots = [];  // { bg, focusHighlight, faceSprite, nameText, placeholder }
+    this.playerSlots = [];  // { bg, focusHighlight, faceSprite, nameText, placeholder, hostIcon }
     this.countText = null;
     this.tipText = null;
     this.tipIndex = 0;
     this.tipTimer = null;
+
+    // Lobby mode state
+    this.lobbyMode = false;
+    this.isHost = false;
+    this.hostId = null;
+    this.startButtonElements = [];
+    this.titleText = null;
   }
 
   show() {
@@ -53,6 +62,46 @@ export class LobbyOverlay {
     this.playerSlots = [];
     this.countText = null;
     this.tipText = null;
+    this.titleText = null;
+    this.startButtonElements = [];
+  }
+
+  /**
+   * Show in lobby mode (with host controls).
+   * @param {Array} players — [{ id, name, characterId }, ...]
+   * @param {boolean} isHost — whether the local player is the host
+   * @param {string} hostId — socket id of the host
+   */
+  showLobbyMode(players, isHost, hostId) {
+    // If already visible (HUDManager auto-showed during waiting phase),
+    // destroy and rebuild with lobby mode enabled
+    if (this.visible) {
+      this.visible = false;
+      this.destroy();
+    }
+    this.lobbyMode = true;
+    this.isHost = isHost;
+    this.hostId = hostId;
+    this.show();
+    this.buildLobbyExtras();
+    this.updatePlayers(players);
+  }
+
+  /**
+   * Update lobby mode with new player list.
+   * @param {Array} players — [{ id, name, characterId }, ...]
+   * @param {boolean} isHost — whether the local player is the host
+   * @param {string} hostId — socket id of the host
+   */
+  updateLobbyMode(players, isHost, hostId) {
+    this.isHost = isHost;
+    this.hostId = hostId;
+    this.updatePlayers(players);
+
+    // Show/hide start button based on host status
+    for (const el of this.startButtonElements) {
+      if (el && !el.destroyed) el.setVisible(this.isHost);
+    }
   }
 
   build() {
@@ -66,37 +115,40 @@ export class LobbyOverlay {
       .setScrollFactor(0).setDepth(DEPTH).setInteractive();
     this.elements.push(bg);
 
-    // Main panel — nineslice
+    // Main panel — nineslice (taller for lobby mode to fit start button)
     const panelW = 440;
-    const panelH = 350;
+    const panelH = this.lobbyMode ? 400 : 350;
     const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.elements.push(panel);
 
     // Title
     const py = camH / 2 - panelH / 2;
-    const title = scene.add.text(camW / 2, py + 30, 'ÂŞIKLAR BEKLENİYOR', {
+    const titleLabel = this.lobbyMode ? 'ODA HAZIR' : 'ÂŞIKLAR BEKLENİYOR';
+    this.titleText = scene.add.text(camW / 2, py + 30, titleLabel, {
       fontSize: '32px',
       fontFamily: UI_FONT,
       fill: '#ffdd44',
       stroke: '#000000',
       strokeThickness: 3,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
-    this.elements.push(title);
+    this.elements.push(this.titleText);
 
-    // Pulsing dots animation on title
-    let dots = 0;
-    const dotsTimer = scene.time.addEvent({
-      delay: 500,
-      loop: true,
-      callback: () => {
-        dots = (dots + 1) % 4;
-        if (title && !title.destroyed) {
-          title.setText('ÂŞIKLAR BEKLENİYOR' + '.'.repeat(dots));
-        }
-      },
-    });
-    this.elements.push(dotsTimer);
+    // Pulsing dots animation on title (only in non-lobby mode)
+    if (!this.lobbyMode) {
+      let dots = 0;
+      const dotsTimer = scene.time.addEvent({
+        delay: 500,
+        loop: true,
+        callback: () => {
+          dots = (dots + 1) % 4;
+          if (this.titleText && !this.titleText.destroyed) {
+            this.titleText.setText('ÂŞIKLAR BEKLENİYOR' + '.'.repeat(dots));
+          }
+        },
+      });
+      this.elements.push(dotsTimer);
+    }
 
     // Subtitle
     const sub = scene.add.text(camW / 2, py + 55, 'ÂŞIKLAR MEYDANE', {
@@ -155,7 +207,14 @@ export class LobbyOverlay {
         }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 3);
         this.elements.push(nameText);
 
-        this.playerSlots.push({ bg: slotBg, focusHighlight, placeholder, nameText, faceSprite: null });
+        // Host crown icon (hidden by default)
+        const hostIcon = scene.add.text(sx + slotSize / 2 - 4, sy - slotSize / 2 + 4, '★', {
+          fontSize: '16px',
+          fill: '#ffdd44',
+        }).setOrigin(1, 0).setScrollFactor(0).setDepth(DEPTH + 4).setVisible(false);
+        this.elements.push(hostIcon);
+
+        this.playerSlots.push({ bg: slotBg, focusHighlight, placeholder, nameText, faceSprite: null, hostIcon });
       }
     }
 
@@ -179,6 +238,37 @@ export class LobbyOverlay {
         }
       },
     });
+  }
+
+  /**
+   * Add lobby-specific UI elements (BAŞLAT button for host).
+   */
+  buildLobbyExtras() {
+    const scene = this.scene;
+    const camW = scene.cameras.main.width;
+    const camH = scene.cameras.main.height;
+    const DEPTH = 280;
+
+    // BAŞLAT button — only visible to host
+    const btnY = camH / 2 + 140;
+    const { elements } = createNinesliceButton(scene, camW / 2, btnY, 'BAŞLAT', {
+      width: 180,
+      height: 44,
+      depth: DEPTH + 5,
+      fontSize: '16px',
+      enabled: true,
+      onClick: () => {
+        if (scene.network) {
+          scene.network.sendStartGame();
+        }
+      },
+    });
+
+    for (const el of elements) {
+      el.setVisible(this.isHost);
+      this.elements.push(el);
+    }
+    this.startButtonElements = elements;
   }
 
   /**
@@ -206,6 +296,11 @@ export class LobbyOverlay {
         slot.bg.setTint(0xbbbbaa);
         slot.focusHighlight.setVisible(true);
 
+        // Show host crown indicator
+        if (slot.hostIcon) {
+          slot.hostIcon.setVisible(this.lobbyMode && player.id === this.hostId);
+        }
+
         // Add face sprite if not already there
         if (!slot.faceSprite) {
           const charId = player.characterId || 'boy';
@@ -229,6 +324,10 @@ export class LobbyOverlay {
         slot.nameText.setText('');
         slot.bg.clearTint();
         slot.focusHighlight.setVisible(false);
+
+        if (slot.hostIcon) {
+          slot.hostIcon.setVisible(false);
+        }
 
         if (slot.faceSprite) {
           slot.faceSprite.destroy();

@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
+import { io } from 'socket.io-client';
 import { CHARACTERS } from './BootScene.js';
 import { getPassive } from '../../shared/characterPassives.js';
+import { MSG } from '../../shared/messageTypes.js';
+import { MATCH } from '../../shared/constants.js';
 import { UI_FONT } from '../config.js';
 
 // Loading-screen style tips for re-use
@@ -367,17 +370,26 @@ export class MenuScene extends Phaser.Scene {
   createButtons(camW, _camH) {
     const btnY = 570;
 
-    this.createButton(camW / 2 - 110, btnY, 'MEYDANE', () => {
+    this.createButton(camW / 2 - 200, btnY, 'MEYDANE', () => {
       this.startGame('normal');
     });
 
-    this.createButton(camW / 2 + 110, btnY, 'SERBEST', () => {
+    this.createButton(camW / 2, btnY, 'ODALAR', () => {
+      this.showRoomList();
+    });
+
+    this.createButton(camW / 2 + 200, btnY, 'SERBEST', () => {
       this.startGame('sandbox');
     });
 
     this.add.text(camW / 2, btnY + 34, 'Serbest Meydan: Sınırsız İlham, talim kuklaları, meydan daralmasız', {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#5a3a28',
     }).setOrigin(0.5).setDepth(12);
+
+    // Room list panel elements (hidden initially)
+    this.roomListElements = [];
+    this.roomListSocket = null;
+    this.selectedRoomId = null;
   }
 
   createButton(x, y, label, callback) {
@@ -549,6 +561,234 @@ export class MenuScene extends Phaser.Scene {
   }
 
   // =========================================================================
+  // ROOM LIST
+  // =========================================================================
+
+  showRoomList() {
+    // If already showing, just refresh
+    if (this.roomListElements && this.roomListElements.length > 0) {
+      this.refreshRoomList();
+      return;
+    }
+
+    const cam = this.cameras.main;
+    const camW = cam.width;
+    const camH = cam.height;
+    const DEPTH = 50;
+
+    // Dimmer
+    const dimmer = this.add.rectangle(camW / 2, camH / 2, camW, camH, 0x000000, 0.5)
+      .setDepth(DEPTH).setInteractive();
+    this.roomListElements.push(dimmer);
+
+    // Panel
+    const panelW = 460;
+    const panelH = 380;
+    const panel = this.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 7, 7, 7, 7)
+      .setDepth(DEPTH + 1);
+    this.roomListElements.push(panel);
+
+    // Title
+    const py = camH / 2 - panelH / 2;
+    const title = this.add.text(camW / 2, py + 28, 'AÇIK ODALAR', {
+      fontSize: '32px', fontFamily: UI_FONT,
+      fill: '#ffdd44', stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(DEPTH + 2);
+    this.roomListElements.push(title);
+
+    // Loading text (will be replaced by room rows)
+    this.roomListLoading = this.add.text(camW / 2, camH / 2, 'Yükleniyor...', {
+      fontSize: '16px', fontFamily: UI_FONT, fill: '#5a3a28',
+    }).setOrigin(0.5).setDepth(DEPTH + 3);
+    this.roomListElements.push(this.roomListLoading);
+
+    // YENİLE button
+    this.createRoomListButton(camW / 2 - 80, py + panelH - 36, 'YENİLE', () => {
+      this.refreshRoomList();
+    }, DEPTH);
+
+    // KAPAT button
+    this.createRoomListButton(camW / 2 + 80, py + panelH - 36, 'KAPAT', () => {
+      this.destroyRoomList();
+    }, DEPTH);
+
+    // Connect temporary socket and fetch rooms
+    this.connectAndFetchRooms();
+  }
+
+  connectAndFetchRooms() {
+    if (this.roomListSocket) {
+      this.roomListSocket.disconnect();
+    }
+
+    const serverUrl = window.location.origin;
+    this.roomListSocket = io(serverUrl, { transports: ['websocket'] });
+
+    this.roomListSocket.on('connect', () => {
+      this.roomListSocket.emit(MSG.CLIENT_LIST_ROOMS);
+    });
+
+    this.roomListSocket.on(MSG.SERVER_ROOM_LIST, (data) => {
+      this.renderRoomList(data.rooms || []);
+    });
+  }
+
+  refreshRoomList() {
+    if (this.roomListSocket && this.roomListSocket.connected) {
+      this.roomListSocket.emit(MSG.CLIENT_LIST_ROOMS);
+    } else {
+      this.connectAndFetchRooms();
+    }
+  }
+
+  renderRoomList(rooms) {
+    // Remove old room row elements (keep panel, title, buttons)
+    if (this.roomRowElements) {
+      for (const el of this.roomRowElements) {
+        if (el && !el.destroyed) el.destroy();
+      }
+    }
+    this.roomRowElements = [];
+
+    // Hide loading text
+    if (this.roomListLoading && !this.roomListLoading.destroyed) {
+      this.roomListLoading.setVisible(false);
+    }
+
+    const cam = this.cameras.main;
+    const camW = cam.width;
+    const camH = cam.height;
+    const panelH = 380;
+    const py = camH / 2 - panelH / 2;
+    const DEPTH = 50;
+
+    if (rooms.length === 0) {
+      const emptyText = this.add.text(camW / 2, camH / 2 - 10, 'Açık oda yok', {
+        fontSize: '16px', fontFamily: UI_FONT, fill: '#5a3a28',
+      }).setOrigin(0.5).setDepth(DEPTH + 3);
+      this.roomRowElements.push(emptyText);
+      this.roomListElements.push(emptyText);
+
+      const hintText = this.add.text(camW / 2, camH / 2 + 16, 'MEYDANE\'ye basıp oda kur!', {
+        fontSize: '16px', fontFamily: UI_FONT, fill: '#3a6a28', fontStyle: 'italic',
+      }).setOrigin(0.5).setDepth(DEPTH + 3);
+      this.roomRowElements.push(hintText);
+      this.roomListElements.push(hintText);
+      return;
+    }
+
+    const rowH = 44;
+    const rowW = 400;
+    const startY = py + 70;
+    const maxVisible = Math.min(rooms.length, 6);
+
+    for (let i = 0; i < maxVisible; i++) {
+      const room = rooms[i];
+      const rowY = startY + i * (rowH + 6);
+
+      // Row background
+      const rowBg = this.add.nineslice(camW / 2, rowY, 'ui-inventory-cell', null, rowW, rowH, 7, 7, 7, 7)
+        .setDepth(DEPTH + 2);
+      this.roomRowElements.push(rowBg);
+      this.roomListElements.push(rowBg);
+
+      // Host name
+      const hostText = this.add.text(camW / 2 - rowW / 2 + 16, rowY, room.hostName, {
+        fontSize: '16px', fontFamily: UI_FONT, fill: '#ffdd44',
+      }).setOrigin(0, 0.5).setDepth(DEPTH + 3);
+      this.roomRowElements.push(hostText);
+      this.roomListElements.push(hostText);
+
+      // Player count
+      const countText = this.add.text(camW / 2 + 60, rowY, `${room.playerCount}/${room.maxPlayers}`, {
+        fontSize: '16px', fontFamily: UI_FONT, fill: '#cccccc',
+      }).setOrigin(0.5).setDepth(DEPTH + 3);
+      this.roomRowElements.push(countText);
+      this.roomListElements.push(countText);
+
+      // KATIL button
+      const btnX = camW / 2 + rowW / 2 - 54;
+      const btnW = 80;
+      const btnH = 30;
+      const joinBtn = this.add.nineslice(btnX, rowY, 'ui-button', null, btnW, btnH, 16, 16, 2, 4)
+        .setDepth(DEPTH + 3);
+      this.roomRowElements.push(joinBtn);
+      this.roomListElements.push(joinBtn);
+
+      const joinText = this.add.text(btnX, rowY - 1, 'KATIL', {
+        fontSize: '16px', fontFamily: UI_FONT, fill: '#ffffff', fontStyle: 'bold',
+        stroke: '#000000', strokeThickness: 2,
+      }).setOrigin(0.5).setDepth(DEPTH + 4);
+      this.roomRowElements.push(joinText);
+      this.roomListElements.push(joinText);
+
+      const joinHit = this.add.rectangle(btnX, rowY, btnW, btnH, 0xffffff, 0)
+        .setInteractive({ useHandCursor: true }).setDepth(DEPTH + 5);
+      this.roomRowElements.push(joinHit);
+      this.roomListElements.push(joinHit);
+
+      joinHit.on('pointerover', () => joinBtn.setTint(0xffe8cc));
+      joinHit.on('pointerout', () => joinBtn.clearTint());
+      joinHit.on('pointerdown', () => joinBtn.setTint(0xccaa88));
+      joinHit.on('pointerup', () => {
+        joinBtn.clearTint();
+        this.playSfx('sfx-accept');
+        this.selectedRoomId = room.roomId;
+        this.startGame('join');
+      });
+    }
+  }
+
+  createRoomListButton(x, y, label, callback, depth) {
+    const w = 120;
+    const h = 32;
+    const btn = this.add.nineslice(x, y, 'ui-button', null, w, h, 16, 16, 2, 4)
+      .setDepth(depth + 2);
+    this.roomListElements.push(btn);
+
+    const text = this.add.text(x, y - 1, label, {
+      fontSize: '16px', fontFamily: UI_FONT, fill: '#ffffff', fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(depth + 3);
+    this.roomListElements.push(text);
+
+    const hit = this.add.rectangle(x, y, w, h, 0xffffff, 0)
+      .setInteractive({ useHandCursor: true }).setDepth(depth + 4);
+    this.roomListElements.push(hit);
+
+    hit.on('pointerover', () => { btn.setTint(0xffe8cc); this.playSfx('sfx-move'); });
+    hit.on('pointerout', () => btn.clearTint());
+    hit.on('pointerdown', () => btn.setTint(0xccaa88));
+    hit.on('pointerup', () => {
+      btn.clearTint();
+      this.playSfx('sfx-accept');
+      callback();
+    });
+  }
+
+  destroyRoomList() {
+    if (this.roomListSocket) {
+      this.roomListSocket.removeAllListeners();
+      this.roomListSocket.disconnect();
+      this.roomListSocket = null;
+    }
+    if (this.roomListElements) {
+      for (const el of this.roomListElements) {
+        if (el && !el.destroyed) el.destroy();
+      }
+      this.roomListElements = [];
+    }
+    if (this.roomRowElements) {
+      for (const el of this.roomRowElements) {
+        if (el && !el.destroyed) el.destroy();
+      }
+      this.roomRowElements = [];
+    }
+    this.roomListLoading = null;
+    this.selectedRoomId = null;
+  }
+
+  // =========================================================================
   // GAME START
   // =========================================================================
 
@@ -558,8 +798,12 @@ export class MenuScene extends Phaser.Scene {
 
     const char = CHARACTERS[this.selectedCharIndex];
     const name = this.nameInput ? this.nameInput.node.value.trim() || 'Âşık' : 'Âşık';
+    const roomId = this.selectedRoomId || null;  // Save before cleanup
 
     this.playSfx('sfx-accept');
+
+    // Clean up room list socket if open
+    this.destroyRoomList();
 
     if (this.nameInput) { this.nameInput.destroy(); this.nameInput = null; }
     this.stopMenuMusic();
@@ -572,6 +816,7 @@ export class MenuScene extends Phaser.Scene {
         characterId: char.id,
         playerName: name,
         mode: mode,
+        roomId: roomId,
       });
     });
   }

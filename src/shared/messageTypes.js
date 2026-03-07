@@ -19,6 +19,10 @@ export const MSG = {
   CLIENT_SHOP_CHOOSE_SPELL: 'c:shopChooseSpell',     // NEW: replaces CHOOSE_BRANCH
   CLIENT_SHOP_UPGRADE_TIER: 'c:shopUpgradeTier',
 
+  // Client -> Server (lobby)
+  CLIENT_LIST_ROOMS: 'c:listRooms',
+  CLIENT_START_GAME: 'c:startGame',
+
   // Server -> Client
   SERVER_STATE: 's:state',
   SERVER_JOINED: 's:joined',
@@ -34,4 +38,9 @@ export const MSG = {
   SERVER_SPELL_CONFIRM: 's:spellOk',
   SERVER_SPELL_DENY: 's:spellNo',
   SERVER_PONG: 's:pong',
+
+  // Server -> Client (lobby)
+  SERVER_ROOM_LIST: 's:roomList',
+  SERVER_LOBBY_UPDATE: 's:lobbyUpdate',
+  SERVER_LOBBY_ERROR: 's:lobbyError',
 };

@@ -8,17 +8,16 @@ export class RoomManager {
     this.nextRoomId = 1;
   }
 
-  // Find a room with space, or create a new one
+  // Find a room with space, or create a new one (skips lobby & sandbox rooms)
   findOrCreateRoom() {
-    // Look for a room that isn't full and hasn't ended (skip sandbox rooms)
     for (const [id, room] of this.rooms) {
       if (room.sandbox) continue;
+      if (room.lobby) continue;
       if (room.rounds.phase === PHASE.MATCH_END) continue;
       if (room.playerCount < MATCH.MAX_PLAYERS) {
         return room;
       }
     }
-    // Create a new room
     return this.createRoom();
   }
 
@@ -28,6 +27,32 @@ export class RoomManager {
     this.rooms.set(roomId, room);
     console.log(`Created room: ${roomId}`);
     return room;
+  }
+
+  createLobbyRoom() {
+    const roomId = `lobby-${this.nextRoomId++}`;
+    const room = new Room(roomId, { lobby: true });
+    this.rooms.set(roomId, room);
+    console.log(`Created lobby room: ${roomId}`);
+    return room;
+  }
+
+  getOpenLobbies() {
+    const lobbies = [];
+    for (const [id, room] of this.rooms) {
+      if (!room.lobby) continue;
+      if (room.running) continue;
+      if (room.playerCount >= MATCH.MAX_PLAYERS) continue;
+      // Find host name
+      const hostPlayer = room.hostId ? room.players.get(room.hostId) : null;
+      lobbies.push({
+        roomId: id,
+        hostName: hostPlayer ? hostPlayer.name : '???',
+        playerCount: room.playerCount,
+        maxPlayers: MATCH.MAX_PLAYERS,
+      });
+    }
+    return lobbies;
   }
 
   createSandboxRoom() {

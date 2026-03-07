@@ -19,6 +19,8 @@ export class Room {
   constructor(id, options = {}) {
     this.id = id;
     this.sandbox = options.sandbox || false;
+    this.lobby = options.lobby || false;
+    this.hostId = null;
     this.players = new Map();
     this.physics = new ServerPhysics();
 
@@ -135,12 +137,18 @@ export class Room {
       });
     }
 
+    // For lobby rooms, track the host (first player to join)
+    if (this.lobby && !this.hostId) {
+      this.hostId = playerId;
+    }
+
     const progression = this.progressions.get(playerId);
     socket.emit(MSG.SERVER_JOINED, {
       playerId,
       players: allPlayers,
       roomId: this.id,
       progression: progression ? progression.getState() : null,
+      hostId: this.lobby ? this.hostId : undefined,
     });
 
     // Listen for spell casts from this player
@@ -179,7 +187,16 @@ export class Room {
       });
     }
 
-    if (!this.running && this.players.size >= 1) {
+    // Lobby rooms: broadcast player list update + register start game listener
+    if (this.lobby) {
+      this.broadcastLobbyUpdate();
+      socket.on(MSG.CLIENT_START_GAME, () => {
+        this.startFromLobby(socket.id);
+      });
+    }
+
+    // Non-lobby rooms auto-start immediately
+    if (!this.lobby && !this.running && this.players.size >= 1) {
       this.start();
     }
 
@@ -196,6 +213,7 @@ export class Room {
       player.socket.removeAllListeners(MSG.CLIENT_SHOP_CHOOSE_SPELL);
       player.socket.removeAllListeners(MSG.CLIENT_SHOP_UPGRADE_TIER);
       player.socket.removeAllListeners(MSG.CLIENT_SANDBOX_SHOP_TOGGLE);
+      player.socket.removeAllListeners(MSG.CLIENT_START_GAME);
     }
 
     this.players.delete(playerId);
@@ -211,9 +229,51 @@ export class Room {
       p.socket.emit(MSG.SERVER_PLAYER_LEAVE, { id: playerId });
     }
 
+    // Lobby: transfer host if the departing player was host
+    if (this.lobby && this.hostId === playerId && this.players.size > 0) {
+      const nextPlayer = this.players.entries().next().value;
+      this.hostId = nextPlayer[0];
+      console.log(`[Room ${this.id}] Host transferred to ${this.hostId}`);
+      this.broadcastLobbyUpdate();
+    }
+
     if (this.players.size === 0) {
       this.stop();
     }
+  }
+
+  // --- Lobby helpers ---
+
+  buildPlayerList() {
+    const list = [];
+    for (const [id, p] of this.players) {
+      list.push({ id, name: p.name, characterId: p.characterId });
+    }
+    return list;
+  }
+
+  broadcastLobbyUpdate() {
+    const players = this.buildPlayerList();
+    for (const [id, p] of this.players) {
+      p.socket.emit(MSG.SERVER_LOBBY_UPDATE, {
+        players,
+        hostId: this.hostId,
+      });
+    }
+  }
+
+  startFromLobby(requesterId) {
+    if (!this.lobby) return false;
+    if (requesterId !== this.hostId) {
+      const player = this.players.get(requesterId);
+      if (player) {
+        player.socket.emit(MSG.SERVER_LOBBY_ERROR, { error: 'SADECE EV SAHİBİ BAŞLATIR' });
+      }
+      return false;
+    }
+    if (this.running) return false;
+    this.start();
+    return true;
   }
 
   handleInput(playerId, input) {

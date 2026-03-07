@@ -27,14 +27,43 @@ io.on('connection', (socket) => {
 
   // Player joins a match
   socket.on(MSG.CLIENT_JOIN, (data) => {
-    const { playerName, characterId, mode } = data || {};
+    const { playerName, characterId, mode, roomId } = data || {};
     if (mode === 'sandbox') {
       currentRoom = roomManager.createSandboxRoom();
+    } else if (mode === 'join') {
+      // Join an existing lobby by roomId
+      const room = roomManager.rooms.get(roomId);
+      if (!room || !room.lobby) {
+        socket.emit(MSG.SERVER_LOBBY_ERROR, { error: 'ODA BULUNAMADI' });
+        return;
+      }
+      if (room.running) {
+        socket.emit(MSG.SERVER_LOBBY_ERROR, { error: 'OYUN BAŞLADI' });
+        return;
+      }
+      if (room.playerCount >= 8) {
+        socket.emit(MSG.SERVER_LOBBY_ERROR, { error: 'ODA DOLU' });
+        return;
+      }
+      currentRoom = room;
     } else {
-      currentRoom = roomManager.findOrCreateRoom();
+      // Normal mode: create a new lobby room
+      currentRoom = roomManager.createLobbyRoom();
     }
     currentRoom.addPlayer(socket, playerName, characterId);
     console.log(`${socket.id} joined ${currentRoom.id} (${currentRoom.playerCount} players) mode: ${mode || 'normal'}`);
+  });
+
+  // List open lobby rooms
+  socket.on(MSG.CLIENT_LIST_ROOMS, () => {
+    socket.emit(MSG.SERVER_ROOM_LIST, { rooms: roomManager.getOpenLobbies() });
+  });
+
+  // Host starts the game
+  socket.on(MSG.CLIENT_START_GAME, () => {
+    if (currentRoom) {
+      currentRoom.startFromLobby(socket.id);
+    }
   });
 
   // Player sends input

@@ -73,6 +73,8 @@ export class GameScene extends Phaser.Scene {
     this.matchEndOverlay = null;
     this.lobbyOverlay = null;
     this.lastPhase = null;        // Track phase transitions for lobby
+    this.isHost = false;
+    this.roomId = null;
   }
 
   init(data) {
@@ -80,6 +82,7 @@ export class GameScene extends Phaser.Scene {
       this.characterId = data.characterId || 'boy';
       this.playerName = data.playerName || 'Player';
       this.gameMode = data.mode || 'normal';
+      this.roomId = data.roomId || null;
     }
   }
 
@@ -126,6 +129,8 @@ export class GameScene extends Phaser.Scene {
     this.matchEndOverlay = null;
     this.lobbyOverlay = null;
     this.lastPhase = null;
+    this.isHost = false;
+    // NOTE: do NOT reset this.roomId here — it is set in init() before create()
     this.obstacleSprites = [];
     this.currentMapIndex = -1;
     this.lastServerSpells = [];
@@ -215,6 +220,39 @@ export class GameScene extends Phaser.Scene {
           this.addRemotePlayer(p.id, p.characterId || 'ninja-green', p.x, p.y, p.name);
         }
       }
+
+      // Lobby mode: show lobby overlay with host controls
+      if (data.hostId) {
+        this.isHost = (data.hostId === data.playerId);
+        if (this.lobbyOverlay) {
+          this.lobbyOverlay.showLobbyMode(data.players, this.isHost, data.hostId);
+        }
+      }
+    };
+
+    this.network.onLobbyUpdate = (data) => {
+      this.isHost = (data.hostId === this.localPlayerId);
+      if (this.lobbyOverlay) {
+        this.lobbyOverlay.updateLobbyMode(data.players, this.isHost, data.hostId);
+      }
+    };
+
+    this.network.onLobbyError = (data) => {
+      console.error('Lobby error:', data.error);
+      // Show error and go back to menu
+      const cam = this.cameras.main;
+      const errorText = this.add.text(cam.width / 2, cam.height / 2, data.error, {
+        fontSize: '32px',
+        fontFamily: 'KiwiSoda',
+        fill: '#ff4444',
+        stroke: '#000000',
+        strokeThickness: 3,
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(999);
+
+      this.time.delayedCall(2000, () => {
+        errorText.destroy();
+        this.scene.start('MenuScene');
+      });
     };
 
     this.network.onPlayerJoin = (data) => {
@@ -263,7 +301,7 @@ export class GameScene extends Phaser.Scene {
     // Wait for actual connection before joining (cloudflare can be slow)
     const tryJoin = () => {
       if (this.network.connected) {
-        this.network.join(this.playerName, this.characterId, this.gameMode);
+        this.network.join(this.playerName, this.characterId, this.gameMode, this.roomId);
       } else {
         setTimeout(tryJoin, 200);
       }

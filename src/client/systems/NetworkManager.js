@@ -21,6 +21,8 @@ export class NetworkManager {
     this.onMatchEnd = null;
     this.onShopOpen = null;        // (data) => {}
     this.onShopUpdate = null;      // (data) => {} — progression state after purchase
+    this.onLobbyUpdate = null;     // (data) => {} — lobby player list / host change
+    this.onLobbyError = null;      // (data) => {} — lobby error message
 
     // Input sending throttle
     this.lastInputSendTime = 0;
@@ -101,6 +103,15 @@ export class NetworkManager {
       if (this.onShopUpdate) this.onShopUpdate(data);
     });
 
+    // Lobby events
+    this.socket.on(MSG.SERVER_LOBBY_UPDATE, (data) => {
+      if (this.onLobbyUpdate) this.onLobbyUpdate(data);
+    });
+
+    this.socket.on(MSG.SERVER_LOBBY_ERROR, (data) => {
+      if (this.onLobbyError) this.onLobbyError(data);
+    });
+
     // Ping/pong
     this.socket.on(MSG.SERVER_PONG, (data) => {
       this.ping = Date.now() - data.timestamp;
@@ -114,9 +125,14 @@ export class NetworkManager {
     }, 2000);
   }
 
-  join(playerName, characterId, mode = 'normal') {
+  join(playerName, characterId, mode = 'normal', roomId = null) {
     if (!this.connected) return;
-    this.socket.emit(MSG.CLIENT_JOIN, { playerName, characterId, mode });
+    this.socket.emit(MSG.CLIENT_JOIN, { playerName, characterId, mode, roomId });
+  }
+
+  sendStartGame() {
+    if (!this.connected) return;
+    this.socket.emit(MSG.CLIENT_START_GAME);
   }
 
   sendInput(input) {
