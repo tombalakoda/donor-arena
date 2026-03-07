@@ -4,18 +4,7 @@ import { CHARACTERS } from './BootScene.js';
 import { getPassive } from '../../shared/characterPassives.js';
 import { MSG } from '../../shared/messageTypes.js';
 import { MATCH } from '../../shared/constants.js';
-import { UI_FONT } from '../config.js';
-
-// Loading-screen style tips for re-use
-const TIPS = [
-  'Sağ tıkla buzda yürü',
-  'Q / W / E / R ile hünerlerini göster',
-  'Meydanın içinde kal!',
-  'Dükkânda hünerlerini pişir',
-  'Rakibi meydandan aşağı düşür!',
-  'Buz zemini: yolunu iyi hesapla!',
-  'Sert vuruş seni uçurur',
-];
+import { UI_FONT, TIPS } from '../config.js';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -50,6 +39,10 @@ export class MenuScene extends Phaser.Scene {
     this.createSoundToggle(camW);
     this.selectCharacter(0);
     this.startMenuMusic();
+
+    this.events.once('shutdown', () => {
+      this.destroyRoomList();
+    }, this);
   }
 
   // =========================================================================

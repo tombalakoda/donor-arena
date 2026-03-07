@@ -11,7 +11,7 @@ export const dashHandler = {
     const dy = targetY - originY;
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
     const dashPassive = getPassive(ctx.getCharacterId(playerId));
-    const maxRange = (stats.range || 140) * (1 + (dashPassive.dashRangeBonus || 0));
+    const maxRange = (stats.range || 140) * (1 + (dashPassive.mobilityRangeBonus || 0));
     let dashDist = Math.min(dist, maxRange);
 
     const nx = dx / dist;

@@ -6,6 +6,16 @@ import { GameScene } from './scenes/GameScene.js';
 /** Shared font family string — KiwiSoda pixel font with monospace fallback */
 export const UI_FONT = "'KiwiSoda', monospace";
 
+export const TIPS = [
+  'Sağ tıkla buzda yürü',
+  'Q / W / E / R ile hünerlerini göster',
+  'Meydanın içinde kal!',
+  'Dükkânda hünerlerini pişir',
+  'Rakibi meydandan aşağı düşür!',
+  'Buz zemini: yolunu iyi hesapla!',
+  'Sert vuruş seni uçurur',
+];
+
 export const gameConfig = {
   type: Phaser.AUTO,
   width: 1280,

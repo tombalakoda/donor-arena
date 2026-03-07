@@ -127,10 +127,10 @@ describe('getPassive', () => {
   });
 
   it('should include expected passive fields for specific characters', () => {
-    expect(getPassive('knight')).toHaveProperty('damageReduction', 0.20);
+    expect(getPassive('knight')).toHaveProperty('damageReduction', 0.12);
     expect(getPassive('boy')).toHaveProperty('cdReduction', 0.15);
     expect(getPassive('demon-red')).toHaveProperty('bonusHp', 20);
-    expect(getPassive('eskimo')).toHaveProperty('frostResist', 0.40);
+    expect(getPassive('eskimo')).toHaveProperty('slowResist', 0.30);
     expect(getPassive('mask-racoon')).toHaveProperty('knockbackBonus', 0.15);
   });
 });

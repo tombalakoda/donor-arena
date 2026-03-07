@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { UI_FONT } from '../config.js';
+import { UI_FONT, TIPS } from '../config.js';
 
 // Character IDs and their folder names
 export const CHARACTERS = [
@@ -51,16 +51,6 @@ const FX_MAGIC = {
   spirit:     { file: 'Spirit/SpriteSheet.png',             frameW: 32, frameH: 32 },
 };
 
-// Loading screen tips
-const TIPS = [
-  'Sağ tıkla buzda yürü',
-  'Q / W / E / R ile hünerlerini göster',
-  'Meydanın içinde kal!',
-  'Dükkânda hünerlerini pişir',
-  'Rakibi meydandan aşağı düşür!',
-  'Buz zemini: yolunu iyi hesapla!',
-  'Sert vuruş seni uçurur',
-];
 
 export class BootScene extends Phaser.Scene {
   constructor() {

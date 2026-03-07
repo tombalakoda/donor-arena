@@ -122,6 +122,10 @@ export class GameScene extends Phaser.Scene {
     this.timeRemaining = 0;
     this.countdownRemaining = 0;
     this.localEliminated = false;
+    if (this.shopOverlay) this.shopOverlay.destroy();
+    if (this.pauseMenu) this.pauseMenu.destroy();
+    if (this.matchEndOverlay) this.matchEndOverlay.destroy();
+    if (this.lobbyOverlay) this.lobbyOverlay.destroy();
     this.shopOverlay = null;
     this.progression = null;
     this.shopTimeRemaining = 0;
@@ -171,6 +175,7 @@ export class GameScene extends Phaser.Scene {
 
     // ESC key to toggle pause menu
     this.input.keyboard.on('keydown-ESC', () => {
+      if (this.shopOverlay && this.shopOverlay.visible) return;
       // Don't allow pause if match-end is showing
       if (this.matchEndOverlay && this.matchEndOverlay.visible) return;
       if (this.pauseMenu) this.pauseMenu.toggle();
@@ -239,6 +244,8 @@ export class GameScene extends Phaser.Scene {
 
     this.network.onLobbyError = (data) => {
       console.error('Lobby error:', data.error);
+      if (this.network) this.network.disconnect();
+      window.__networkConnected = false;
       // Show error and go back to menu
       const cam = this.cameras.main;
       const errorText = this.add.text(cam.width / 2, cam.height / 2, data.error, {
@@ -303,10 +310,10 @@ export class GameScene extends Phaser.Scene {
       if (this.network.connected) {
         this.network.join(this.playerName, this.characterId, this.gameMode, this.roomId);
       } else {
-        setTimeout(tryJoin, 200);
+        this._tryJoinTimeout = setTimeout(tryJoin, 200);
       }
     };
-    setTimeout(tryJoin, 200);
+    this._tryJoinTimeout = setTimeout(tryJoin, 200);
   }
 
   handleServerState(snapshot) {
@@ -1288,6 +1295,7 @@ export class GameScene extends Phaser.Scene {
   update(time, delta) {
     if (this !== window.__gameScene && window.__gameScene) {
       console.error('[BUG] update() running on WRONG scene! this.scene.key:', this.scene?.key, 'expected:', window.__gameScene?.scene?.key);
+      return;
     }
     this.spellVisualManager.processPending();
     this.updateLocalMovement(delta);
@@ -1425,23 +1433,25 @@ export class GameScene extends Phaser.Scene {
       }
 
       // Draw and fade trail
-      if (!this.trailGraphics) {
-        this.trailGraphics = this.add.graphics().setDepth(5);
-      }
-      this.trailGraphics.clear();
-      // Fade and remove expired trail points (backward for safe splice)
-      for (let i = this.speedTrail.length - 1; i >= 0; i--) {
-        this.speedTrail[i].alpha -= 0.06;
-        if (this.speedTrail[i].alpha <= 0) {
-          this.speedTrail.splice(i, 1);
+      if (this.speedTrail.length > 0) {
+        if (!this.trailGraphics) {
+          this.trailGraphics = this.add.graphics().setDepth(5);
         }
-      }
-      // Draw remaining trail points (forward for correct visual ordering)
-      for (let i = 0; i < this.speedTrail.length; i++) {
-        const t = this.speedTrail[i];
-        const size = 6 + (i / this.speedTrail.length) * 8;
-        this.trailGraphics.fillStyle(0xffffff, t.alpha * 0.5);
-        this.trailGraphics.fillCircle(t.x, t.y, size);
+        this.trailGraphics.clear();
+        // Fade and remove expired trail points (backward for safe splice)
+        for (let i = this.speedTrail.length - 1; i >= 0; i--) {
+          this.speedTrail[i].alpha -= 0.06;
+          if (this.speedTrail[i].alpha <= 0) {
+            this.speedTrail.splice(i, 1);
+          }
+        }
+        // Draw remaining trail points (forward for correct visual ordering)
+        for (let i = 0; i < this.speedTrail.length; i++) {
+          const t = this.speedTrail[i];
+          const size = 6 + (i / this.speedTrail.length) * 8;
+          this.trailGraphics.fillStyle(0xffffff, t.alpha * 0.5);
+          this.trailGraphics.fillCircle(t.x, t.y, size);
+        }
       }
     }
   }
@@ -1501,6 +1511,9 @@ export class GameScene extends Phaser.Scene {
 
     // Cleanup speed trail
     this.speedTrail = [];
+
+    // Clear tryJoin timeout
+    if (this._tryJoinTimeout) { clearTimeout(this._tryJoinTimeout); this._tryJoinTimeout = null; }
 
     // Disconnect network
     if (this.network) {

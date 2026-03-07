@@ -1,19 +1,15 @@
-import { readFileSync } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { ServerPhysics } from '../game/ServerPhysics.js';
 import { ServerSpell } from '../game/ServerSpell.js';
 import { ObstacleManager } from '../game/ObstacleManager.js';
 import { RoundManager, PHASE } from '../game/RoundManager.js';
 import { PlayerProgression } from '../game/PlayerProgression.js';
 import { MSG } from '../../shared/messageTypes.js';
-import { PHYSICS, MATCH, PLAYER, SANDBOX } from '../../shared/constants.js';
+import { PHYSICS, MATCH, PLAYER, SANDBOX, ARENA } from '../../shared/constants.js';
 import { getPassive } from '../../shared/characterPassives.js';
 import { SPELL_TYPES } from '../../shared/spellData.js';
 import { GameLoop } from '../game/GameLoop.js';
 import { getSpawnPositions } from '../game/utils.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { applyDamage } from '../game/damageUtils.js';
 
 export class Room {
   constructor(id, options = {}) {
@@ -24,26 +20,8 @@ export class Room {
     this.players = new Map();
     this.physics = new ServerPhysics();
 
-    // Load all arena map variants for per-round obstacle rotation
-    this.arenaMaps = [];
-    for (let i = 0; i <= 9; i++) {
-      try {
-        const mapPath = path.join(__dirname, `../../../public/assets/maps/arena${i}.json`);
-        this.arenaMaps.push(JSON.parse(readFileSync(mapPath, 'utf-8')));
-      } catch (e) {
-        // skip missing map files
-      }
-    }
-    // Fallback: load arena-default.json if no numbered maps found
-    if (this.arenaMaps.length === 0) {
-      try {
-        const mapPath = path.join(__dirname, '../../../public/assets/maps/arena-default.json');
-        this.arenaMaps.push(JSON.parse(readFileSync(mapPath, 'utf-8')));
-      } catch (e) {
-        console.warn(`[Room ${id}] No map files found`);
-      }
-    }
-    console.log(`[Room ${id}] Loaded ${this.arenaMaps.length} arena maps`);
+    // Arena maps are loaded once at startup by RoomManager and shared
+    this.arenaMaps = options.arenaMaps || [];
     this.currentMapIndex = -1; // set on first round
 
     this.obstacleManager = new ObstacleManager(this.physics.world);
@@ -284,6 +262,9 @@ export class Room {
     // Only accept known fields with numeric validation
     if (input.targetX != null && input.targetY != null
         && Number.isFinite(input.targetX) && Number.isFinite(input.targetY)) {
+      const MAX_COORD = ARENA.FLOOR_SIZE * 2;
+      input.targetX = Math.max(-MAX_COORD, Math.min(MAX_COORD, input.targetX));
+      input.targetY = Math.max(-MAX_COORD, Math.min(MAX_COORD, input.targetY));
       player.input = { targetX: input.targetX, targetY: input.targetY };
     } else {
       player.input = null;
@@ -297,6 +278,13 @@ export class Room {
     if (this.rounds.phase !== PHASE.PLAYING) return;
     // Validate spell data — client sends slot key (Q/W/E/R) or direct spellId
     if (!data || !Number.isFinite(data.targetX) || !Number.isFinite(data.targetY)) return;
+    const MAX_COORD = ARENA.FLOOR_SIZE * 2;
+    data.targetX = Math.max(-MAX_COORD, Math.min(MAX_COORD, data.targetX));
+    data.targetY = Math.max(-MAX_COORD, Math.min(MAX_COORD, data.targetY));
+
+    const now = Date.now();
+    if (now - (player.lastSpellCast || 0) < 50) return;
+    player.lastSpellCast = now;
 
     const progression = this.progressions.get(playerId);
 
@@ -331,19 +319,7 @@ export class Room {
         for (const hit of spell.hits) {
           const target = this.players.get(hit.id);
           if (target) {
-            let finalDamage = hit.damage;
-
-            // Apply character passive damage reduction
-            const targetPassive = getPassive(target.characterId);
-            if (targetPassive.damageReduction) {
-              finalDamage *= (1 - targetPassive.damageReduction);
-            }
-            if (targetPassive.fireResist && spell.type && spell.type.startsWith('fireball')) {
-              finalDamage *= (1 - targetPassive.fireResist);
-            }
-
-            target.hp = Math.max(0, target.hp - finalDamage);
-            // Track damage for SP
+            const finalDamage = applyDamage(target, hit.damage, spell.type);
             this.trackDamage(playerId, finalDamage);
 
             if (target.hp <= 0 && !target.eliminated) {
@@ -370,6 +346,8 @@ export class Room {
 
   handleShopUnlockSlot(playerId, data) {
     if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
+    const VALID_SLOTS = new Set(['Q', 'W', 'E', 'R']);
+    if (!data || !VALID_SLOTS.has(data.slot)) return;
     const progression = this.progressions.get(playerId);
     if (!progression) return;
 
@@ -382,9 +360,10 @@ export class Room {
 
   handleShopChooseSpell(playerId, data) {
     if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
+    const VALID_SLOTS = new Set(['Q', 'W', 'E', 'R']);
+    if (!data || !VALID_SLOTS.has(data.slot) || !data.spellId) return;
     const progression = this.progressions.get(playerId);
     if (!progression) return;
-    if (!data || !data.slot || !data.spellId) return;
 
     const success = progression.chooseSpell(data.slot, data.spellId);
     if (success) {
@@ -395,9 +374,10 @@ export class Room {
 
   handleShopUpgradeTier(playerId, data) {
     if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
+    const VALID_SLOTS = new Set(['Q', 'W', 'E', 'R']);
+    if (!data || !VALID_SLOTS.has(data.slot)) return;
     const progression = this.progressions.get(playerId);
     if (!progression) return;
-    if (!data || !data.slot) return;
 
     const success = progression.upgradeTier(data.slot);
     if (success) {
@@ -540,23 +520,15 @@ export class Room {
           this.rounds.awardRoundWin(winnerId);
         }
 
-        // Calculate average SP for underdog bonus (catch-up mechanic)
-        let totalSp = 0;
-        let playerCount = 0;
-        for (const [id] of this.players) {
-          const prog = this.progressions.get(id);
-          if (prog) {
-            totalSp += prog.totalSpEarned;
-            playerCount++;
-          }
-        }
-        const averageSp = playerCount > 1 ? totalSp / playerCount : 0;
-
         // Award SP from skill tree system
+        // Step 1: Award round SP to all players first
         const spAwards = {};
+        const earnedMap = new Map();
+        let playerCount = 0;
         for (const [id, player] of this.players) {
           const progression = this.progressions.get(id);
           if (!progression) continue;
+          playerCount++;
 
           const stats = {
             damageDealt: this.roundDamage.get(id) || 0,
@@ -567,8 +539,26 @@ export class Room {
           };
 
           const earned = progression.awardRoundSP(stats);
+          earnedMap.set(id, { earned, stats });
+        }
 
-          // Underdog bonus: players below average total SP get bonus
+        // Step 2: Compute average SP from POST-award totals
+        let totalSp = 0;
+        for (const [id] of this.players) {
+          const prog = this.progressions.get(id);
+          if (prog) {
+            totalSp += prog.totalSpEarned;
+          }
+        }
+        const averageSp = playerCount > 1 ? totalSp / playerCount : 0;
+
+        // Step 3: Compute and award underdog bonuses
+        for (const [id] of this.players) {
+          const progression = this.progressions.get(id);
+          if (!progression) continue;
+          const info = earnedMap.get(id);
+          if (!info) continue;
+
           let underdogBonus = 0;
           if (playerCount > 1 && progression.totalSpEarned < averageSp) {
             underdogBonus = Math.max(0, Math.floor((averageSp - progression.totalSpEarned) / 5));
@@ -577,7 +567,7 @@ export class Room {
             progression.awardSP(underdogBonus);
           }
 
-          spAwards[id] = { earned: earned + underdogBonus, underdogBonus, total: progression.sp, stats };
+          spAwards[id] = { earned: info.earned + underdogBonus, underdogBonus, total: progression.sp, stats: info.stats };
         }
 
         const winner = winnerId ? this.players.get(winnerId) : null;
@@ -615,6 +605,7 @@ export class Room {
           })),
         });
         console.log(`Room ${this.id}: Match ended`);
+        this.stop(); // Stop the game loop — no more physics/broadcasts needed
         break;
     }
   }

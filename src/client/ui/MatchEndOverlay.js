@@ -250,17 +250,17 @@ export class MatchEndOverlay {
 
   playAgain() {
     const scene = this.scene;
-    // Disconnect current
-    if (scene.network) {
-      scene.network.disconnect();
-    }
+    if (scene.network) scene.network.disconnect();
     window.__networkConnected = false;
     scene.sound.stopAll();
 
     scene.cameras.main.fadeOut(400, 0, 0, 0);
     scene.cameras.main.once('camerafadeoutcomplete', () => {
-      // Go back to menu where they can choose character / mode again
-      scene.scene.start('MenuScene');
+      scene.scene.start('GameScene', {
+        characterId: scene.characterId,
+        playerName: scene.playerName,
+        mode: scene.gameMode,
+      });
     });
   }
 }

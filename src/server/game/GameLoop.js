@@ -1,8 +1,8 @@
 import { PHYSICS, DAMAGE, SANDBOX } from '../../shared/constants.js';
-import { getPassive } from '../../shared/characterPassives.js';
 import { PHASE } from './RoundManager.js';
 import { MSG } from '../../shared/messageTypes.js';
 import { getSpawnPositions } from './utils.js';
+import { applyDamage } from './damageUtils.js';
 
 const DUMMY_CHARACTERS = ['knight', 'ninja-green', 'demon-red', 'eskimo'];
 
@@ -87,19 +87,7 @@ export class GameLoop {
       // Check player targets
       const target = room.players.get(hit.targetId);
       if (target && !target.eliminated) {
-        let finalDamage = hit.damage;
-
-        // Apply character passive damage reduction
-        const targetPassive = getPassive(target.characterId);
-        if (targetPassive.damageReduction) {
-          finalDamage *= (1 - targetPassive.damageReduction);
-        }
-        // Fire resistance (stacks multiplicatively with armor)
-        if (targetPassive.fireResist && hit.spellId && hit.spellId.startsWith('fireball')) {
-          finalDamage *= (1 - targetPassive.fireResist);
-        }
-
-        target.hp = Math.max(0, target.hp - finalDamage);
+        const finalDamage = applyDamage(target, hit.damage, hit.spellId);
         room.trackDamage(hit.attackerId, finalDamage);
         if (target.hp <= 0) {
           target.eliminated = true;

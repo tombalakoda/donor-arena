@@ -43,6 +43,11 @@ export class HUDManager {
     this._lastPlayerCount = null;
     this._lastHpText = null;
     this._lastHpRatio = null;
+    this._lastRoundText = '';
+    this._lastTimerText = '';
+    this._lastTimerFill = '';
+    this._lastPhaseText = '';
+    this._lastSpText = '';
 
     // Misc
     this.announcementText = null;
@@ -307,28 +312,27 @@ export class HUDManager {
   updateRingGraphics() {
     const scene = this.scene;
     const r = Math.round(scene.ringRadius);
+    if (r === this.lastDrawnRingRadius) return;
 
     const g = this.ringGraphics;
     if (!g) return;
     g.clear();
 
-    const pulse = 0.5 + 0.5 * Math.sin(scene.time.now * 0.004);
-
-    g.lineStyle(2, 0xff6666, 0.1 + pulse * 0.05);
+    g.lineStyle(2, 0xff6666, 0.13);
     g.strokeCircle(0, 0, r - 8);
 
-    g.lineStyle(3, 0xff4444, 0.6 + pulse * 0.3);
+    g.lineStyle(3, 0xff4444, 0.75);
     g.strokeCircle(0, 0, r);
 
     const bandSteps = 5;
     for (let i = 1; i <= bandSteps; i++) {
       const t = i / bandSteps;
-      const alpha = (0.35 - t * 0.3) * (0.7 + pulse * 0.3);
+      const alpha = (0.35 - t * 0.3) * 0.85;
       g.lineStyle(4, 0xff2222, Math.max(0, alpha));
       g.strokeCircle(0, 0, r + i * 8);
     }
 
-    if (r !== this.lastDrawnRingRadius && this.outerRingGraphics) {
+    if (this.outerRingGraphics) {
       this.outerRingGraphics.clear();
       this.outerRingGraphics.lineStyle(1, 0xcc4444, 0.06);
       for (let dr = r + 60; dr < ARENA.FLOOR_SIZE / 2; dr += 60) {
@@ -352,9 +356,9 @@ export class HUDManager {
 
       if (distToEdge < 80 && distToEdge > -50) {
         const danger = 1 - Math.max(0, distToEdge) / 80;
-        this.edgeVignette.setAlpha(danger * 0.15 * (0.7 + pulse * 0.3));
+        this.edgeVignette.setAlpha(danger * 0.13);
       } else if (distToEdge <= -50) {
-        this.edgeVignette.setAlpha(0.2 + pulse * 0.1);
+        this.edgeVignette.setAlpha(0.25);
       } else {
         this.edgeVignette.setAlpha(0);
       }
@@ -412,24 +416,34 @@ export class HUDManager {
     const scene = this.scene;
 
     if (this.roundText) {
-      if (scene.gameMode === 'sandbox') {
-        this.roundText.setText('SERBEST MEYDAN');
-      } else {
-        this.roundText.setText(`Fasıl ${scene.roundNumber}/${scene.totalRounds}`);
+      const roundStr = scene.gameMode === 'sandbox'
+        ? 'SERBEST MEYDAN'
+        : `Fasıl ${scene.roundNumber}/${scene.totalRounds}`;
+      if (roundStr !== this._lastRoundText) {
+        this.roundText.setText(roundStr);
+        this._lastRoundText = roundStr;
       }
     }
 
     if (this.timerText) {
+      let timerStr = '';
+      let timerFill = '#88ccff';
       if (scene.phase === 'playing') {
         const seconds = Math.ceil(scene.timeRemaining);
-        this.timerText.setText(`${seconds}s`);
-        this.timerText.setFill(seconds <= 10 ? '#ff4444' : '#88ccff');
+        timerStr = `${seconds}s`;
+        timerFill = seconds <= 10 ? '#ff4444' : '#88ccff';
       } else if (scene.phase === 'shop') {
         const seconds = Math.ceil(scene.shopTimeRemaining);
-        this.timerText.setText(`Dükkân: ${seconds}s`);
-        this.timerText.setFill('#ffdd44');
-      } else {
-        this.timerText.setText('');
+        timerStr = `Dükkân: ${seconds}s`;
+        timerFill = '#ffdd44';
+      }
+      if (timerStr !== this._lastTimerText) {
+        this.timerText.setText(timerStr);
+        this._lastTimerText = timerStr;
+      }
+      if (timerFill !== this._lastTimerFill) {
+        this.timerText.setFill(timerFill);
+        this._lastTimerFill = timerFill;
       }
     }
 
@@ -480,7 +494,11 @@ export class HUDManager {
         shop: 'Dükkân Vakti',
         matchEnd: 'Atışma Tamam',
       };
-      this.phaseText.setText(phaseLabels[scene.phase] || '');
+      const phaseStr = phaseLabels[scene.phase] || '';
+      if (phaseStr !== this._lastPhaseText) {
+        this.phaseText.setText(phaseStr);
+        this._lastPhaseText = phaseStr;
+      }
     }
 
     if (this.countdownText) {
@@ -514,12 +532,19 @@ export class HUDManager {
       slot.spellId = spellId;
 
       if (slot.lockOverlay && slot.lockText) {
-        slot.lockOverlay.setVisible(isLocked);
-        slot.lockText.setVisible(isLocked);
+        if (isLocked !== slot._lastLocked) {
+          slot.lockOverlay.setVisible(isLocked);
+          slot.lockText.setVisible(isLocked);
+          slot._lastLocked = isLocked;
+        }
       }
 
       if (slot.emptyText) {
-        slot.emptyText.setVisible(!isLocked && !hasSpell);
+        const showEmpty = !isLocked && !hasSpell;
+        if (showEmpty !== slot._lastHasSpell) {
+          slot.emptyText.setVisible(showEmpty);
+          slot._lastHasSpell = showEmpty;
+        }
       }
 
       if (isLocked) {
@@ -553,18 +578,31 @@ export class HUDManager {
         if (cd && cd > 0) {
           slot.cdOverlay.setVisible(true);
           slot.cdText.setVisible(true);
-          slot.cdText.setText((cd / 1000).toFixed(1));
+          const cdStr = (cd / 1000).toFixed(1);
+          if (cdStr !== slot._lastCdText) {
+            slot.cdText.setText(cdStr);
+            slot._lastCdText = cdStr;
+          }
         } else {
           slot.cdOverlay.setVisible(false);
           slot.cdText.setVisible(false);
+          slot._lastCdText = '';
         }
 
         const charge = scene.charges[spellId];
         if (slot.chargeText) {
           if (charge && charge.max > 1) {
             slot.chargeText.setVisible(true);
-            slot.chargeText.setText(`${charge.remaining}/${charge.max}`);
-            slot.chargeText.setColor(charge.remaining > 0 ? '#ffdd44' : '#ff4444');
+            const chargeStr = `${charge.remaining}/${charge.max}`;
+            const chargeColor = charge.remaining > 0 ? '#ffdd44' : '#ff4444';
+            if (chargeStr !== slot._lastChargeText) {
+              slot.chargeText.setText(chargeStr);
+              slot._lastChargeText = chargeStr;
+            }
+            if (chargeColor !== slot._lastChargeColor) {
+              slot.chargeText.setColor(chargeColor);
+              slot._lastChargeColor = chargeColor;
+            }
           } else {
             slot.chargeText.setVisible(false);
           }
@@ -572,12 +610,17 @@ export class HUDManager {
       } else {
         slot.cdOverlay.setVisible(false);
         slot.cdText.setVisible(false);
+        slot._lastCdText = '';
         if (slot.chargeText) slot.chargeText.setVisible(false);
       }
     }
 
     if (this.spText && scene.progression) {
-      this.spText.setText(`İlham: ${scene.progression.sp}`);
+      const spStr = `İlham: ${scene.progression.sp}`;
+      if (spStr !== this._lastSpText) {
+        this.spText.setText(spStr);
+        this._lastSpText = spStr;
+      }
     }
   }
 

@@ -149,6 +149,7 @@ export class ServerSpell {
    * Process a spell cast. Takes progression to compute dynamic stats.
    */
   processCast(playerId, spellId, targetX, targetY, progression) {
+    if (this.activeSpells.length >= 200) return null;
     const def = SPELLS[spellId];
     if (!def) return null;
     if (!this.canCast(playerId, spellId)) return null;
@@ -455,13 +456,13 @@ export class ServerSpell {
     const effects = this.statusEffects.get(playerId);
     if (!effects) return;
 
-    // Character passive: frost resistance
-    if (sourceSpellId && sourceSpellId.startsWith('frostbolt') && (type === 'slow' || type === 'root')) {
+    // Character passive: slow/root resistance (applies to ALL slow/root effects)
+    if ((type === 'slow' || type === 'root')) {
       const targetPassive = getPassive(this.getCharacterId(playerId));
-      if (targetPassive.frostResist) {
+      if (targetPassive.slowResist) {
         const now = Date.now();
         const originalDuration = data.until - now;
-        data.until = now + originalDuration * (1 - targetPassive.frostResist);
+        data.until = now + originalDuration * (1 - targetPassive.slowResist);
       }
     }
 

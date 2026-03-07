@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import path from 'path';
 import { Room } from './Room.js';
 import { MATCH } from '../../shared/constants.js';
 import { PHASE } from '../game/RoundManager.js';
@@ -6,6 +8,26 @@ export class RoomManager {
   constructor() {
     this.rooms = new Map();    // roomId -> Room
     this.nextRoomId = 1;
+    this.arenaMaps = [];       // Loaded once at startup, shared by all rooms
+  }
+
+  // Load arena maps once at startup (avoids blocking I/O in Room constructor)
+  loadMaps(mapsDir) {
+    for (let i = 0; i <= 9; i++) {
+      try {
+        const mapPath = path.join(mapsDir, `arena${i}.json`);
+        this.arenaMaps.push(JSON.parse(readFileSync(mapPath, 'utf-8')));
+      } catch (e) { /* skip missing */ }
+    }
+    if (this.arenaMaps.length === 0) {
+      try {
+        const mapPath = path.join(mapsDir, 'arena-default.json');
+        this.arenaMaps.push(JSON.parse(readFileSync(mapPath, 'utf-8')));
+      } catch (e) {
+        console.warn('No arena maps found');
+      }
+    }
+    console.log(`Loaded ${this.arenaMaps.length} arena maps`);
   }
 
   // Find a room with space, or create a new one (skips lobby & sandbox rooms)
@@ -23,7 +45,7 @@ export class RoomManager {
 
   createRoom() {
     const roomId = `room-${this.nextRoomId++}`;
-    const room = new Room(roomId);
+    const room = new Room(roomId, { arenaMaps: this.arenaMaps });
     this.rooms.set(roomId, room);
     console.log(`Created room: ${roomId}`);
     return room;
@@ -31,7 +53,7 @@ export class RoomManager {
 
   createLobbyRoom() {
     const roomId = `lobby-${this.nextRoomId++}`;
-    const room = new Room(roomId, { lobby: true });
+    const room = new Room(roomId, { lobby: true, arenaMaps: this.arenaMaps });
     this.rooms.set(roomId, room);
     console.log(`Created lobby room: ${roomId}`);
     return room;
@@ -57,7 +79,7 @@ export class RoomManager {
 
   createSandboxRoom() {
     const roomId = `sandbox-${this.nextRoomId++}`;
-    const room = new Room(roomId, { sandbox: true });
+    const room = new Room(roomId, { sandbox: true, arenaMaps: this.arenaMaps });
     this.rooms.set(roomId, room);
     console.log(`Created sandbox room: ${roomId}`);
     return room;

@@ -10,7 +10,7 @@ export const blinkHandler = {
     const dy = targetY - originY;
     const dist = Math.sqrt(dx * dx + dy * dy) || 1;
     const blinkPassive = getPassive(ctx.getCharacterId(playerId));
-    const maxRange = (stats.range || 200) * (1 + (blinkPassive.blinkRangeBonus || 0));
+    const maxRange = (stats.range || 200) * (1 + (blinkPassive.mobilityRangeBonus || 0));
     const blinkDist = Math.min(dist, maxRange);
 
     const nx = dx / dist;

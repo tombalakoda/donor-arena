@@ -1,18 +1,7 @@
 import { CHARACTERS } from '../scenes/BootScene.js';
 import { MATCH } from '../../shared/constants.js';
-import { UI_FONT } from '../config.js';
+import { UI_FONT, TIPS } from '../config.js';
 import { createNinesliceButton } from './UIHelpers.js';
-
-// Loading-screen style tips
-const TIPS = [
-  'Sağ tıkla buzda yürü',
-  'Q / W / E / R ile hünerlerini göster',
-  'Meydanın içinde kal!',
-  'Dükkânda hünerlerini pişir',
-  'Rakibi meydandan aşağı düşür!',
-  'Buz zemini: yolunu iyi hesapla!',
-  'Sert vuruş seni uçurur',
-];
 
 /**
  * LobbyOverlay — Shown during the 'waiting' phase before the match starts.

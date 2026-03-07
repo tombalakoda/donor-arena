@@ -20,6 +20,7 @@ const io = new Server(httpServer, {
 });
 
 const roomManager = new RoomManager();
+roomManager.loadMaps(path.join(__dirname, '../../public/assets/maps'));
 
 io.on('connection', (socket) => {
   console.log(`Player connected: ${socket.id}`);
@@ -27,6 +28,13 @@ io.on('connection', (socket) => {
 
   // Player joins a match
   socket.on(MSG.CLIENT_JOIN, (data) => {
+    // Clean up previous room if player re-joins
+    if (currentRoom) {
+      currentRoom.removePlayer(socket.id);
+      if (currentRoom.playerCount === 0) roomManager.removeRoom(currentRoom.id);
+      currentRoom = null;
+    }
+
     const { playerName, characterId, mode, roomId } = data || {};
     if (mode === 'sandbox') {
       currentRoom = roomManager.createSandboxRoom();
@@ -59,12 +67,7 @@ io.on('connection', (socket) => {
     socket.emit(MSG.SERVER_ROOM_LIST, { rooms: roomManager.getOpenLobbies() });
   });
 
-  // Host starts the game
-  socket.on(MSG.CLIENT_START_GAME, () => {
-    if (currentRoom) {
-      currentRoom.startFromLobby(socket.id);
-    }
-  });
+  // Note: c:startGame listener is registered per-player inside Room.addPlayer() for lobby rooms
 
   // Player sends input
   socket.on(MSG.CLIENT_INPUT, (input) => {

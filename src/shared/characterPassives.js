@@ -12,13 +12,13 @@ export const CHARACTER_PASSIVES = {
     id: 'iron-armor',
     name: 'Metin Gönül',
     description: 'Tüm darbelerden az etkilenir',
-    damageReduction: 0.20,
+    damageReduction: 0.12,
   },
   'eskimo': {
     id: 'frost-resistance',
     name: 'Soğukkanlı',
-    description: 'Yârin etkisinden az etkilenir',
-    frostResist: 0.40,
+    description: 'Yavaşlama ve köklenme etkilerinden az etkilenir',
+    slowResist: 0.30,
   },
   'ninja-red': {
     id: 'fire-resistance',
@@ -35,8 +35,8 @@ export const CHARACTER_PASSIVES = {
   'ninja-green': {
     id: 'shadow-step',
     name: 'Tez Ayak',
-    description: 'Hop ile daha uzağa sıçrar',
-    blinkRangeBonus: 0.25,
+    description: 'Hareket sözleri daha uzağa ulaşır',
+    mobilityRangeBonus: 0.20,
   },
   'mask-racoon': {
     id: 'bully',
@@ -47,8 +47,8 @@ export const CHARACTER_PASSIVES = {
   'fighter-white': {
     id: 'rush',
     name: 'Koçaklama',
-    description: 'Koşma ile daha uzağa atılır',
-    dashRangeBonus: 0.25,
+    description: 'Hareket sözleri daha uzağa ulaşır',
+    mobilityRangeBonus: 0.20,
   },
 };
 

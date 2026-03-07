@@ -40,10 +40,10 @@ export const SKILL_TREES = {
       piercing: false,
     },
     tiers: [
-      { cost: 3, name: 'Faster Cooldown', description: 'Faster cooldown', mods: { cooldown: -400 } },
-      { cost: 3, name: 'Rapid Fire', description: 'Even faster cooldown', mods: { cooldown: -400 } },
-      { cost: 4, name: 'Quick Draw', description: 'Much faster cooldown', mods: { cooldown: -400 } },
-      { cost: 5, name: 'Bullet Time', description: 'Extremely fast cooldown', mods: { cooldown: -400 } },
+      { cost: 3, name: 'Hızlı Atış', description: 'Daha hızlı ateş eder', mods: { cooldown: -300, speed: 1 } },
+      { cost: 3, name: 'Yakıcı Alev', description: 'Daha güçlü yakar', mods: { cooldown: -300, damage: 1 } },
+      { cost: 4, name: 'Uzun Menzil', description: 'Daha uzağa ulaşır', mods: { cooldown: -200, range: 50 } },
+      { cost: 5, name: 'Ateş Yağmuru', description: 'Daha da hızlı ateş', mods: { cooldown: -200 } },
     ],
   },
 
