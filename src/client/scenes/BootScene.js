@@ -259,6 +259,8 @@ export class BootScene extends Phaser.Scene {
     this.load.audio('jingle-success', 'assets/audio/jingles/Success1.wav');
     this.load.audio('jingle-gameover', 'assets/audio/jingles/GameOver.wav');
     this.load.audio('jingle-levelup', 'assets/audio/jingles/LevelUp1.wav');
+    // Shield activation SFX
+    this.load.audio('sfx-shield', 'assets/audio/sfx/magic/Magic3.wav');
     // Ring damage SFX
     this.load.audio('sfx-ring-burn', 'assets/audio/sfx/Elemental/Fire2.wav');
     // Background music (single track for menu + fight)

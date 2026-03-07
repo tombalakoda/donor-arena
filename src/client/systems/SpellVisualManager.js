@@ -275,12 +275,30 @@ export class SpellVisualManager {
         const buffType = spell.buffType || 'flash';
         visual.followOwner = true;
         visual.ownerId = spell.ownerId;
+        visual.buffType = buffType;
 
         if (buffType === 'shield') {
           const bubble = scene.add.circle(spell.x, spell.y, PLAYER.RADIUS + 8, 0x44aaff, 0.15);
           bubble.setDepth(4);
           bubble.setStrokeStyle(2.5, 0x88ccff, 0.7);
           visual.sprite = bubble;
+          // Animated shield sprite on top
+          const shieldSpriteKey = fx.sprite || 'fx-shield';
+          const shieldAnimKey = fx.animKey || 'fx-shield-play';
+          const shieldScale = (fx.scale || 1.5) * 1.8;
+          if (scene.anims.exists(shieldAnimKey)) {
+            const shieldFx = scene.add.sprite(spell.x, spell.y, shieldSpriteKey);
+            shieldFx.setDepth(5);
+            shieldFx.setScale(shieldScale);
+            shieldFx.setAlpha(0.6);
+            shieldFx.play({ key: shieldAnimKey, repeat: -1 });
+            visual.glow = shieldFx;
+            visual._baseGlowScale = shieldScale;
+          }
+          // Shield activation sound
+          if (scene.sound && scene.cache.audio.exists('sfx-shield')) {
+            scene.sound.play('sfx-shield', { volume: 0.4 });
+          }
         } else if (buffType === 'ghost') {
           const ghostGlow = scene.add.circle(spell.x, spell.y, PLAYER.RADIUS + 6, 0xaabbff, 0.12);
           ghostGlow.setDepth(4);
@@ -861,7 +879,12 @@ export class SpellVisualManager {
         }
         if (visual.sprite && !visual.sprite.destroyed) {
           const pulse = 0.1 + 0.08 * Math.sin(visual.elapsed * 0.005);
-          visual.sprite.setAlpha(pulse);
+          visual.sprite.setAlpha(visual.buffType === 'shield' ? pulse + 0.08 : pulse);
+          // Shield: scale breath on the animated sprite
+          if (visual.buffType === 'shield' && visual.glow && !visual.glow.destroyed) {
+            const scaleBreath = visual._baseGlowScale * (1.0 + 0.06 * Math.sin(visual.elapsed * 0.004));
+            visual.glow.setScale(scaleBreath);
+          }
         }
       } else if ((visual.type === SPELL_TYPES.SWAP || visual.type === SPELL_TYPES.HOMING || visual.type === SPELL_TYPES.BOOMERANG) && visual.sprite && !visual.sprite.destroyed) {
         // Velocity extrapolation + drift correction
