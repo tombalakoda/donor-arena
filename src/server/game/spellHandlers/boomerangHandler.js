@@ -4,9 +4,10 @@ import { PLAYER } from '../../../shared/constants.js';
 // Speed curve multipliers (applied to base spell.speed)
 const OUTBOUND_MAX_SPEED_MULT = 1.8;   // throw: fast start
 const OUTBOUND_MIN_SPEED_MULT = 0.15;  // apex: near-zero pause
-const RETURN_MIN_SPEED_MULT = 0.15;    // just after apex: slow
-const RETURN_MAX_SPEED_MULT = 2.0;     // arriving back: fast
+const RETURN_MIN_SPEED_MULT = 0.5;     // just after apex: already moving
+const RETURN_MAX_SPEED_MULT = 2.2;     // arriving back: fast
 const OVERSHOOT_INITIAL_MULT = 1.6;    // passes caster with momentum
+const HIT_DEFLECT_BLEND = 0.45;        // how much velocity deflects on hit (0=none, 1=full bounce)
 
 export const boomerangHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY) {
@@ -90,9 +91,9 @@ export const boomerangHandler = {
 
       // t goes 0 (at apex) → 1 (at origin)
       const t = 1 - Math.min(1, cDist / (spell.returnDist || spell.range));
-      // t² curve: starts slow, accelerates sharply toward origin
+      // t^1.3 curve: ramps up quickly after apex, still accelerates toward origin
       currentSpeed = spell.speed * (RETURN_MIN_SPEED_MULT
-        + (RETURN_MAX_SPEED_MULT - RETURN_MIN_SPEED_MULT) * (t * t));
+        + (RETURN_MAX_SPEED_MULT - RETURN_MIN_SPEED_MULT) * Math.pow(t, 1.3));
 
       // Steer toward cast origin (fixed point, not caster's live position)
       spell.vx = (cx / cDist) * currentSpeed;
@@ -168,6 +169,18 @@ export const boomerangHandler = {
         );
         ctx.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.damage, spellId: spell.type });
         spell.hitIds.push(playerId);
+
+        // Deflect velocity on hit — bounce away from player
+        const curSpd = Math.sqrt(spell.vx * spell.vx + spell.vy * spell.vy) || 1;
+        const dirX = spell.vx / curSpd;
+        const dirY = spell.vy / curSpd;
+        const bounceX = -nx; // away from player
+        const bounceY = -ny;
+        const blendX = dirX * (1 - HIT_DEFLECT_BLEND) + bounceX * HIT_DEFLECT_BLEND;
+        const blendY = dirY * (1 - HIT_DEFLECT_BLEND) + bounceY * HIT_DEFLECT_BLEND;
+        const blendLen = Math.sqrt(blendX * blendX + blendY * blendY) || 1;
+        spell.vx = (blendX / blendLen) * curSpd;
+        spell.vy = (blendY / blendLen) * curSpd;
       }
     }
   },
