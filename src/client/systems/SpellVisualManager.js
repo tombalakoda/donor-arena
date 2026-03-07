@@ -593,6 +593,7 @@ export class SpellVisualManager {
         visual.serverAnchorX = spell.anchorX || 0;
         visual.serverAnchorY = spell.anchorY || 0;
         visual.serverReleased = spell.released;
+        visual.serverPhase = spell.phase || null;
 
         // Grappling hook: detect activation for local player
         if (spell.pullSelf && spell.hooked && spell.pullActive && !spell.released && spell.ownerId === scene.localPlayerId) {
@@ -614,29 +615,57 @@ export class SpellVisualManager {
         visual.sprite.y = spell.y;
 
         let chainFromX, chainFromY, chainToX, chainToY;
+        let lineWidth = 3;
+        let chainColor = visual.chainColor || 0xaaaaaa;
+        let chainAlpha = 0.7;
+
         if (spell.pullSelf && spell.hooked) {
+          // Grappling: chain from anchor to caster
           chainFromX = spell.anchorX || visual.sprite.x;
           chainFromY = spell.anchorY || visual.sprite.y;
           chainToX = visual.originX;
           chainToY = visual.originY;
+        } else if (spell.phase === 'pull') {
+          // Hook pull: chain from caster to enemy (spell.x/y tracks enemy)
+          chainFromX = visual.originX;
+          chainFromY = visual.originY;
+          chainToX = spell.x;
+          chainToY = spell.y;
+          lineWidth = 4;
+          chainColor = 0xdd6633; // orange tint during pull
+        } else if (spell.phase === 'done' || spell.released) {
+          // Hook done: fade chain out
+          chainFromX = visual.originX;
+          chainFromY = visual.originY;
+          chainToX = spell.x;
+          chainToY = spell.y;
+          chainAlpha = 0.3;
         } else {
+          // Flight: chain from caster to projectile
           chainFromX = visual.originX;
           chainFromY = visual.originY;
           chainToX = visual.sprite.x;
           chainToY = visual.sprite.y;
         }
 
-        if (spell.hooked && !spell.released) {
+        // Hide hook sprite when hooked (pull/throw phase) but not for grappling
+        if (spell.hooked && !spell.released && !spell.pullSelf) {
+          visual.sprite.setVisible(false);
+        }
+        // Grappling: hide when hooked and not released
+        if (spell.pullSelf && spell.hooked && !spell.released) {
           visual.sprite.setVisible(false);
         }
 
         if (visual.chain && !visual.chain.destroyed) {
           visual.chain.clear();
-          visual.chain.lineStyle(3, visual.chainColor || 0xaaaaaa, 0.7);
-          visual.chain.beginPath();
-          visual.chain.moveTo(chainFromX, chainFromY);
-          visual.chain.lineTo(chainToX, chainToY);
-          visual.chain.strokePath();
+          if (chainAlpha > 0.05) {
+            visual.chain.lineStyle(lineWidth, chainColor, chainAlpha);
+            visual.chain.beginPath();
+            visual.chain.moveTo(chainFromX, chainFromY);
+            visual.chain.lineTo(chainToX, chainToY);
+            visual.chain.strokePath();
+          }
         }
       }
 
@@ -729,14 +758,20 @@ export class SpellVisualManager {
 
         // Redraw chain every frame
         if (visual.chain && !visual.chain.destroyed) {
+          // Grappling released: clear chain
           if (visual.pullSelf && visual.serverReleased) {
+            visual.chain.clear();
+          // Hook done/released: clear chain (enemy is flying from knockback)
+          } else if (!visual.pullSelf && (visual.serverPhase === 'done' || visual.serverReleased)) {
             visual.chain.clear();
           } else {
             let chainFromX, chainFromY, chainToX, chainToY;
             let lineWidth = 3;
             let chainColor = visual.chainColor || 0xaaaaaa;
+            let chainAlpha = 0.7;
 
             if (visual.pullSelf && visual.hooked) {
+              // Grappling: chain from anchor to caster
               chainFromX = visual.serverAnchorX || visual.sprite.x;
               chainFromY = visual.serverAnchorY || visual.sprite.y;
               chainToX = visual.originX;
@@ -749,14 +784,23 @@ export class SpellVisualManager {
                 if (speed > normalMax * 3) chainColor = 0xff6600;
                 else if (speed > normalMax * 1.5) chainColor = 0xddaa44;
               }
+            } else if (!visual.pullSelf && visual.serverPhase === 'pull') {
+              // Hook pull: chain from caster to enemy, orange tint
+              chainFromX = visual.originX;
+              chainFromY = visual.originY;
+              chainToX = visual.serverX;
+              chainToY = visual.serverY;
+              lineWidth = 4;
+              chainColor = 0xdd6633;
             } else {
+              // Flight: chain from caster to projectile
               chainFromX = visual.originX;
               chainFromY = visual.originY;
               chainToX = visual.sprite.x;
               chainToY = visual.sprite.y;
             }
             visual.chain.clear();
-            visual.chain.lineStyle(lineWidth, chainColor, 0.7);
+            visual.chain.lineStyle(lineWidth, chainColor, chainAlpha);
             visual.chain.beginPath();
             visual.chain.moveTo(chainFromX, chainFromY);
             visual.chain.lineTo(chainToX, chainToY);

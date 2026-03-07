@@ -598,6 +598,7 @@ export class ServerSpell {
       swingElapsed: s.swingElapsed || 0,
       swingDuration: s.swingDuration || 0,
       pullActive: s.pullActive || false,
+      phase: s.phase || null,
       flightActive: s.flightActive || false,
       returning: s.returning || false,
       isMeteor: s.isMeteor || false,

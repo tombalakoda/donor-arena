@@ -30,7 +30,6 @@ export const hookHandler = {
       vx, vy,
       radius: stats.radius || 10,
       damage: stats.damage || 5,
-      pullForce: stats.pullForce || 0.04,
       pullSelf: isPullSelf,
       lifetime: stats.lifetime || 1500,
       range: stats.range || 300,
@@ -39,17 +38,26 @@ export const hookHandler = {
       hooked: false,
       hookedPlayerId: null,
       originX, originY,
-      swingAngle: 0,
-      swingElapsed: 0,
-      swingDuration: stats.swingDuration || 600,
-      orbitRadius: 0,
       released: false,
       hookTargetX, hookTargetY,
       travelDist,
       traveledDist: 0,
+
+      // --- Hook (pull-and-throw) fields ---
+      phase: isPullSelf ? null : 'flight',
+      pullElapsed: 0,
+      pullDuration: isPullSelf ? 0 : (stats.pullDuration || 300),
+      pullSpeed: isPullSelf ? (stats.pullSpeed || 4) : (stats.pullSpeed || 3.5),
+      throwForce: stats.throwForce || 0.08,
+      throwGrace: stats.throwGrace || 200,
+      hookOriginX: 0,
+      hookOriginY: 0,
+
+      // --- Grappling (pull-self) fields ---
+      pullForce: stats.pullForce || 0.04,
+      swingElapsed: 0,
       anchorX: 0,
       anchorY: 0,
-      pullSpeed: isPullSelf ? (stats.pullSpeed || 4) : 0,
       pullActive: false,
       pullStartX: 0,
       pullStartY: 0,
@@ -71,56 +79,90 @@ export const hookHandler = {
   update(ctx, spell, i) {
     const { now } = ctx;
 
-    // --- Hook Branch A: Swing & Release ---
-    if (spell.hooked && !spell.pullSelf && spell.hookedPlayerId && !spell.released) {
+    // ═══════════════════════════════════════════════════════════════
+    // HOOK (Pull-and-Throw) — phase-based state machine
+    // ═══════════════════════════════════════════════════════════════
+
+    // --- Pull phase: reel enemy toward caster ---
+    if (spell.phase === 'pull' && !spell.pullSelf) {
+      const hookedBody = ctx.physics.playerBodies.get(spell.hookedPlayerId);
+      const casterBody = ctx.physics.playerBodies.get(spell.ownerId);
+
+      if (!hookedBody || !casterBody) {
+        // Target or caster disconnected — clean up
+        spell.phase = 'done';
+        spell.released = true;
+        spell.lifetime = spell.elapsed + 100;
+        return;
+      }
+
+      spell.pullElapsed += PHYSICS.TICK_MS;
+
+      // Direction from enemy toward caster (updated each tick for dynamic pull)
+      const dx = casterBody.position.x - hookedBody.position.x;
+      const dy = casterBody.position.y - hookedBody.position.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      const arrived = dist < 40;
+      const expired = spell.pullElapsed >= spell.pullDuration;
+
+      if (!arrived && !expired) {
+        // Pull: set velocity toward caster each tick
+        const nx = dx / (dist || 1);
+        const ny = dy / (dist || 1);
+        Body.setVelocity(hookedBody, {
+          x: nx * spell.pullSpeed,
+          y: ny * spell.pullSpeed,
+        });
+        // Block enemy input during pull (same pattern as grappling line 133)
+        ctx.physics.knockbackUntil.set(spell.hookedPlayerId, now + PHYSICS.TICK_MS * 3);
+      } else {
+        // Transition to throw
+        spell.phase = 'throw';
+      }
+
+      // Track enemy position for visuals
+      spell.x = hookedBody.position.x;
+      spell.y = hookedBody.position.y;
+    }
+
+    // --- Throw phase: launch enemy past caster ---
+    if (spell.phase === 'throw' && !spell.pullSelf) {
       const hookedBody = ctx.physics.playerBodies.get(spell.hookedPlayerId);
       const casterBody = ctx.physics.playerBodies.get(spell.ownerId);
 
       if (hookedBody && casterBody) {
-        const dt = PHYSICS.TICK_MS / 1000;
+        // Direction: from where enemy was hooked → through caster's current position
+        // This sends the enemy "past" the caster to the other side
+        const throwDx = casterBody.position.x - spell.hookOriginX;
+        const throwDy = casterBody.position.y - spell.hookOriginY;
+        const throwDist = Math.sqrt(throwDx * throwDx + throwDy * throwDy) || 1;
+        const throwNx = throwDx / throwDist;
+        const throwNy = throwDy / throwDist;
 
-        if (spell.swingElapsed === 0) {
-          const dx = hookedBody.position.x - casterBody.position.x;
-          const dy = hookedBody.position.y - casterBody.position.y;
-          spell.swingAngle = Math.atan2(dy, dx);
-          spell.orbitRadius = Math.min(Math.sqrt(dx * dx + dy * dy), 120);
-          ctx.applyStatusEffect(spell.hookedPlayerId, 'stun', {
-            until: now + spell.swingDuration + 100,
-          });
-        }
+        const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
+        ctx.physics.applyKnockback(
+          spell.hookedPlayerId,
+          throwNx * spell.throwForce * kbMult,
+          throwNy * spell.throwForce * kbMult,
+          ctx.getDamageTaken(spell.hookedPlayerId),
+          spell.ownerId,
+        );
 
-        spell.swingElapsed += PHYSICS.TICK_MS;
-
-        if (spell.swingElapsed < spell.swingDuration) {
-          const t = spell.swingElapsed / spell.swingDuration;
-          const angularSpeed = 4 + t * 6;
-          spell.swingAngle += angularSpeed * dt;
-          const orbitX = casterBody.position.x + Math.cos(spell.swingAngle) * spell.orbitRadius;
-          const orbitY = casterBody.position.y + Math.sin(spell.swingAngle) * spell.orbitRadius;
-          Body.setPosition(hookedBody, { x: orbitX, y: orbitY });
-          Body.setVelocity(hookedBody, { x: 0, y: 0 });
-          spell.x = orbitX;
-          spell.y = orbitY;
-        } else {
-          const tangentX = -Math.sin(spell.swingAngle);
-          const tangentY = Math.cos(spell.swingAngle);
-          const releaseForce = spell.pullForce * 2.5 * ctx.getKnockbackMultiplier(spell.ownerId);
-          ctx.physics.applyKnockback(
-            spell.hookedPlayerId,
-            tangentX * releaseForce,
-            tangentY * releaseForce,
-            ctx.getDamageTaken(spell.hookedPlayerId),
-            spell.ownerId,
-          );
-          spell.released = true;
-          spell.lifetime = spell.elapsed + 300;
-          spell.x = hookedBody.position.x;
-          spell.y = hookedBody.position.y;
-        }
+        spell.x = hookedBody.position.x;
+        spell.y = hookedBody.position.y;
       }
+
+      spell.phase = 'done';
+      spell.released = true;
+      spell.lifetime = spell.elapsed + 400;
     }
 
-    // --- Hook Branch B: Velocity-based grapple pull ---
+    // ═══════════════════════════════════════════════════════════════
+    // GRAPPLING (Pull-Self) — velocity-based self-pull (unchanged)
+    // ═══════════════════════════════════════════════════════════════
+
+    // --- Grappling: Velocity-based grapple pull ---
     if (spell.hooked && spell.pullSelf && spell.pullActive && !spell.released) {
       const casterBody = ctx.physics.playerBodies.get(spell.ownerId);
 
@@ -197,7 +239,7 @@ export const hookHandler = {
       }
     }
 
-    // --- Hook Branch B: Post-launch flight collision ---
+    // --- Grappling: Post-launch flight collision ---
     if (spell.released && spell.pullSelf && spell.flightActive) {
       const casterBody = ctx.physics.playerBodies.get(spell.ownerId);
       if (casterBody) {
@@ -239,7 +281,10 @@ export const hookHandler = {
       }
     }
 
-    // --- Hook projectile movement & grab ---
+    // ═══════════════════════════════════════════════════════════════
+    // SHARED: Projectile movement & grab detection
+    // ═══════════════════════════════════════════════════════════════
+
     if (spell.active && !spell.hooked) {
       spell.x += spell.vx;
       spell.y += spell.vy;
@@ -260,6 +305,7 @@ export const hookHandler = {
       }
 
       if (!spell.pullSelf) {
+        // --- Hook: grab enemy on contact ---
         for (const [playerId, body] of ctx.physics.playerBodies) {
           if (playerId === spell.ownerId) continue;
           if (ctx.isEliminated(playerId)) continue;
@@ -270,13 +316,27 @@ export const hookHandler = {
           if (dist < spell.radius + PLAYER.RADIUS) {
             spell.hooked = true;
             spell.hookedPlayerId = playerId;
-            spell.swingElapsed = 0;
+            spell.phase = 'pull';
+            spell.pullElapsed = 0;
+            spell.hookOriginX = body.position.x;
+            spell.hookOriginY = body.position.y;
+
+            // Damage on hit
             ctx.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.damage, spellId: spell.type });
-            spell.lifetime = spell.elapsed + spell.swingDuration + 500;
+
+            // Stun enemy for entire pull + throw + grace duration
+            const totalStunDuration = spell.pullDuration + spell.throwGrace + 100;
+            ctx.applyStatusEffect(playerId, 'stun', {
+              until: now + totalStunDuration,
+            });
+
+            // Extend lifetime to cover pull + throw + cleanup
+            spell.lifetime = spell.elapsed + spell.pullDuration + 600;
             break;
           }
         }
       } else {
+        // --- Grappling: anchor at target location ---
         spell.traveledDist += Math.sqrt(spell.vx * spell.vx + spell.vy * spell.vy);
         if (spell.traveledDist >= spell.travelDist) {
           spell.x = spell.hookTargetX;

@@ -276,7 +276,7 @@ export const SPELLS = {
   'hook': {
     id: 'hook',
     name: 'Bağlama',
-    description: 'Rakibi yakala, döndür, savur.',
+    description: 'Rakibi yakala, çek, karşı tarafa savur.',
     type: SPELL_TYPES.HOOK,
     slot: 'R',
     fx: {

@@ -252,19 +252,21 @@ export const SKILL_TREES = {
   'hook': {
     base: {
       type: 'hook',
-      damage: 2,
+      damage: 3,
       knockbackForce: 0,
       cooldown: 8000,
       speed: 12,
-      range: 320,
-      radius: 8,
+      range: 300,
+      radius: 10,
       lifetime: 1500,
-      pullForce: 0.06,
-      swingDuration: 600,
+      pullSpeed: 3.5,
+      pullDuration: 300,
+      throwForce: 0.08,
+      throwGrace: 200,
     },
     tiers: [
-      { cost: 3, name: 'Barbed Hook', description: 'Stronger release, more damage', mods: { pullForce: 0.02, damage: 1, cooldown: -1500 } },
-      { cost: 5, name: 'Death Grip', description: 'Longer swing, more range and force', mods: { swingDuration: 300, range: 60, pullForce: 0.02 } },
+      { cost: 3, name: 'Sivri Kanca', description: 'Daha sert fırlatma, daha çok hasar', mods: { throwForce: 0.03, damage: 2, cooldown: -1500 } },
+      { cost: 5, name: 'Ölüm Kavraması', description: 'Uzun menzil, hızlı çekim, sert savurma', mods: { range: 60, pullSpeed: 1.5, throwForce: 0.02, pullDuration: 100 } },
     ],
   },
 
