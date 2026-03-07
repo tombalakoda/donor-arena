@@ -913,7 +913,9 @@ export class SpellVisualManager {
 
         // Boomerang spins, homing/swap rotate to face direction
         if (visual.isBoomerang) {
-          visual.sprite.rotation += 0.15;
+          // Spin scales with speed: slow at apex, fast when moving
+          const spd = Math.sqrt(visual.vx * visual.vx + visual.vy * visual.vy);
+          visual.sprite.rotation += Math.max(0.02, 0.15 * (spd / 7));
         } else if (visual.vx || visual.vy) {
           visual.sprite.setRotation(Math.atan2(visual.vy, visual.vx));
         }
