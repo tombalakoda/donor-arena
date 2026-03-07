@@ -69,16 +69,40 @@ export class ServerPhysics {
     const maxHp = PLAYER.MAX_HP || 100;
     const vulnerability = baseMult + (damageTaken / maxHp) * scale;
 
+    const fx = forceX * vulnerability;
+    const fy = forceY * vulnerability;
+
+    // Combo detection: if already in knockback, boost force + extend grace
+    const now = Date.now();
+    const isCombo = this.isInKnockback(playerId);
+    const comboMult = isCombo ? (PLAYER.KNOCKBACK_COMBO_FORCE_MULT || 1.15) : 1.0;
+
     Body.applyForce(body, body.position, {
-      x: forceX * vulnerability,
-      y: forceY * vulnerability,
+      x: fx * comboMult,
+      y: fy * comboMult,
     });
-    const graceDuration = PLAYER.KNOCKBACK_GRACE_MS || 500;
-    this.knockbackUntil.set(playerId, Date.now() + graceDuration);
+
+    // Dynamic grace: scale with post-vulnerability force magnitude
+    const forceMag = Math.sqrt(fx * fx + fy * fy);
+    const graceMin = PLAYER.KNOCKBACK_GRACE_MIN || 200;
+    const graceMax = PLAYER.KNOCKBACK_GRACE_MAX || 900;
+    const graceScale = PLAYER.KNOCKBACK_GRACE_SCALE || 5000;
+    let grace = Math.max(graceMin, Math.min(graceMax, forceMag * graceScale));
+
+    if (isCombo) {
+      // Extend existing grace instead of replacing
+      const currentUntil = this.knockbackUntil.get(playerId) || 0;
+      const remaining = Math.max(0, currentUntil - now);
+      const comboExtend = PLAYER.KNOCKBACK_COMBO_EXTEND || 150;
+      const comboMaxGrace = PLAYER.KNOCKBACK_COMBO_MAX_GRACE || 1200;
+      grace = Math.min(remaining + grace + comboExtend, comboMaxGrace);
+    }
+
+    this.knockbackUntil.set(playerId, now + grace);
 
     // Track who knocked this player — used for ring-out kill credit (5s window)
     if (attackerId && attackerId !== playerId) {
-      this.lastKnockbackFrom.set(playerId, { attackerId, timestamp: Date.now() });
+      this.lastKnockbackFrom.set(playerId, { attackerId, timestamp: now });
     }
   }
 
@@ -106,9 +130,32 @@ export class ServerPhysics {
 
     const maxSpeed = PLAYER.SPEED * 0.05;
 
-    // Knockback grace: player is sliding freely — no steering, no speed cap
+    // Knockback grace: player is sliding freely — limited DI steering, no speed cap
     // Only frictionAir decays their velocity naturally
     if (this.isInKnockback(playerId)) {
+      // Directional Influence: allow ~15% steering during knockback
+      if (input && input.targetX != null && input.targetY != null &&
+          Number.isFinite(input.targetX) && Number.isFinite(input.targetY)) {
+        const vel = body.velocity;
+        const currentSpeed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+        if (currentSpeed > 0.5) {
+          const diStrength = PLAYER.DI_STRENGTH || 0.15;
+          const dx = input.targetX - body.position.x;
+          const dy = input.targetY - body.position.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 1) {
+            const nx = dx / dist;
+            const ny = dy / dist;
+            // Apply a small force perpendicular-ish to current velocity direction
+            // Force proportional to current speed — faster = more DI effect
+            const diForce = currentSpeed * diStrength * 0.001;
+            Body.applyForce(body, body.position, {
+              x: nx * diForce,
+              y: ny * diForce,
+            });
+          }
+        }
+      }
       return false;
     }
 

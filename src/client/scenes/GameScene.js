@@ -1245,8 +1245,7 @@ export class GameScene extends Phaser.Scene {
     // Block movement when paused or match-end
     if (this.pauseMenu && this.pauseMenu.visible) return;
     if (this.matchEndOverlay && this.matchEndOverlay.visible) return;
-    // Block movement during knockback stagger — player is flying
-    if (performance.now() < this.knockbackUntil) return;
+    // During knockback: allow DI (directional influence) — player can steer slightly
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     this.moveTarget = { x: worldPoint.x, y: worldPoint.y };
 
@@ -1314,14 +1313,31 @@ export class GameScene extends Phaser.Scene {
     if (this.matchEndOverlay && this.matchEndOverlay.visible) return;
     if (!this.playerBody || !this.moveTarget) return;
 
-    // During grappling or knockback: no movement forces
+    // During grappling: no movement forces
     if (this.grapplingActive) return;
-    if (performance.now() < this.knockbackUntil) return;
 
     const pos = this.playerBody.position;
     const dx = this.moveTarget.x - pos.x;
     const dy = this.moveTarget.y - pos.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // During knockback: apply DI (directional influence) instead of normal movement
+    if (performance.now() < this.knockbackUntil) {
+      const vel = this.playerBody.velocity;
+      const currentSpeed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+      if (currentSpeed > 0.5 && distance > 1) {
+        const diStrength = PLAYER.DI_STRENGTH || 0.15;
+        const nx = dx / distance;
+        const ny = dy / distance;
+        const timeScale = delta / 50;
+        const diForce = currentSpeed * diStrength * 0.001 * timeScale;
+        MatterBody.applyForce(this.playerBody, this.playerBody.position, {
+          x: nx * diForce,
+          y: ny * diForce,
+        });
+      }
+      return; // No speed cap during knockback
+    }
 
     const maxSpeed = PLAYER.SPEED * 0.05;
     const stopRadius = PLAYER.STOP_RADIUS || 10;
@@ -1361,9 +1377,9 @@ export class GameScene extends Phaser.Scene {
 
   sendInputToServer() {
     if (!this.network || !this.network.connected || !this.moveTarget) return;
-    // Don't send input during grappling or knockback — server ignores it anyway
+    // Don't send input during grappling — server ignores it
+    // (knockback DI input IS sent — server uses it for directional influence)
     if (this.grapplingActive) return;
-    if (performance.now() < this.knockbackUntil) return;
     this.network.sendInput({
       targetX: this.moveTarget.x,
       targetY: this.moveTarget.y,

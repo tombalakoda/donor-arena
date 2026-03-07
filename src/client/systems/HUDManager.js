@@ -37,6 +37,8 @@ export class HUDManager {
     this.lastDrawnRingRadius = -1;
     this.edgeVignette = null;
     this._lastVignetteDistToEdge = null;
+    this._lastRingBurnSoundTime = 0;
+    this._ringDamageParticles = [];
 
     // HUD text caches (avoid redundant setText calls)
     this._lastPing = null;
@@ -312,34 +314,40 @@ export class HUDManager {
   updateRingGraphics() {
     const scene = this.scene;
     const r = Math.round(scene.ringRadius);
-    if (r === this.lastDrawnRingRadius) return;
 
-    const g = this.ringGraphics;
-    if (!g) return;
-    g.clear();
+    // Redraw ring circles only when radius changes
+    if (r !== this.lastDrawnRingRadius) {
+      const g = this.ringGraphics;
+      if (g) {
+        g.clear();
 
-    g.lineStyle(2, 0xff6666, 0.13);
-    g.strokeCircle(0, 0, r - 8);
+        g.lineStyle(2, 0xff6666, 0.13);
+        g.strokeCircle(0, 0, r - 8);
 
-    g.lineStyle(3, 0xff4444, 0.75);
-    g.strokeCircle(0, 0, r);
+        g.lineStyle(3, 0xff4444, 0.75);
+        g.strokeCircle(0, 0, r);
 
-    const bandSteps = 5;
-    for (let i = 1; i <= bandSteps; i++) {
-      const t = i / bandSteps;
-      const alpha = (0.35 - t * 0.3) * 0.85;
-      g.lineStyle(4, 0xff2222, Math.max(0, alpha));
-      g.strokeCircle(0, 0, r + i * 8);
-    }
-
-    if (this.outerRingGraphics) {
-      this.outerRingGraphics.clear();
-      this.outerRingGraphics.lineStyle(1, 0xcc4444, 0.06);
-      for (let dr = r + 60; dr < ARENA.FLOOR_SIZE / 2; dr += 60) {
-        this.outerRingGraphics.strokeCircle(0, 0, dr);
+        const bandSteps = 5;
+        for (let i = 1; i <= bandSteps; i++) {
+          const t = i / bandSteps;
+          const alpha = (0.35 - t * 0.3) * 0.85;
+          g.lineStyle(4, 0xff2222, Math.max(0, alpha));
+          g.strokeCircle(0, 0, r + i * 8);
+        }
       }
+
+      if (this.outerRingGraphics) {
+        this.outerRingGraphics.clear();
+        this.outerRingGraphics.lineStyle(1, 0xcc4444, 0.06);
+        for (let dr = r + 60; dr < ARENA.FLOOR_SIZE / 2; dr += 60) {
+          this.outerRingGraphics.strokeCircle(0, 0, dr);
+        }
+      }
+
+      this.lastDrawnRingRadius = r;
     }
 
+    // --- Per-frame: vignette + ring drama effects ---
     if (scene.playerBody) {
       const px = scene.playerBody.position.x;
       const py = scene.playerBody.position.y;
@@ -354,17 +362,71 @@ export class HUDManager {
         ).setScrollFactor(0).setDepth(99).setOrigin(0.5);
       }
 
-      if (distToEdge < 80 && distToEdge > -50) {
-        const danger = 1 - Math.max(0, distToEdge) / 80;
+      if (distToEdge < 80 && distToEdge > 0) {
+        // Near edge warning: static danger vignette
+        const danger = 1 - distToEdge / 80;
         this.edgeVignette.setAlpha(danger * 0.13);
-      } else if (distToEdge <= -50) {
-        this.edgeVignette.setAlpha(0.25);
+      } else if (distToEdge <= 0) {
+        // RING DRAMA: player is outside the ring — pulsing vignette + shake + sound
+        const overshoot = Math.abs(distToEdge);
+        const intensity = Math.min(overshoot / 100, 1); // 0→1 over 100px overshoot
+
+        // Pulsing vignette: oscillate alpha with sin(time)
+        const pulse = 0.2 + 0.15 * Math.sin(scene.time.now * 0.008);
+        this.edgeVignette.setAlpha(pulse + intensity * 0.1);
+
+        // Camera micro-shake: proportional to overshoot distance
+        const shakeIntensity = 0.001 + intensity * 0.002;
+        scene.cameras.main.shake(80, shakeIntensity, false);
+
+        // Sound: play ring-burn throttled to every 400ms
+        const now = performance.now();
+        if (now - this._lastRingBurnSoundTime > 400) {
+          this._lastRingBurnSoundTime = now;
+          const vol = 0.15 + intensity * 0.35;
+          scene.sound.play('sfx-ring-burn', { volume: vol, rate: 0.8 + intensity * 0.4 });
+        }
+
+        // Particles: small red dots flying off player
+        if (Math.random() < 0.3 + intensity * 0.5) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 1 + Math.random() * 2;
+          this._ringDamageParticles.push({
+            x: px, y: py,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 400 + Math.random() * 300,
+            elapsed: 0,
+            size: 2 + Math.random() * 3,
+          });
+        }
       } else {
         this.edgeVignette.setAlpha(0);
       }
-    }
 
-    this.lastDrawnRingRadius = r;
+      // Update & draw ring damage particles
+      if (this._ringDamageParticles.length > 0) {
+        if (!this._ringParticleGraphics) {
+          this._ringParticleGraphics = scene.add.graphics().setDepth(50);
+        }
+        this._ringParticleGraphics.clear();
+        for (let pi = this._ringDamageParticles.length - 1; pi >= 0; pi--) {
+          const p = this._ringDamageParticles[pi];
+          p.elapsed += 16; // ~60fps
+          p.x += p.vx;
+          p.y += p.vy;
+          const lifeRatio = 1 - p.elapsed / p.life;
+          if (lifeRatio <= 0) {
+            this._ringDamageParticles.splice(pi, 1);
+            continue;
+          }
+          this._ringParticleGraphics.fillStyle(0xff2222, lifeRatio * 0.8);
+          this._ringParticleGraphics.fillCircle(p.x, p.y, p.size * lifeRatio);
+        }
+      } else if (this._ringParticleGraphics) {
+        this._ringParticleGraphics.clear();
+      }
+    }
   }
 
   updateHUD() {
@@ -657,6 +719,8 @@ export class HUDManager {
     if (this.ringGraphics && !this.ringGraphics.destroyed) this.ringGraphics.destroy();
     if (this.outerRingGraphics && !this.outerRingGraphics.destroyed) this.outerRingGraphics.destroy();
     if (this.edgeVignette && !this.edgeVignette.destroyed) this.edgeVignette.destroy();
+    if (this._ringParticleGraphics && !this._ringParticleGraphics.destroyed) this._ringParticleGraphics.destroy();
+    this._ringDamageParticles = [];
 
     // Kill feed
     if (this.killFeedTimeouts) {

@@ -17,8 +17,15 @@ export const PLAYER = {
   MAX_HP: 100,
   STOP_RADIUS: 8,                 // Stop applying thrust within this distance
   KNOCKBACK_GRACE_MS: 500,        // After knockback hit, player slides freely (was 300 — longer for sumo drama)
+  KNOCKBACK_GRACE_MIN: 200,       // Light taps (frostbolt 0.02) — snappy recovery
+  KNOCKBACK_GRACE_MAX: 900,       // Devastating hits (meteor 0.10) — long dramatic slide
+  KNOCKBACK_GRACE_SCALE: 5000,    // grace = clamp(forceMag * SCALE, MIN, MAX)
+  KNOCKBACK_COMBO_EXTEND: 150,    // ms added to grace on combo hit (already in KB)
+  KNOCKBACK_COMBO_MAX_GRACE: 1200,// hard cap on total accumulated grace
+  KNOCKBACK_COMBO_FORCE_MULT: 1.15, // 15% bonus force on combo hits
   KNOCKBACK_BASE_MULT: 1.0,       // Minimum knockback multiplier at full HP
   KNOCKBACK_SCALE: 2.5,           // At 0 HP remaining, knockback is (1 + 2.5) = 3.5× base (Smash Bros %)
+  DI_STRENGTH: 0.15,              // 15% of current speed as steering force during knockback
 };
 
 export const ARENA = {

@@ -40,14 +40,10 @@ export class GameLoop {
     const canMove = isPlaying || room.rounds.phase === PHASE.COUNTDOWN;
     for (const [playerId, player] of room.players) {
       if (player.input && !player.eliminated && canMove) {
-        if (room.physics.isInKnockback(playerId)) {
+        const effects = room.spells.getStatusEffects(playerId);
+        const reached = room.physics.applyInput(playerId, player.input, effects);
+        if (reached) {
           player.input = null;
-        } else {
-          const effects = room.spells.getStatusEffects(playerId);
-          const reached = room.physics.applyInput(playerId, player.input, effects);
-          if (reached) {
-            player.input = null;
-          }
         }
       }
     }
