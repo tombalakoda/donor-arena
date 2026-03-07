@@ -116,6 +116,13 @@ export const hookHandler = {
         });
         // Block enemy input during pull (same pattern as grappling line 133)
         ctx.physics.knockbackUntil.set(spell.hookedPlayerId, now + PHYSICS.TICK_MS * 3);
+
+        // Caster also gets pulled toward the enemy a little (tricky momentum)
+        Body.setVelocity(casterBody, {
+          x: -nx * spell.pullSpeed * 0.3,
+          y: -ny * spell.pullSpeed * 0.3,
+        });
+        ctx.physics.knockbackUntil.set(spell.ownerId, now + PHYSICS.TICK_MS * 3);
       } else {
         // Transition to throw
         spell.phase = 'throw';
