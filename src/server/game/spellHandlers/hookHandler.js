@@ -149,15 +149,6 @@ export const hookHandler = {
           spell.ownerId,
         );
 
-        // Caster recoil — pushed opposite to throw direction ("heavy throw" feel)
-        ctx.physics.applyKnockback(
-          spell.ownerId,
-          -throwNx * spell.throwForce * 0.4,
-          -throwNy * spell.throwForce * 0.4,
-          0,
-          null,
-        );
-
         spell.x = hookedBody.position.x;
         spell.y = hookedBody.position.y;
       }
