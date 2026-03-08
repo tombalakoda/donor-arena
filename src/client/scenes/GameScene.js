@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { PLAYER, ARENA } from '../../shared/constants.js';
 import { MSG } from '../../shared/messageTypes.js';
 import { SPELLS, SPELL_TYPES } from '../../shared/spellData.js';
+import { computeSpellStats } from '../../shared/skillTreeData.js';
 import { NetworkManager } from '../systems/NetworkManager.js';
 import { UI_FONT } from '../config.js';
 import { ShopOverlay } from '../ui/ShopOverlay.js';
@@ -139,6 +140,13 @@ export class GameScene extends Phaser.Scene {
     this.currentMapIndex = -1;
     this.lastServerSpells = [];
     this.trailGraphics = null;
+    this.cachedScores = null;
+    this.spectateMode = false;
+    this.spectateTargetId = null;
+    this.spectateTargetIndex = -1;
+    this.aimingSlot = null;
+    this.indicatorGraphics = null;
+    this._indicatorStatsCache = {};
   }
 
   create() {
@@ -193,6 +201,15 @@ export class GameScene extends Phaser.Scene {
         }
       });
     }
+
+    // Tab key to toggle leaderboard
+    this.input.keyboard.on('keydown-TAB', (e) => {
+      e.preventDefault();
+      this.hudManager.toggleLeaderboard(true);
+    });
+    this.input.keyboard.on('keyup-TAB', () => {
+      this.hudManager.toggleLeaderboard(false);
+    });
 
     window.__gameScene = this;
   }
@@ -344,7 +361,11 @@ export class GameScene extends Phaser.Scene {
             this.hudManager.showDamageNumber(this.playerBody.position.x, this.playerBody.position.y, hpLost);
           }
         }
+        const wasEliminated = this.localEliminated;
         this.localEliminated = ps.eliminated || false;
+        if (!wasEliminated && this.localEliminated) {
+          this.enterSpectatorMode();
+        }
 
         // Ghost transparency for local player
         if (this.playerSprite) {
@@ -396,6 +417,10 @@ export class GameScene extends Phaser.Scene {
     console.log('[ROUND] Round', data.round, 'starting (map', data.mapIndex, ')');
     this.roundNumber = data.round;
     this.localEliminated = false;
+    this.spectateMode = false;
+    this.spectateTargetId = null;
+    this.spectateTargetIndex = -1;
+    this.hudManager._hideSpectateHUD();
     if (this.playerSprite) this.playerSprite.setAlpha(1);
 
     // Clear move target on new round
@@ -417,6 +442,16 @@ export class GameScene extends Phaser.Scene {
       ? `Fasıl ${data.round} — ${data.winnerName} aldı!`
       : `Fasıl ${data.round} — Berabere!`;
     this.hudManager.showAnnouncement(msg);
+
+    // Cache scores with resolved names for leaderboard
+    if (data.scores) {
+      this.cachedScores = data.scores.map(s => ({
+        ...s,
+        name: s.id === this.localPlayerId ? this.playerName
+            : (this.remotePlayers.get(s.id)?.name || s.id.slice(-4)),
+      }));
+      this.hudManager.updateLeaderboard(this.cachedScores, this.localPlayerId);
+    }
   }
 
   handleElimination(data) {
@@ -830,6 +865,55 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // --- Spectator Mode ---
+
+  enterSpectatorMode() {
+    this.spectateMode = true;
+    this.cycleSpectateTarget(1);
+
+    // Listen for left-click and arrow keys to cycle target
+    this._spectateClickHandler = () => {
+      if (this.spectateMode) this.cycleSpectateTarget(1);
+    };
+    this._spectateLeftHandler = () => {
+      if (this.spectateMode) this.cycleSpectateTarget(-1);
+    };
+    this._spectateRightHandler = () => {
+      if (this.spectateMode) this.cycleSpectateTarget(1);
+    };
+    this.input.on('pointerdown', this._spectateClickHandler);
+    this.input.keyboard.on('keydown-LEFT', this._spectateLeftHandler);
+    this.input.keyboard.on('keydown-RIGHT', this._spectateRightHandler);
+  }
+
+  cycleSpectateTarget(direction) {
+    // Build list of alive remote players
+    const alivePlayers = [];
+    for (const [id, rp] of this.remotePlayers) {
+      if (rp.sprite && rp.sprite.alpha > 0.35) {
+        alivePlayers.push(id);
+      }
+    }
+    if (alivePlayers.length === 0) {
+      this.spectateTargetId = null;
+      this.hudManager._hideSpectateHUD();
+      return;
+    }
+
+    // Cycle through alive players
+    let idx = this.spectateTargetIndex;
+    idx += direction;
+    if (idx >= alivePlayers.length) idx = 0;
+    if (idx < 0) idx = alivePlayers.length - 1;
+
+    this.spectateTargetIndex = idx;
+    this.spectateTargetId = alivePlayers[idx];
+
+    const rp = this.remotePlayers.get(this.spectateTargetId);
+    const name = rp ? (rp.name || this.spectateTargetId.slice(-4)) : '???';
+    this.hudManager.updateSpectateHUD(name);
+  }
+
   /** Look up which spell the player has chosen for a slot */
   getSlotSpellId(slotKey) {
     if (!this.progression) return null;
@@ -911,6 +995,9 @@ export class GameScene extends Phaser.Scene {
     this.hudManager.outerRingGraphics = this.add.graphics();
     this.hudManager.outerRingGraphics.setDepth(1);
     this.hudManager.lastDrawnRingRadius = -1;
+
+    // Aim indicator graphics (world-space, below spells)
+    this.indicatorGraphics = this.add.graphics().setDepth(3);
   }
 
   createDecorationsFromMap(decorations) {
@@ -1125,6 +1212,10 @@ export class GameScene extends Phaser.Scene {
     this.hudManager.outerRingGraphics = this.add.graphics();
     this.hudManager.outerRingGraphics.setDepth(1);
     this.hudManager.lastDrawnRingRadius = -1;
+
+    // Aim indicator graphics
+    if (this.indicatorGraphics && !this.indicatorGraphics.destroyed) this.indicatorGraphics.destroy();
+    this.indicatorGraphics = this.add.graphics().setDepth(3);
   }
 
   createArenaDecorations() {
@@ -1301,6 +1392,7 @@ export class GameScene extends Phaser.Scene {
     this.syncLocalVisuals();
     this.interpolateRemotePlayers();
     this.updateSpellInput();
+    this.updateAimIndicator();
     this.spellVisualManager.update(delta);
     this.updateCamera();
     this.hudManager.update();
@@ -1392,18 +1484,198 @@ export class GameScene extends Phaser.Scene {
     if (this.phase === 'shop') return;
     if (this.pauseMenu && this.pauseMenu.visible) return;
     if (this.matchEndOverlay && this.matchEndOverlay.visible) return;
+    // No spell input during spectator mode
+    if (this.spectateMode) return;
+
+    // Spell types that cast instantly (no aiming needed)
+    const INSTANT_TYPES = [SPELL_TYPES.BUFF, SPELL_TYPES.RECALL, SPELL_TYPES.DASH];
 
     for (const key of ['Q', 'W', 'E', 'R']) {
-      if (Phaser.Input.Keyboard.JustDown(this.spellKeys[key])) {
-        // Check if spell slot is locked
-        if (this.progression && this.progression.slots[key] === 'locked') continue;
-        // If mid-grapple and pressing R, this is a release, not a new cast
-        if (key === 'R' && this.grapplingActive) {
+      const keyObj = this.spellKeys[key];
+
+      // Check if spell slot is locked
+      if (this.progression && this.progression.slots[key] === 'locked') continue;
+
+      // If mid-grapple and pressing R, this is a release, not a new cast
+      if (key === 'R' && this.grapplingActive) {
+        if (Phaser.Input.Keyboard.JustDown(keyObj)) {
           this.network.sendHookRelease();
-          continue;
         }
-        this.castSpell(key);
+        continue;
       }
+
+      const spellId = this.getSlotSpellId(key);
+      if (!spellId) continue;
+      const spellDef = SPELLS[spellId];
+      if (!spellDef) continue;
+      const spellType = spellDef.type;
+
+      // Instant-cast spells: fire on JustDown (no hold-to-aim)
+      if (INSTANT_TYPES.includes(spellType)) {
+        if (Phaser.Input.Keyboard.JustDown(keyObj)) {
+          this.castSpell(key);
+        }
+        continue;
+      }
+
+      // Hold-to-aim spells: enter aiming on key down, cast on key release
+      if (Phaser.Input.Keyboard.JustDown(keyObj)) {
+        // Check cooldown — if on CD, don't enter aiming
+        if (this.cooldowns[spellId] && this.cooldowns[spellId] > 0) continue;
+        this.aimingSlot = key;
+      }
+
+      if (this.aimingSlot === key && Phaser.Input.Keyboard.JustUp(keyObj)) {
+        this.castSpell(key);
+        this.aimingSlot = null;
+      }
+    }
+
+    // Safety: if aiming slot key is no longer held, clear
+    if (this.aimingSlot && !this.spellKeys[this.aimingSlot].isDown) {
+      this.aimingSlot = null;
+    }
+  }
+
+  updateAimIndicator() {
+    if (!this.indicatorGraphics) return;
+    this.indicatorGraphics.clear();
+
+    if (!this.aimingSlot || !this.playerBody || this.localEliminated) return;
+
+    const slotKey = this.aimingSlot;
+    const spellId = this.getSlotSpellId(slotKey);
+    if (!spellId) return;
+    const spellDef = SPELLS[spellId];
+    if (!spellDef) return;
+
+    // Get cached stats for range
+    if (!this._indicatorStatsCache[spellId]) {
+      const tierLevel = (this.progression && this.progression.spells[slotKey])
+        ? (this.progression.spells[slotKey].tier || 0) : 0;
+      this._indicatorStatsCache[spellId] = computeSpellStats(spellId, tierLevel);
+    }
+    const stats = this._indicatorStatsCache[spellId];
+    if (!stats) return;
+
+    const range = stats.range || 200;
+    const px = this.playerBody.position.x;
+    const py = this.playerBody.position.y;
+
+    const pointer = this.input.activePointer;
+    const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    const mx = worldPoint.x;
+    const my = worldPoint.y;
+
+    // Slot colors
+    const SLOT_COLORS = { Q: 0xff4444, W: 0x4488ff, E: 0x44ddff, R: 0xaa44ff };
+    const color = SLOT_COLORS[slotKey] || 0xffffff;
+
+    const g = this.indicatorGraphics;
+    const spellType = spellDef.type;
+
+    // Range circle (always draw for aimed spells)
+    g.lineStyle(1.5, color, 0.15);
+    g.strokeCircle(px, py, range);
+
+    // Direction to cursor
+    const dx = mx - px;
+    const dy = my - py;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = dx / dist;
+    const ny = dy / dist;
+
+    switch (spellType) {
+      case SPELL_TYPES.PROJECTILE:
+      case SPELL_TYPES.HOMING:
+      case SPELL_TYPES.BOOMERANG:
+      case SPELL_TYPES.SWAP:
+      case SPELL_TYPES.HOOK: {
+        // Aim line to cursor (clamped to range)
+        const lineLen = Math.min(dist, range);
+        g.lineStyle(2, color, 0.25);
+        g.beginPath();
+        g.moveTo(px, py);
+        g.lineTo(px + nx * lineLen, py + ny * lineLen);
+        g.strokePath();
+        // Small dot at end of aim line
+        g.fillStyle(color, 0.3);
+        g.fillCircle(px + nx * lineLen, py + ny * lineLen, 4);
+        break;
+      }
+
+      case SPELL_TYPES.ZONE: {
+        // Aim line to cursor (clamped to range)
+        const zoneDist = Math.min(dist, range);
+        const zoneX = px + nx * zoneDist;
+        const zoneY = py + ny * zoneDist;
+        g.lineStyle(1, color, 0.15);
+        g.beginPath();
+        g.moveTo(px, py);
+        g.lineTo(zoneX, zoneY);
+        g.strokePath();
+        // AoE preview circle at cursor position
+        const aoeRadius = stats.radius || 35;
+        g.lineStyle(1.5, color, 0.25);
+        g.strokeCircle(zoneX, zoneY, aoeRadius);
+        g.fillStyle(color, 0.08);
+        g.fillCircle(zoneX, zoneY, aoeRadius);
+        break;
+      }
+
+      case SPELL_TYPES.BLINK: {
+        // Destination dot at cursor (clamped to range)
+        const blinkDist = Math.min(dist, range);
+        const destX = px + nx * blinkDist;
+        const destY = py + ny * blinkDist;
+        g.lineStyle(1, color, 0.15);
+        g.beginPath();
+        g.moveTo(px, py);
+        g.lineTo(destX, destY);
+        g.strokePath();
+        // Destination dot
+        g.fillStyle(color, 0.3);
+        g.fillCircle(destX, destY, 6);
+        g.lineStyle(1.5, color, 0.4);
+        g.strokeCircle(destX, destY, 6);
+        break;
+      }
+
+      case SPELL_TYPES.INSTANT: {
+        // Detection radius circle (already drew range circle above, draw filled zone)
+        const detectRadius = stats.radius || 75;
+        g.fillStyle(color, 0.06);
+        g.fillCircle(px, py, detectRadius);
+        g.lineStyle(1.5, color, 0.2);
+        g.strokeCircle(px, py, detectRadius);
+        break;
+      }
+
+      case SPELL_TYPES.WALL: {
+        // Wall preview line at cursor
+        const wallDist = Math.min(dist, range);
+        const wallX = px + nx * wallDist;
+        const wallY = py + ny * wallDist;
+        g.lineStyle(1, color, 0.15);
+        g.beginPath();
+        g.moveTo(px, py);
+        g.lineTo(wallX, wallY);
+        g.strokePath();
+        // Wall preview rectangle
+        const wallWidth = stats.width || 80;
+        const angle = Math.atan2(ny, nx);
+        const perpX = -Math.sin(angle);
+        const perpY = Math.cos(angle);
+        g.lineStyle(2, color, 0.3);
+        g.beginPath();
+        g.moveTo(wallX - perpX * wallWidth / 2, wallY - perpY * wallWidth / 2);
+        g.lineTo(wallX + perpX * wallWidth / 2, wallY + perpY * wallWidth / 2);
+        g.strokePath();
+        break;
+      }
+
+      default:
+        break;
     }
   }
 
@@ -1473,10 +1745,27 @@ export class GameScene extends Phaser.Scene {
   }
 
   updateCamera() {
-    if (!this.playerBody) return;
-    const pos = this.playerBody.position;
     const cam = this.cameras.main;
     const lerpFactor = 0.08;
+
+    // Spectator mode: follow the spectated player
+    if (this.spectateMode && this.spectateTargetId) {
+      const rp = this.remotePlayers.get(this.spectateTargetId);
+      if (rp) {
+        // Check if spectated player is still alive
+        if (rp.sprite && rp.sprite.alpha <= 0.35) {
+          // Spectated player died — cycle to next alive player
+          this.cycleSpectateTarget(1);
+          return;
+        }
+        cam.scrollX += (rp.x - cam.width / 2 - cam.scrollX) * lerpFactor;
+        cam.scrollY += (rp.y - cam.height / 2 - cam.scrollY) * lerpFactor;
+        return;
+      }
+    }
+
+    if (!this.playerBody) return;
+    const pos = this.playerBody.position;
     cam.scrollX += (pos.x - cam.width / 2 - cam.scrollX) * lerpFactor;
     cam.scrollY += (pos.y - cam.height / 2 - cam.scrollY) * lerpFactor;
   }
@@ -1527,6 +1816,26 @@ export class GameScene extends Phaser.Scene {
 
     // Cleanup speed trail
     this.speedTrail = [];
+
+    // Cleanup spectator listeners
+    if (this._spectateClickHandler) {
+      this.input.off('pointerdown', this._spectateClickHandler);
+      this._spectateClickHandler = null;
+    }
+    if (this._spectateLeftHandler) {
+      this.input.keyboard.off('keydown-LEFT', this._spectateLeftHandler);
+      this._spectateLeftHandler = null;
+    }
+    if (this._spectateRightHandler) {
+      this.input.keyboard.off('keydown-RIGHT', this._spectateRightHandler);
+      this._spectateRightHandler = null;
+    }
+
+    // Cleanup aim indicator graphics
+    if (this.indicatorGraphics && !this.indicatorGraphics.destroyed) {
+      this.indicatorGraphics.destroy();
+    }
+    this.indicatorGraphics = null;
 
     // Clear tryJoin timeout
     if (this._tryJoinTimeout) { clearTimeout(this._tryJoinTimeout); this._tryJoinTimeout = null; }

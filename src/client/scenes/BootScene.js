@@ -263,6 +263,22 @@ export class BootScene extends Phaser.Scene {
     this.load.audio('sfx-shield', 'assets/audio/sfx/magic/Magic3.wav');
     // Ring damage SFX
     this.load.audio('sfx-ring-burn', 'assets/audio/sfx/Elemental/Fire2.wav');
+    // Spell cast SFX
+    this.load.audio('sfx-fireball', 'assets/audio/sfx/Elemental/Fireball.wav');
+    this.load.audio('sfx-blink', 'assets/audio/sfx/whoosh/Whoosh.wav');
+    this.load.audio('sfx-dash', 'assets/audio/sfx/whoosh/Launch.wav');
+    this.load.audio('sfx-ice', 'assets/audio/sfx/Elemental/Water1.wav');
+    this.load.audio('sfx-hook', 'assets/audio/sfx/whoosh/Slash.wav');
+    this.load.audio('sfx-lightning', 'assets/audio/sfx/Elemental/Explosion.wav');
+    this.load.audio('sfx-meteor', 'assets/audio/sfx/Elemental/Explosion3.wav');
+    this.load.audio('sfx-homing', 'assets/audio/sfx/magic/Magic1.wav');
+    this.load.audio('sfx-swap', 'assets/audio/sfx/magic/Magic2.wav');
+    this.load.audio('sfx-flash', 'assets/audio/sfx/magic/Spirit.wav');
+    this.load.audio('sfx-ghost', 'assets/audio/sfx/magic/Strange.wav');
+    this.load.audio('sfx-recall', 'assets/audio/sfx/magic/Fx.wav');
+    this.load.audio('sfx-wall', 'assets/audio/sfx/Elemental/Water10.wav');
+    this.load.audio('sfx-bouncer', 'assets/audio/sfx/bounce/Bounce.wav');
+    this.load.audio('sfx-rocket', 'assets/audio/sfx/whoosh/Whoosh2.wav');
     // Background music (single track for menu + fight)
     this.load.audio('music-menu', 'assets/audio/music/mesnoremix.mp3');
     this.load.audio('music-fight', 'assets/audio/music/mesnoremix.mp3');

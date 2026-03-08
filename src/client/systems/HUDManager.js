@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PLAYER, ARENA } from '../../shared/constants.js';
 import { SPELLS } from '../../shared/spellData.js';
+import { computeSpellStats } from '../../shared/skillTreeData.js';
 import { UI_FONT } from '../config.js';
 
 export class HUDManager {
@@ -50,6 +51,20 @@ export class HUDManager {
     this._lastTimerFill = '';
     this._lastPhaseText = '';
     this._lastSpText = '';
+
+    // Cooldown visuals state
+    this._totalCooldowns = {};    // { spellId: totalCooldownMs }
+    this._lastCdWasActive = {};   // { slotKey: boolean } for ready pulse
+    this._slotSpellIcon = {};     // { slotKey: normalTextureKey } to track icon swaps
+
+    // Leaderboard
+    this._leaderboardElements = [];
+    this._leaderboardVisible = false;
+    this._cachedScores = null;
+    this._cachedLocalPlayerId = null;
+
+    // Spectator
+    this._spectateElements = [];
 
     // Misc
     this.announcementText = null;
@@ -155,8 +170,12 @@ export class HUDManager {
 
       let icon = null;
 
-      const cdOverlay = scene.add.rectangle(x, slotY, slotSize - 4, slotSize - 4, 0x000000, 0.6)
-        .setScrollFactor(0).setDepth(102).setVisible(false);
+      const cdOverlay = scene.add.graphics()
+        .setScrollFactor(0).setDepth(102);
+      cdOverlay.setVisible(false);
+      cdOverlay._slotX = x;
+      cdOverlay._slotY = slotY;
+      cdOverlay._slotSize = slotSize;
 
       const cdText = scene.add.text(x, slotY, '', {
         fontSize: '16px', fontFamily: UI_FONT,
@@ -618,17 +637,33 @@ export class HUDManager {
 
       const def = hasSpell ? SPELLS[spellId] : null;
       if (def && def.icon) {
-        if (!slot.icon || slot._currentIconKey !== def.icon) {
+        // Track the normal icon key for this slot
+        if (slot._currentIconKey !== def.icon) {
+          this._slotSpellIcon[slot.key] = def.icon;
+          // Invalidate cached total cooldown when spell changes
+          if (spellId) this._totalCooldowns[spellId] = undefined;
+        }
+
+        const cd = hasSpell ? (scene.cooldowns[spellId] || 0) : 0;
+        const isOnCooldown = cd > 0;
+
+        // Determine which texture to show (normal or disabled)
+        const normalKey = def.icon;
+        const offKey = normalKey + '-off';
+        const targetKey = isOnCooldown && scene.textures.exists(offKey) ? offKey : normalKey;
+
+        if (!slot.icon || slot._currentIconKey !== targetKey) {
           if (slot.icon && !slot.icon.destroyed) slot.icon.destroy();
-          if (scene.textures.exists(def.icon)) {
-            slot.icon = scene.add.image(slot.x, slot.y, def.icon)
+          if (scene.textures.exists(targetKey)) {
+            slot.icon = scene.add.image(slot.x, slot.y, targetKey)
               .setScrollFactor(0).setDepth(101);
             const iconScale = (slot.size - 8) / Math.max(slot.icon.width, slot.icon.height);
             slot.icon.setScale(iconScale);
+            slot.icon._baseScale = iconScale;
           } else {
             slot.icon = null;
           }
-          slot._currentIconKey = def.icon;
+          slot._currentIconKey = targetKey;
         }
         if (slot.icon) slot.icon.setVisible(true).setAlpha(1);
       } else {
@@ -638,17 +673,63 @@ export class HUDManager {
       if (hasSpell) {
         const cd = scene.cooldowns[spellId];
         if (cd && cd > 0) {
+          // Get total cooldown for progress calculation
+          if (!this._totalCooldowns[spellId]) {
+            const tierLevel = (scene.progression && scene.progression.spells[slot.key])
+              ? (scene.progression.spells[slot.key].tier || 0) : 0;
+            const stats = computeSpellStats(spellId, tierLevel);
+            this._totalCooldowns[spellId] = stats ? (stats.cooldown || 5000) : 5000;
+          }
+          const totalCd = this._totalCooldowns[spellId];
+          const progress = Math.min(1, cd / totalCd); // 1 = full cooldown, 0 = ready
+
+          // Draw radial sweep arc
           slot.cdOverlay.setVisible(true);
+          slot.cdOverlay.clear();
+          const cx = slot.cdOverlay._slotX;
+          const cy = slot.cdOverlay._slotY;
+          const radius = (slot.size - 4) / 2;
+          const startAngle = -Math.PI / 2; // 12 o'clock
+          const endAngle = startAngle + progress * Math.PI * 2;
+
+          slot.cdOverlay.fillStyle(0x000000, 0.45);
+          slot.cdOverlay.beginPath();
+          slot.cdOverlay.moveTo(cx, cy);
+          slot.cdOverlay.arc(cx, cy, radius, startAngle, endAngle, false);
+          slot.cdOverlay.closePath();
+          slot.cdOverlay.fillPath();
+
+          // Cooldown text
           slot.cdText.setVisible(true);
           const cdStr = (cd / 1000).toFixed(1);
           if (cdStr !== slot._lastCdText) {
             slot.cdText.setText(cdStr);
             slot._lastCdText = cdStr;
           }
+
+          this._lastCdWasActive[slot.key] = true;
         } else {
           slot.cdOverlay.setVisible(false);
+          slot.cdOverlay.clear();
           slot.cdText.setVisible(false);
           slot._lastCdText = '';
+
+          // Ready pulse: cooldown just ended
+          if (this._lastCdWasActive[slot.key]) {
+            this._lastCdWasActive[slot.key] = false;
+            // Swap icon back to normal (will happen naturally on next frame via targetKey logic above)
+            // Pulse scale animation
+            if (slot.icon && !slot.icon.destroyed && slot.icon._baseScale) {
+              scene.tweens.add({
+                targets: slot.icon,
+                scaleX: slot.icon._baseScale * 1.3,
+                scaleY: slot.icon._baseScale * 1.3,
+                duration: 150,
+                yoyo: true,
+                ease: 'Quad.easeOut',
+              });
+            }
+          }
         }
 
         const charge = scene.charges[spellId];
@@ -684,6 +765,108 @@ export class HUDManager {
         this._lastSpText = spStr;
       }
     }
+  }
+
+  // --- Leaderboard ---
+
+  updateLeaderboard(scores, localPlayerId) {
+    this._cachedScores = scores;
+    this._cachedLocalPlayerId = localPlayerId;
+    if (this._leaderboardVisible) {
+      this._renderLeaderboard();
+    }
+  }
+
+  toggleLeaderboard(show) {
+    if (show === this._leaderboardVisible) return;
+    this._leaderboardVisible = show;
+    if (show && this._cachedScores) {
+      this._renderLeaderboard();
+    } else {
+      this._hideLeaderboard();
+    }
+  }
+
+  _renderLeaderboard() {
+    this._hideLeaderboard();
+    if (!this._cachedScores || this._cachedScores.length === 0) return;
+
+    const scene = this.scene;
+    const camW = scene.cameras.main.width;
+    const sorted = [...this._cachedScores].sort((a, b) => b.points - a.points);
+
+    const panelX = camW - 10;
+    const panelY = 80;
+    const rowH = 22;
+    const panelW = 220;
+    const panelH = 30 + sorted.length * rowH + 10;
+
+    // Background
+    const bg = scene.add.rectangle(panelX - panelW / 2, panelY + panelH / 2, panelW, panelH, 0x000000, 0.5)
+      .setScrollFactor(0).setDepth(140).setOrigin(0.5);
+    this._leaderboardElements.push(bg);
+
+    // Header
+    const header = scene.add.text(panelX - panelW + 10, panelY + 6, 'PUAN TABLOSU', {
+      fontSize: '14px', fontFamily: UI_FONT,
+      fill: '#ffdd44',
+      fontStyle: 'bold',
+    }).setScrollFactor(0).setDepth(141);
+    this._leaderboardElements.push(header);
+
+    // Rows
+    for (let i = 0; i < sorted.length; i++) {
+      const s = sorted[i];
+      const isLocal = s.id === this._cachedLocalPlayerId;
+      const color = isLocal ? '#44ddff' : '#cccccc';
+      const y = panelY + 28 + i * rowH;
+      const row = scene.add.text(panelX - panelW + 10, y,
+        `${i + 1}. ${s.name}  ${s.points}p  ${s.eliminations}k`, {
+        fontSize: '13px', fontFamily: UI_FONT,
+        fill: color,
+      }).setScrollFactor(0).setDepth(141);
+      this._leaderboardElements.push(row);
+    }
+  }
+
+  _hideLeaderboard() {
+    for (const el of this._leaderboardElements) {
+      if (el && !el.destroyed) el.destroy();
+    }
+    this._leaderboardElements = [];
+  }
+
+  // --- Spectator HUD ---
+
+  updateSpectateHUD(playerName) {
+    this._hideSpectateHUD();
+    if (!playerName) return;
+
+    const scene = this.scene;
+    const camW = scene.cameras.main.width;
+    const camH = scene.cameras.main.height;
+
+    const nameText = scene.add.text(camW / 2, camH - 120, `İzleniyor: ${playerName}`, {
+      fontSize: '20px', fontFamily: UI_FONT,
+      fill: '#ffffff',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setScrollFactor(0).setDepth(200).setOrigin(0.5);
+    this._spectateElements.push(nameText);
+
+    const hint = scene.add.text(camW / 2, camH - 96, 'Tıkla veya ← → ile değiştir', {
+      fontSize: '14px', fontFamily: UI_FONT,
+      fill: '#888899',
+    }).setScrollFactor(0).setDepth(200).setOrigin(0.5);
+    this._spectateElements.push(hint);
+  }
+
+  _hideSpectateHUD() {
+    for (const el of this._spectateElements) {
+      if (el && !el.destroyed) el.destroy();
+    }
+    this._spectateElements = [];
   }
 
   update() {
@@ -738,5 +921,11 @@ export class HUDManager {
     if (this.announcementText && !this.announcementText.destroyed) {
       this.announcementText.destroy();
     }
+
+    // Leaderboard
+    this._hideLeaderboard();
+
+    // Spectator HUD
+    this._hideSpectateHUD();
   }
 }

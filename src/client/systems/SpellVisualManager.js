@@ -56,6 +56,12 @@ export class SpellVisualManager {
     const effectiveType = spell.spellType || def.type;
     const scene = this.scene;
 
+    // Play cast sound from spell definition
+    const castFx = def.fx || {};
+    if (castFx.sound && scene.cache.audio.exists(castFx.sound)) {
+      scene.sound.play(castFx.sound, { volume: 0.15 });
+    }
+
     const visual = {
       type: effectiveType,
       lifetime: spell.lifetime || 2000,
