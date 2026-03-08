@@ -73,7 +73,7 @@ export const SKILL_TREES = {
   'blink': {
     base: {
       type: 'blink',
-      cooldown: 5000,
+      cooldown: 5500,
       range: 220,
       damage: 0,
       knockbackForce: 0,
@@ -87,7 +87,7 @@ export const SKILL_TREES = {
   'dash': {
     base: {
       type: 'dash',
-      cooldown: 5000,
+      cooldown: 5500,
       range: 160,
       dashDamage: 3,
       dashKnockback: 0.04,
@@ -102,7 +102,7 @@ export const SKILL_TREES = {
   'flash': {
     base: {
       type: 'buff',
-      cooldown: 6000,
+      cooldown: 6500,
       buffDuration: 2000,
       speedBoost: 0.6,          // +60% movement speed
       frictionReduction: 0.003, // reduce air friction during flash
@@ -116,7 +116,7 @@ export const SKILL_TREES = {
   'ghost': {
     base: {
       type: 'buff',
-      cooldown: 8000,
+      cooldown: 9000,
       buffDuration: 2500,
       speedBoost: 0.2,          // +20% movement speed
       intangible: true,         // projectiles pass through
@@ -147,7 +147,7 @@ export const SKILL_TREES = {
   'timeshift': {
     base: {
       type: 'recall',
-      cooldown: 8000,
+      cooldown: 9000,
       recallDuration: 3000,     // stores 3s of position history
     },
     tiers: [
@@ -164,7 +164,7 @@ export const SKILL_TREES = {
       type: 'projectile',
       damage: 2,
       knockbackForce: 0.02,
-      cooldown: 3500,
+      cooldown: 4000,
       speed: 7,
       range: 350,
       radius: 6,
@@ -183,7 +183,7 @@ export const SKILL_TREES = {
   'blizzard': {
     base: {
       type: 'zone',
-      cooldown: 6000,
+      cooldown: 7000,
       range: 300,
       zoneRadius: 45,
       zoneDuration: 3500,
@@ -218,7 +218,7 @@ export const SKILL_TREES = {
       type: 'projectile',
       damage: 2,
       knockbackForce: 0.03,
-      cooldown: 5000,
+      cooldown: 5500,
       speed: 6,
       range: 600,
       radius: 7,
@@ -236,7 +236,7 @@ export const SKILL_TREES = {
   'shield': {
     base: {
       type: 'buff',
-      cooldown: 12000,
+      cooldown: 10000,
       buffDuration: 2000,
       shieldHits: 2,            // blocks this many hits
     },
@@ -254,7 +254,7 @@ export const SKILL_TREES = {
       type: 'hook',
       damage: 3,
       knockbackForce: 0,
-      cooldown: 8000,
+      cooldown: 9000,
       speed: 12,
       range: 300,
       radius: 10,
@@ -275,7 +275,7 @@ export const SKILL_TREES = {
       type: 'hook',
       damage: 0,
       knockbackForce: 0,
-      cooldown: 8000,
+      cooldown: 9000,
       speed: 12,
       range: 320,
       radius: 8,
@@ -296,7 +296,7 @@ export const SKILL_TREES = {
       type: 'instant',
       damage: 3,
       knockbackForce: 0.09,
-      cooldown: 7000,
+      cooldown: 8500,
       radius: 100,              // detection radius for nearest enemy
     },
     tiers: [
@@ -310,7 +310,7 @@ export const SKILL_TREES = {
       type: 'homing',
       damage: 3,
       knockbackForce: 0.06,
-      cooldown: 9000,
+      cooldown: 10000,
       speed: 5,
       radius: 7,
       lifetime: 4000,
@@ -328,7 +328,7 @@ export const SKILL_TREES = {
       type: 'zone',
       damage: 5,
       knockbackForce: 0.10,
-      cooldown: 12000,
+      cooldown: 13000,
       range: 150,               // close range cast — high risk, high reward
       impactDelay: 2000,        // 2s delay before impact
       impactRadius: 45,         // smaller AoE — powerful but hard to hit
@@ -345,7 +345,7 @@ export const SKILL_TREES = {
       type: 'homing',
       damage: 1,
       knockbackForce: 0.02,
-      cooldown: 10000,
+      cooldown: 11000,
       speed: 8,
       radius: 5,
       lifetime: 3000,
@@ -366,7 +366,7 @@ export const SKILL_TREES = {
       damage: 2,
       knockbackForce: 0.03,     // base KB at close range
       maxKnockbackForce: 0.09,  // KB at max range (scales linearly with distance)
-      cooldown: 7000,
+      cooldown: 8500,
       speed: 7,
       range: 70,                // barely goes forward before returning
       radius: 8,
