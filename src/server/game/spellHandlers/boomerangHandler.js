@@ -6,7 +6,8 @@ const OUTBOUND_MAX_SPEED_MULT = 1.8;   // throw: fast start
 const OUTBOUND_MIN_SPEED_MULT = 0.15;  // apex: near-zero pause
 const RETURN_MIN_SPEED_MULT = 0.5;     // just after apex: already moving
 const RETURN_MAX_SPEED_MULT = 2.2;     // arriving back: fast
-const OVERSHOOT_INITIAL_MULT = 1.6;    // passes caster with momentum
+const OVERSHOOT_INITIAL_MULT = 1.4;    // passes caster with momentum
+const OVERSHOOT_DEATH_SPEED = 0.5;     // deactivate when speed drops below this
 const HIT_DEFLECT_BLEND = 0.45;        // how much velocity deflects on hit (0=none, 1=full bounce)
 
 export const boomerangHandler = {
@@ -122,7 +123,7 @@ export const boomerangHandler = {
       const t = Math.min(1, overshootDist / spell.overshootRange);
       currentSpeed = spell.speed * OVERSHOOT_INITIAL_MULT * (1 - t);
 
-      if (overshootDist >= spell.overshootRange || currentSpeed < 0.1) {
+      if (overshootDist >= spell.overshootRange || currentSpeed < OVERSHOOT_DEATH_SPEED) {
         spell.active = false;
         ctx.removeSpell(i);
         return 'continue';
@@ -181,6 +182,12 @@ export const boomerangHandler = {
         const blendLen = Math.sqrt(blendX * blendX + blendY * blendY) || 1;
         spell.vx = (blendX / blendLen) * curSpd;
         spell.vy = (blendY / blendLen) * curSpd;
+
+        // Deflect acts as the turning point — enter overshoot (coast & fade)
+        spell.returning = true;
+        spell.passedCaster = true;
+        spell.casterPassX = spell.x;
+        spell.casterPassY = spell.y;
       }
     }
   },
