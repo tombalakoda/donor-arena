@@ -1537,6 +1537,30 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Compute the correct effective range for a spell based on its type and server mechanics. */
+  _getEffectiveRange(stats, spellType) {
+    switch (spellType) {
+      case SPELL_TYPES.PROJECTILE:
+      case SPELL_TYPES.SWAP:
+        // Server: spell.x += spell.vx each tick, despawn at lifetime. range stat ignored.
+        return (stats.speed || 5) * ((stats.lifetime || 2000) / 50);
+      case SPELL_TYPES.HOOK:
+        // Server: travelDist > spell.range → despawn. range enforced.
+        return stats.range || 300;
+      case SPELL_TYPES.HOMING:
+        // No range stat; trackingRange is detection radius for target acquisition.
+        return stats.trackingRange || 400;
+      case SPELL_TYPES.BOOMERANG:
+        // Outbound distance before returning.
+        return stats.range || 70;
+      case SPELL_TYPES.INSTANT:
+        // Detection radius around caster.
+        return stats.radius || 100;
+      default: // ZONE, WALL, BLINK
+        return stats.range || 200;
+    }
+  }
+
   updateAimIndicator() {
     if (!this.indicatorGraphics) return;
     this.indicatorGraphics.clear();
@@ -1558,7 +1582,8 @@ export class GameScene extends Phaser.Scene {
     const stats = this._indicatorStatsCache[spellId];
     if (!stats) return;
 
-    const range = stats.range || 200;
+    const spellType = spellDef.type;
+    const range = this._getEffectiveRange(stats, spellType);
     const px = this.playerBody.position.x;
     const py = this.playerBody.position.y;
 
@@ -1572,11 +1597,6 @@ export class GameScene extends Phaser.Scene {
     const color = SLOT_COLORS[slotKey] || 0xffffff;
 
     const g = this.indicatorGraphics;
-    const spellType = spellDef.type;
-
-    // Range circle (always draw for aimed spells)
-    g.lineStyle(1.5, color, 0.15);
-    g.strokeCircle(px, py, range);
 
     // Direction to cursor
     const dx = mx - px;
@@ -1586,25 +1606,62 @@ export class GameScene extends Phaser.Scene {
     const ny = dy / dist;
 
     switch (spellType) {
+      // ── LoL-style line skillshot: narrow filled rectangle to max range ──
       case SPELL_TYPES.PROJECTILE:
-      case SPELL_TYPES.HOMING:
-      case SPELL_TYPES.BOOMERANG:
       case SPELL_TYPES.SWAP:
-      case SPELL_TYPES.HOOK: {
-        // Aim line to cursor (clamped to range)
+      case SPELL_TYPES.HOOK:
+      case SPELL_TYPES.BOOMERANG: {
+        const halfW = Math.max((stats.radius || 7) * 2, 8) / 2;
+        const angle = Math.atan2(dy, dx);
+        const perpX = -Math.sin(angle) * halfW;
+        const perpY = Math.cos(angle) * halfW;
+        const endX = px + nx * range;
+        const endY = py + ny * range;
+
+        // Filled rectangle body
+        g.fillStyle(color, 0.10);
+        g.beginPath();
+        g.moveTo(px + perpX, py + perpY);
+        g.lineTo(endX + perpX, endY + perpY);
+        g.lineTo(endX - perpX, endY - perpY);
+        g.lineTo(px - perpX, py - perpY);
+        g.closePath();
+        g.fillPath();
+
+        // Rectangle outline
+        g.lineStyle(1, color, 0.20);
+        g.strokePath();
+
+        // Endpoint marker at max range
+        g.fillStyle(color, 0.30);
+        g.fillCircle(endX, endY, 4);
+        break;
+      }
+
+      // ── Homing: tracking range circle + aim direction line ──
+      case SPELL_TYPES.HOMING: {
+        // Detection zone circle (trackingRange)
+        g.lineStyle(1.5, color, 0.15);
+        g.strokeCircle(px, py, range);
+        g.fillStyle(color, 0.05);
+        g.fillCircle(px, py, range);
+        // Aim direction line (shows initial launch direction)
         const lineLen = Math.min(dist, range);
         g.lineStyle(2, color, 0.25);
         g.beginPath();
         g.moveTo(px, py);
         g.lineTo(px + nx * lineLen, py + ny * lineLen);
         g.strokePath();
-        // Small dot at end of aim line
         g.fillStyle(color, 0.3);
         g.fillCircle(px + nx * lineLen, py + ny * lineLen, 4);
         break;
       }
 
+      // ── Zone: range circle + AoE preview at cursor ──
       case SPELL_TYPES.ZONE: {
+        // Subtle range circle to show max placement distance
+        g.lineStyle(1.5, color, 0.15);
+        g.strokeCircle(px, py, range);
         // Aim line to cursor (clamped to range)
         const zoneDist = Math.min(dist, range);
         const zoneX = px + nx * zoneDist;
@@ -1614,8 +1671,8 @@ export class GameScene extends Phaser.Scene {
         g.moveTo(px, py);
         g.lineTo(zoneX, zoneY);
         g.strokePath();
-        // AoE preview circle at cursor position
-        const aoeRadius = stats.radius || 35;
+        // AoE preview circle at target position
+        const aoeRadius = stats.zoneRadius || stats.impactRadius || stats.radius || 35;
         g.lineStyle(1.5, color, 0.25);
         g.strokeCircle(zoneX, zoneY, aoeRadius);
         g.fillStyle(color, 0.08);
@@ -1623,8 +1680,8 @@ export class GameScene extends Phaser.Scene {
         break;
       }
 
+      // ── Blink: line + destination dot ──
       case SPELL_TYPES.BLINK: {
-        // Destination dot at cursor (clamped to range)
         const blinkDist = Math.min(dist, range);
         const destX = px + nx * blinkDist;
         const destY = py + ny * blinkDist;
@@ -1641,18 +1698,20 @@ export class GameScene extends Phaser.Scene {
         break;
       }
 
+      // ── Instant: detection radius circle around player ──
       case SPELL_TYPES.INSTANT: {
-        // Detection radius circle (already drew range circle above, draw filled zone)
-        const detectRadius = stats.radius || 75;
         g.fillStyle(color, 0.06);
-        g.fillCircle(px, py, detectRadius);
+        g.fillCircle(px, py, range);
         g.lineStyle(1.5, color, 0.2);
-        g.strokeCircle(px, py, detectRadius);
+        g.strokeCircle(px, py, range);
         break;
       }
 
+      // ── Wall: aim line + wall preview perpendicular line ──
       case SPELL_TYPES.WALL: {
-        // Wall preview line at cursor
+        // Range circle to show max placement distance
+        g.lineStyle(1.5, color, 0.15);
+        g.strokeCircle(px, py, range);
         const wallDist = Math.min(dist, range);
         const wallX = px + nx * wallDist;
         const wallY = py + ny * wallDist;
@@ -1661,8 +1720,8 @@ export class GameScene extends Phaser.Scene {
         g.moveTo(px, py);
         g.lineTo(wallX, wallY);
         g.strokePath();
-        // Wall preview rectangle
-        const wallWidth = stats.width || 80;
+        // Wall preview line
+        const wallWidth = stats.wallWidth || stats.width || 80;
         const angle = Math.atan2(ny, nx);
         const perpX = -Math.sin(angle);
         const perpY = Math.cos(angle);
