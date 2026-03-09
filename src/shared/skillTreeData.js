@@ -20,10 +20,10 @@ export const SKILL_TREES = {
       piercing: false,
     },
     tiers: [
-      { cost: 3, name: 'Extended Range', description: 'Longer range, faster bolt', mods: { range: 60, speed: 1 } },
-      { cost: 3, name: 'Heavy Round', description: 'Increased knockback', mods: { knockbackForce: 0.02 } },
-      { cost: 4, name: 'Piercing Shot', description: 'Bolt passes through enemies', mods: { piercing: true } },
-      { cost: 5, name: 'Railgun', description: 'Maximum range and push', mods: { range: 80, knockbackForce: 0.02, speed: 1 } },
+      { cost: 3, name: 'Uzak Nefes', description: 'Daha uzun menzil, daha hızlı söz', mods: { range: 60, speed: 1 } },
+      { cost: 3, name: 'Ağır Söz', description: 'Daha sert itme', mods: { knockbackForce: 0.02 } },
+      { cost: 4, name: 'Delici Söz', description: 'Söz rakiplerden geçer', mods: { piercing: true } },
+      { cost: 5, name: 'Yıldırım Nefes', description: 'En uzun menzil, en sert itme', mods: { range: 80, knockbackForce: 0.02, speed: 1 } },
     ],
   },
 
@@ -60,10 +60,10 @@ export const SKILL_TREES = {
       piercing: false,
     },
     tiers: [
-      { cost: 3, name: 'Heavier Hit', description: 'More knockback, more damage', mods: { knockbackForce: 0.02, damage: 1 } },
-      { cost: 3, name: 'Blast Wave', description: 'Explodes on impact', mods: { explosionRadius: 40 } },
-      { cost: 4, name: 'Concussion', description: 'Bigger blast, more push', mods: { explosionRadius: 15, knockbackForce: 0.02 } },
-      { cost: 5, name: 'Shockwave', description: 'Devastating blast, brief stun', mods: { damage: 2, knockbackForce: 0.02, stunDuration: 300 } },
+      { cost: 3, name: 'Sert Vuruş', description: 'Daha çok itme, daha çok hasar', mods: { knockbackForce: 0.02, damage: 1 } },
+      { cost: 3, name: 'Çarpma Dalgası', description: 'Çarptığında patlar', mods: { explosionRadius: 40 } },
+      { cost: 4, name: 'Sarsıntı', description: 'Daha geniş patlama, daha çok itme', mods: { explosionRadius: 15, knockbackForce: 0.02 } },
+      { cost: 5, name: 'Zelzele', description: 'Yıkıcı patlama, kısa sersemletme', mods: { damage: 2, knockbackForce: 0.02, stunDuration: 300 } },
     ],
   },
 
@@ -79,8 +79,8 @@ export const SKILL_TREES = {
       knockbackForce: 0,
     },
     tiers: [
-      { cost: 3, name: 'Far Reach', description: 'Blink further', mods: { range: 60 } },
-      { cost: 5, name: 'Phase Warp', description: 'Much further, faster cooldown', mods: { range: 80, cooldown: -1000 } },
+      { cost: 3, name: 'Uzun Adım', description: 'Daha uzağa ışınlan', mods: { range: 60 } },
+      { cost: 5, name: 'Burak', description: 'Çok daha uzağa, daha kısa bekleme', mods: { range: 80, cooldown: -1000 } },
     ],
   },
 
@@ -94,8 +94,8 @@ export const SKILL_TREES = {
       dashWidth: 12,
     },
     tiers: [
-      { cost: 3, name: 'Heavy Charge', description: 'Harder slam, more damage', mods: { dashKnockback: 0.02, dashDamage: 2 } },
-      { cost: 5, name: 'Battering Ram', description: 'Wider, faster cooldown, more push', mods: { dashWidth: 10, cooldown: -1000, dashKnockback: 0.02 } },
+      { cost: 3, name: 'Ağır Hücum', description: 'Daha sert çarpma, daha çok hasar', mods: { dashKnockback: 0.02, dashDamage: 2 } },
+      { cost: 5, name: 'Koç Başı', description: 'Daha geniş, kısa bekleme, daha çok itme', mods: { dashWidth: 10, cooldown: -1000, dashKnockback: 0.02 } },
     ],
   },
 
@@ -108,8 +108,8 @@ export const SKILL_TREES = {
       frictionReduction: 0.003, // reduce air friction during flash
     },
     tiers: [
-      { cost: 3, name: 'Afterburner', description: 'Longer boost, faster speed', mods: { buffDuration: 1000, speedBoost: 0.2 } },
-      { cost: 5, name: 'Blazing Trail', description: 'Leave a trail that slows enemies', mods: { cooldown: -1500, leaveTrail: true, trailSlowAmount: 0.3, trailSlowDuration: 1500 } },
+      { cost: 3, name: 'Alev Topuk', description: 'Daha uzun hız, daha hızlı koşu', mods: { buffDuration: 1000, speedBoost: 0.2 } },
+      { cost: 5, name: 'Ateş İzi', description: 'Ardında yavaşlatan iz bırakır', mods: { cooldown: -1500, leaveTrail: true, trailSlowAmount: 0.3, trailSlowDuration: 1500 } },
     ],
   },
 
@@ -122,8 +122,8 @@ export const SKILL_TREES = {
       intangible: true,         // projectiles pass through
     },
     tiers: [
-      { cost: 3, name: 'Phantom', description: 'Longer intangibility', mods: { buffDuration: 1000 } },
-      { cost: 5, name: 'Poltergeist', description: 'AoE push when exiting ghost form', mods: { cooldown: -2000, exitPushForce: 0.03, exitPushRadius: 60 } },
+      { cost: 3, name: 'Hayalet', description: 'Daha uzun dokunulmazlık', mods: { buffDuration: 1000 } },
+      { cost: 5, name: 'Cin Çarpması', description: 'Gaybdan çıkınca etraftakileri iter', mods: { cooldown: -2000, exitPushForce: 0.03, exitPushRadius: 60 } },
     ],
   },
 
@@ -139,8 +139,8 @@ export const SKILL_TREES = {
       knockbackForce: 0,
     },
     tiers: [
-      { cost: 3, name: 'Quick Swap', description: 'Faster bolt, faster cooldown', mods: { speed: 3, cooldown: -2000 } },
-      { cost: 5, name: 'Disorient', description: 'Enemy is stunned after swap', mods: { swapStunDuration: 500, cooldown: -1500 } },
+      { cost: 3, name: 'Çabuk El', description: 'Daha hızlı söz, daha kısa bekleme', mods: { speed: 3, cooldown: -2000 } },
+      { cost: 5, name: 'Şaşırtma', description: 'Yer değiştirince rakip sersemler', mods: { swapStunDuration: 500, cooldown: -1500 } },
     ],
   },
 
@@ -151,8 +151,8 @@ export const SKILL_TREES = {
       recallDuration: 3000,     // stores 3s of position history
     },
     tiers: [
-      { cost: 3, name: 'Deep Memory', description: 'Recall from 4s ago, faster cooldown', mods: { recallDuration: 1000, cooldown: -1500 } },
-      { cost: 5, name: 'Temporal Rift', description: 'AoE push at departure point, faster cooldown', mods: { departurePushForce: 0.04, departurePushRadius: 60, cooldown: -1500 } },
+      { cost: 3, name: 'Derin Hafıza', description: '4 sâniye geriye dön, kısa bekleme', mods: { recallDuration: 1000, cooldown: -1500 } },
+      { cost: 5, name: 'Zaman Yarığı', description: 'Ayrıldığın yerde itme dalgası, kısa bekleme', mods: { departurePushForce: 0.04, departurePushRadius: 60, cooldown: -1500 } },
     ],
   },
 
@@ -175,8 +175,8 @@ export const SKILL_TREES = {
       rootDuration: 400,
     },
     tiers: [
-      { cost: 3, name: 'Permafrost', description: 'Stronger, longer slow', mods: { slowDuration: 500, slowAmount: 0.1 } },
-      { cost: 5, name: 'Absolute Zero', description: 'Deep freeze: long root, heavy push', mods: { rootDuration: 400, knockbackForce: 0.02, damage: 2 } },
+      { cost: 3, name: 'Ebedî Ayaz', description: 'Daha güçlü, daha uzun yavaşlatma', mods: { slowDuration: 500, slowAmount: 0.1 } },
+      { cost: 5, name: 'Mutlak Sıfır', description: 'Derin don: uzun köklenme, sert itme', mods: { rootDuration: 400, knockbackForce: 0.02, damage: 2 } },
     ],
   },
 
@@ -192,8 +192,8 @@ export const SKILL_TREES = {
       slowDuration: 1000,
     },
     tiers: [
-      { cost: 3, name: 'Expanding Cold', description: 'Larger zone, lasts longer', mods: { zoneRadius: 20, zoneDuration: 1500 } },
-      { cost: 5, name: 'Ice Age', description: 'Zone damages and slows much more', mods: { zoneDamage: 1, slowAmount: 0.15 } },
+      { cost: 3, name: 'Yayılan Soğuk', description: 'Daha geniş alan, daha uzun süre', mods: { zoneRadius: 20, zoneDuration: 1500 } },
+      { cost: 5, name: 'Buzul Çağı', description: 'Alan hasar verir, çok daha fazla yavaşlatır', mods: { zoneDamage: 1, slowAmount: 0.15 } },
     ],
   },
 
@@ -208,8 +208,8 @@ export const SKILL_TREES = {
       wallThickness: 16,        // thickness
     },
     tiers: [
-      { cost: 3, name: 'Fortified', description: 'Tougher wall, lasts longer', mods: { wallHp: 20, wallDuration: 2000 } },
-      { cost: 5, name: 'Shatter', description: 'Wall explodes when destroyed, slowing nearby enemies', mods: { shatterSlowAmount: 0.4, shatterSlowDuration: 1500, shatterRadius: 60, cooldown: -2000 } },
+      { cost: 3, name: 'Sağlam Duvar', description: 'Daha dayanıklı, daha uzun ömür', mods: { wallHp: 20, wallDuration: 2000 } },
+      { cost: 5, name: 'Parçalanma', description: 'Yıkılınca patlar, yakındakileri yavaşlatır', mods: { shatterSlowAmount: 0.4, shatterSlowDuration: 1500, shatterRadius: 60, cooldown: -2000 } },
     ],
   },
 
@@ -228,8 +228,8 @@ export const SKILL_TREES = {
       destroysSpells: true,     // destroys enemy projectiles on contact
     },
     tiers: [
-      { cost: 3, name: 'Ricochet', description: 'More bounces, faster bolt', mods: { maxBounces: 2, speed: 2 } },
-      { cost: 5, name: 'Momentum', description: 'Gets stronger with each bounce', mods: { kbPerBounce: 0.01, cooldown: -1000 } },
+      { cost: 3, name: 'Çarpıp Sekme', description: 'Daha çok sekme, daha hızlı söz', mods: { maxBounces: 2, speed: 2 } },
+      { cost: 5, name: 'İvme', description: 'Her sekmede daha güçlü olur', mods: { kbPerBounce: 0.01, cooldown: -1000 } },
     ],
   },
 
@@ -241,8 +241,8 @@ export const SKILL_TREES = {
       shieldHits: 2,            // blocks this many hits
     },
     tiers: [
-      { cost: 3, name: 'Hardened', description: 'Blocks more hits, lasts longer', mods: { shieldHits: 1, buffDuration: 1000 } },
-      { cost: 5, name: 'Reflect', description: 'On break, reflects last hit. Faster cooldown.', mods: { reflectOnBreak: true, cooldown: -2000 } },
+      { cost: 3, name: 'Pekişmiş', description: 'Daha çok darbe emer, daha uzun sürer', mods: { shieldHits: 1, buffDuration: 1000 } },
+      { cost: 5, name: 'Yansıtma', description: 'Kırılınca son darbeyi yansıtır. Kısa bekleme.', mods: { reflectOnBreak: true, cooldown: -2000 } },
     ],
   },
 
@@ -286,8 +286,8 @@ export const SKILL_TREES = {
       flightDuration: 500,
     },
     tiers: [
-      { cost: 3, name: 'Long Chain', description: 'Faster pull, further range', mods: { pullSpeed: 2, range: 80, cooldown: -1500 } },
-      { cost: 5, name: 'Wrecking Ball', description: 'Collide with enemies during flight', mods: { flightCollision: true, flightDamage: 4, flightKnockback: 0.03 } },
+      { cost: 3, name: 'Uzun Zincir', description: 'Daha hızlı çekim, daha uzun menzil', mods: { pullSpeed: 2, range: 80, cooldown: -1500 } },
+      { cost: 5, name: 'Gülle', description: 'Uçarken rakiplere çarpar', mods: { flightCollision: true, flightDamage: 4, flightKnockback: 0.03 } },
     ],
   },
 
@@ -300,8 +300,8 @@ export const SKILL_TREES = {
       radius: 100,              // detection radius for nearest enemy
     },
     tiers: [
-      { cost: 3, name: 'Surge', description: 'Wider range, more push', mods: { radius: 40, knockbackForce: 0.03 } },
-      { cost: 5, name: 'Chain Lightning', description: 'Chains to 2nd enemy at 50% power', mods: { chainCount: 1, chainKbFactor: 0.5, cooldown: -1500 } },
+      { cost: 3, name: 'Hamle', description: 'Daha geniş menzil, daha sert itme', mods: { radius: 40, knockbackForce: 0.03 } },
+      { cost: 5, name: 'Zincirleme Sitem', description: 'İkinci rakibe yarı güçle sıçrar', mods: { chainCount: 1, chainKbFactor: 0.5, cooldown: -1500 } },
     ],
   },
 
@@ -318,8 +318,8 @@ export const SKILL_TREES = {
       trackingRange: 400,       // max distance to acquire a target
     },
     tiers: [
-      { cost: 3, name: 'Persistence', description: 'Tracks longer, turns sharper', mods: { lifetime: 2000, turnRate: 0.03 } },
-      { cost: 5, name: 'Warhead', description: 'Faster, stronger, explodes on impact', mods: { speed: 2, knockbackForce: 0.03, explosionRadius: 30 } },
+      { cost: 3, name: 'Sebat', description: 'Daha uzun izler, daha keskin döner', mods: { lifetime: 2000, turnRate: 0.03 } },
+      { cost: 5, name: 'Harp Başı', description: 'Daha hızlı, daha güçlü, çarpınca patlar', mods: { speed: 2, knockbackForce: 0.03, explosionRadius: 30 } },
     ],
   },
 
@@ -335,8 +335,8 @@ export const SKILL_TREES = {
       isMeteor: true,           // flag for special meteor behavior
     },
     tiers: [
-      { cost: 3, name: 'Quick Fall', description: 'Faster impact, slightly wider blast', mods: { impactDelay: -500, impactRadius: 10, cooldown: -2000 } },
-      { cost: 5, name: 'Apocalypse', description: 'Devastating impact, leaves burning ground', mods: { knockbackForce: 0.04, damage: 3, burnZoneDuration: 2000, burnSlowAmount: 0.3 } },
+      { cost: 3, name: 'Çabuk Düşüş', description: 'Daha hızlı çarpar, biraz daha geniş patlar', mods: { impactDelay: -500, impactRadius: 10, cooldown: -2000 } },
+      { cost: 5, name: 'Kıyamet', description: 'Yıkıcı darbe, ardında yanan zemin bırakır', mods: { knockbackForce: 0.04, damage: 3, burnZoneDuration: 2000, burnSlowAmount: 0.3 } },
     ],
   },
 
@@ -355,8 +355,8 @@ export const SKILL_TREES = {
       isSwarm: true,
     },
     tiers: [
-      { cost: 3, name: 'Barrage', description: 'More missiles, longer duration', mods: { missileCount: 3, lifetime: 500 } },
-      { cost: 5, name: 'Saturation', description: 'Stronger missiles, wider tracking', mods: { knockbackForce: 0.01, trackingRange: 50, cooldown: -2000 } },
+      { cost: 3, name: 'Yaylım', description: 'Daha çok söz, daha uzun süre', mods: { missileCount: 3, lifetime: 500 } },
+      { cost: 5, name: 'Doygunluk', description: 'Daha güçlü sözler, daha geniş takip', mods: { knockbackForce: 0.01, trackingRange: 50, cooldown: -2000 } },
     ],
   },
 
@@ -374,8 +374,8 @@ export const SKILL_TREES = {
       overshootRange: 200,      // how far past the caster it travels
     },
     tiers: [
-      { cost: 3, name: 'Long Throw', description: 'Further range, more max knockback', mods: { range: 100, maxKnockbackForce: 0.02, lifetime: 2000 } },
-      { cost: 5, name: 'Catch & Throw', description: 'Return path hits too, cooldown reduced on catch', mods: { hitsOnReturn: true, cooldownOnCatch: -2000 } },
+      { cost: 3, name: 'Uzun Fırlatma', description: 'Daha uzak menzil, daha sert dönüş', mods: { range: 100, maxKnockbackForce: 0.02, lifetime: 2000 } },
+      { cost: 5, name: 'Tut ve Fırlat', description: 'Dönüşte de vurur, yakalayınca bekleme azalır', mods: { hitsOnReturn: true, cooldownOnCatch: -2000 } },
     ],
   },
 };

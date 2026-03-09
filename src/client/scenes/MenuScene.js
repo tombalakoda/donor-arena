@@ -270,7 +270,7 @@ export class MenuScene extends Phaser.Scene {
     this.previewSep.lineBetween(rightX, panelCY - 96, rightX + 350, panelCY - 96);
 
     // PASSIVE label
-    this.add.text(rightX, panelCY - 75, 'PASSIVE:', {
+    this.add.text(rightX, panelCY - 75, 'HÜNER:', {
       fontSize: '16px', fontFamily: UI_FONT, fill: '#5a3a28',
     }).setOrigin(0, 0.5).setDepth(14);
 

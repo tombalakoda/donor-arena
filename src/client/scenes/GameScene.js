@@ -21,7 +21,7 @@ export class GameScene extends Phaser.Scene {
     this.network = null;
     this.localPlayerId = null;
     this.characterId = 'boy';
-    this.playerName = 'Player';
+    this.playerName = 'Âşık';
     this.gameMode = 'normal';     // 'normal' or 'sandbox'
 
     // Local player
@@ -81,7 +81,7 @@ export class GameScene extends Phaser.Scene {
   init(data) {
     if (data) {
       this.characterId = data.characterId || 'boy';
-      this.playerName = data.playerName || 'Player';
+      this.playerName = data.playerName || 'Âşık';
       this.gameMode = data.mode || 'normal';
       this.roomId = data.roomId || null;
     }
