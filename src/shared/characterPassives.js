@@ -50,12 +50,6 @@ export const CHARACTER_PASSIVES = {
     description: 'Hareket sözleri daha uzağa ulaşır',
     mobilityRangeBonus: 0.20,
   },
-  'semazen': {
-    id: 'whirling-devotion',
-    name: 'Devran',
-    description: 'Sürekli dönüş sözleri daha çabuk hazır eder',
-    cdReduction: 0.10,
-  },
 };
 
 export function getPassive(characterId) {

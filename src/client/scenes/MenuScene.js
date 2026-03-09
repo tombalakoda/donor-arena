@@ -131,18 +131,18 @@ export class MenuScene extends Phaser.Scene {
   }
 
   // =========================================================================
-  // CHARACTER GRID (left side, 3 columns)
+  // CHARACTER GRID (left side, 2 columns x 4 rows)
   // =========================================================================
 
   createCharacterGrid(_camW, _camH) {
-    // 3 columns on the left — adapts to character count
-    const gridOriginX = 40;
+    // 2 columns x 4 rows on the left — tall & narrow to pair with tall preview
+    const gridOriginX = 60;
     const gridOriginY = 108;
-    const cellW = 100;
+    const cellW = 120;
     const cellH = 80;
-    const gapX = 8;
+    const gapX = 10;
     const gapY = 8;
-    const cols = 3;
+    const cols = 2;
 
     this.charCells = [];
 
