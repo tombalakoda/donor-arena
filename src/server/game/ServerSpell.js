@@ -208,7 +208,7 @@ export class ServerSpell {
     // Route to handler — each handler has its own spawn signature
     switch (effectiveType) {
       case SPELL_TYPES.ZONE:
-        return handler.spawn(ctx, playerId, spellId, stats, targetX, targetY);
+        return handler.spawn(ctx, playerId, spellId, stats, targetX, targetY, originX, originY);
       case SPELL_TYPES.INSTANT:
       case SPELL_TYPES.BUFF:
         return handler.spawn(ctx, playerId, spellId, stats, originX, originY);

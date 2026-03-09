@@ -2,16 +2,25 @@ import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER, PHYSICS } from '../../../shared/constants.js';
 
 export const zoneHandler = {
-  spawn(ctx, playerId, spellId, stats, targetX, targetY) {
+  spawn(ctx, playerId, spellId, stats, targetX, targetY, originX, originY) {
     const isMeteor = stats.isMeteor || false;
+
+    // Clamp placement within cast range (same pattern as wallHandler)
+    const dx = targetX - originX;
+    const dy = targetY - originY;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const maxRange = stats.range || 200;
+    const placeDist = Math.min(dist, maxRange);
+    const placeX = originX + (dx / dist) * placeDist;
+    const placeY = originY + (dy / dist) * placeDist;
 
     const spell = {
       id: ctx.nextSpellId(),
       type: spellId,
       spellType: SPELL_TYPES.ZONE,
       ownerId: playerId,
-      x: targetX,
-      y: targetY,
+      x: placeX,
+      y: placeY,
       radius: stats.zoneRadius || stats.impactRadius || stats.radius || 60,
       damage: stats.zoneDamage || stats.damage || 0,
       knockbackForce: stats.knockbackForce || 0,
