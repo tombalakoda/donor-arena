@@ -6,8 +6,7 @@ const OUTBOUND_MAX_SPEED_MULT = 1.8;   // throw: fast start
 const OUTBOUND_MIN_SPEED_MULT = 0.15;  // apex: near-zero pause
 const RETURN_MIN_SPEED_MULT = 0.5;     // just after apex: already moving
 const RETURN_MAX_SPEED_MULT = 2.2;     // arriving back: fast
-const OVERSHOOT_INITIAL_MULT = 1.4;    // passes caster with momentum
-const OVERSHOOT_DEATH_SPEED = 0.5;     // deactivate when speed drops below this
+const OVERSHOOT_MAX_SPEED_MULT = 3.5;  // overshoot: keeps accelerating past caster
 const HIT_DEFLECT_BLEND = 0.45;        // how much velocity deflects on hit (0=none, 1=full bounce)
 
 export const boomerangHandler = {
@@ -115,19 +114,21 @@ export const boomerangHandler = {
         // Keep going — do NOT deactivate
       }
     } else {
-      // === OVERSHOOT: linear deceleration → stop ===
+      // === OVERSHOOT: keeps accelerating past caster ===
       const odx = spell.x - spell.casterPassX;
       const ody = spell.y - spell.casterPassY;
       const overshootDist = Math.sqrt(odx * odx + ody * ody);
 
-      const t = Math.min(1, overshootDist / spell.overshootRange);
-      currentSpeed = spell.speed * OVERSHOOT_INITIAL_MULT * (1 - t);
-
-      if (overshootDist >= spell.overshootRange || currentSpeed < OVERSHOOT_DEATH_SPEED) {
+      if (overshootDist >= spell.overshootRange) {
         spell.active = false;
         ctx.removeSpell(i);
         return 'continue';
       }
+
+      // Continue accelerating through overshoot (never slows down)
+      const t = Math.min(1, overshootDist / spell.overshootRange);
+      currentSpeed = spell.speed * (RETURN_MAX_SPEED_MULT
+        + (OVERSHOOT_MAX_SPEED_MULT - RETURN_MAX_SPEED_MULT) * t);
 
       // Maintain direction, scale speed
       const speed = Math.sqrt(spell.vx * spell.vx + spell.vy * spell.vy) || 1;

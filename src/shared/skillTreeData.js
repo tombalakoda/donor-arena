@@ -371,7 +371,7 @@ export const SKILL_TREES = {
       range: 70,                // barely goes forward before returning
       radius: 8,
       lifetime: 4000,           // generous for short outbound + return + overshoot
-      overshootRange: 200,      // how far past the caster it travels
+      overshootRange: 300,      // how far past the caster it travels (accelerates through)
     },
     tiers: [
       { cost: 3, name: 'Uzun Fırlatma', description: 'Daha uzak menzil, daha sert dönüş', mods: { range: 100, maxKnockbackForce: 0.02, lifetime: 2000 } },
