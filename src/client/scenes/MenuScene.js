@@ -3,7 +3,6 @@ import { io } from 'socket.io-client';
 import { CHARACTERS } from './BootScene.js';
 import { getPassive } from '../../shared/characterPassives.js';
 import { MSG } from '../../shared/messageTypes.js';
-import { MATCH } from '../../shared/constants.js';
 import { UI_FONT, TIPS } from '../config.js';
 
 export class MenuScene extends Phaser.Scene {

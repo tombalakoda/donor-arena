@@ -150,10 +150,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    // Track scene instances for debugging
-    window.__gameSceneCount = (window.__gameSceneCount || 0) + 1;
-    console.log('[SCENE] create() called, instance count:', window.__gameSceneCount, 'mode:', this.gameMode);
-
     // Reset all state for clean 2nd+ game sessions (constructor only runs once)
     this.resetSceneState();
 
@@ -228,7 +224,6 @@ export class GameScene extends Phaser.Scene {
 
     this.network.onJoined = (data) => {
       this.localPlayerId = data.playerId;
-      console.log('Joined as', this.localPlayerId);
 
       const myData = data.players.find(p => p.id === this.localPlayerId);
       const startX = myData ? myData.x : 0;
@@ -280,12 +275,10 @@ export class GameScene extends Phaser.Scene {
     };
 
     this.network.onPlayerJoin = (data) => {
-      console.log('Player joined:', data.id);
       this.addRemotePlayer(data.id, data.characterId || 'ninja-green', 0, 0, data.name);
     };
 
     this.network.onPlayerLeave = (data) => {
-      console.log('Player left:', data.id);
       this.removeRemotePlayer(data.id);
     };
 
@@ -414,7 +407,6 @@ export class GameScene extends Phaser.Scene {
   // --- Round Events ---
 
   handleRoundStart(data) {
-    console.log('[ROUND] Round', data.round, 'starting (map', data.mapIndex, ')');
     this.roundNumber = data.round;
     this.localEliminated = false;
     this.spectateMode = false;
@@ -437,7 +429,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   handleRoundEnd(data) {
-    console.log('[ROUND] Round', data.round, 'ended. Winner:', data.winnerName);
     const msg = data.winnerName
       ? `Fasıl ${data.round} — ${data.winnerName} aldı!`
       : `Fasıl ${data.round} — Berabere!`;
@@ -455,8 +446,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   handleElimination(data) {
-    console.log('[ELIM]', data.playerName, 'eliminated by', data.eliminatorName, 'via', data.method);
-
     // Ring-out celebration — the core sumo moment!
     if (data.method === 'ring') {
       // Find victim position
@@ -519,7 +508,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   handleMatchEnd(data) {
-    console.log('[MATCH] Match ended. Scores:', data.scores);
     // Hide other overlays
     if (this.lobbyOverlay) this.lobbyOverlay.hide();
     if (this.shopOverlay && this.shopOverlay.visible) this.shopOverlay.hide();
@@ -530,7 +518,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   handleShopOpen(data) {
-    console.log('[SHOP] Shop opened', data);
     if (data.progression) this.progression = data.progression;
     if (this.shopOverlay) {
       this.shopOverlay.show(this.progression, data.shopDuration || 20);
@@ -538,7 +525,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   handleShopUpdate(data) {
-    console.log('[SHOP] Progression updated', data);
     this.progression = data;
     if (this.shopOverlay && this.shopOverlay.visible) {
       this.shopOverlay.updateProgression(data);
@@ -627,7 +613,7 @@ export class GameScene extends Phaser.Scene {
     sprite.play(`${characterId}-idle-down`);
 
     const isDummy = playerId.startsWith('dummy-');
-    const displayName = isDummy ? 'Dummy' : (playerName || playerId.slice(-4));
+    const displayName = isDummy ? 'Kukla' : (playerName || playerId.slice(-4));
     const nameLabel = this.add.text(x, y - 30, displayName, {
       fontSize: '16px',
       fontFamily: UI_FONT,
@@ -938,15 +924,12 @@ export class GameScene extends Phaser.Scene {
       if (m) this.arenaMaps.push(m);
     }
     this.currentMapIndex = -1;
-    console.log(`[Arena] Loaded ${this.arenaMaps.length} arena map variants`);
 
     // Use first available map for floor/decorations (they're shared across all maps)
     const mapData = this.arenaMaps[0] || this.cache.json.get('arena-map');
     if (mapData && mapData.floor && mapData.floor.tiles && mapData.floor.tiles.length > 0) {
-      console.log(`[Arena] Loading floor & decorations (${mapData.floor.tiles.length} tiles, ${(mapData.decorations || []).length} decorations)`);
       this.createArenaFromMap(mapData);
     } else {
-      console.log('[Arena] No map data found, using procedural generation');
       this.createArenaProceduralFallback();
     }
   }
@@ -1069,9 +1052,6 @@ export class GameScene extends Phaser.Scene {
       const mapData = this.arenaMaps[mapIndex];
       if (mapData && mapData.obstacles && mapData.obstacles.length > 0) {
         this.createObstaclesFromMap(mapData.obstacles);
-        console.log(`[Arena] Round map ${mapIndex}: ${mapData.obstacles.length} obstacles`);
-      } else {
-        console.log(`[Arena] Round map ${mapIndex}: no obstacles`);
       }
     }
   }

@@ -1,5 +1,5 @@
 import { SPELL_TYPES } from '../../../shared/spellData.js';
-import { PLAYER, PHYSICS } from '../../../shared/constants.js';
+import { PLAYER } from '../../../shared/constants.js';
 
 export const projectileHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY) {

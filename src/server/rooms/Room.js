@@ -76,7 +76,7 @@ export class Room {
 
     this.players.set(playerId, {
       socket,
-      name: playerName || `Player ${this.players.size + 1}`,
+      name: playerName || `Âşık ${this.players.size + 1}`,
       characterId: charId,
       hp: maxHp,
       maxHp,
@@ -438,7 +438,7 @@ export class Room {
     for (const [id, p] of this.players) {
       p.socket.emit(MSG.SERVER_ELIMINATED, {
         playerId: eliminatedId,
-        playerName: eliminated?.name || 'Unknown',
+        playerName: eliminated?.name || 'Meçhul',
         eliminatorId: eliminatorId || null,
         eliminatorName: eliminator?.name || null,
         method,

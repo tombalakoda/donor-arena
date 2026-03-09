@@ -1,4 +1,3 @@
-import Phaser from 'phaser';
 import { PLAYER, ARENA } from '../../shared/constants.js';
 import { SPELLS } from '../../shared/spellData.js';
 import { computeSpellStats } from '../../shared/skillTreeData.js';

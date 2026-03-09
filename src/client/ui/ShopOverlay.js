@@ -549,8 +549,40 @@ export class ShopOverlay {
       }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5, 0);
       this.content.push(upgDesc);
 
+      const MOD_LABELS = {
+        damage: 'hasar', knockbackForce: 'itme', cooldown: 'bekleme',
+        speed: 'hız', range: 'menzil', radius: 'alan',
+        buffDuration: 'süre', lifetime: 'ömür', piercing: 'delici',
+        explosionRadius: 'patlama', stunDuration: 'sersemletme',
+        slowAmount: 'yavaşlatma', slowDuration: 'yavaşlatma süresi',
+        rootDuration: 'köklenme', wallHp: 'duvar canı', wallDuration: 'duvar süresi',
+        maxBounces: 'sekme', shieldHits: 'kalkan', dashDamage: 'çarpma hasarı',
+        dashKnockback: 'çarpma itmesi', dashWidth: 'çarpma genişliği',
+        speedBoost: 'hız artışı', recallDuration: 'geri dönüş süresi',
+        missileCount: 'söz sayısı', turnRate: 'dönüş hızı',
+        trackingRange: 'takip menzili', pullSpeed: 'çekim hızı',
+        throwForce: 'fırlatma gücü', chainCount: 'zincirleme',
+        overshootRange: 'aşım menzili', maxKnockbackForce: 'maks itme',
+        zoneDuration: 'alan süresi', zoneRadius: 'alan genişliği',
+        zoneDamage: 'alan hasarı', impactDelay: 'çarpma gecikmesi',
+        impactRadius: 'çarpma alanı', wallWidth: 'duvar genişliği',
+        frictionReduction: 'sürtünme azaltma', intangible: 'dokunulmazlık',
+        leaveTrail: 'iz bırak', trailSlowAmount: 'iz yavaşlatma',
+        trailSlowDuration: 'iz süresi', exitPushForce: 'çıkış itmesi',
+        exitPushRadius: 'çıkış alanı', swapStunDuration: 'sersemletme',
+        departurePushForce: 'ayrılış itmesi', departurePushRadius: 'ayrılış alanı',
+        shatterSlowAmount: 'kırılma yavaşlatma', shatterSlowDuration: 'kırılma süresi',
+        shatterRadius: 'kırılma alanı', kbPerBounce: 'sekme başı itme',
+        reflectOnBreak: 'yansıtma', pullDuration: 'çekim süresi',
+        flightCollision: 'uçuş çarpması', flightDamage: 'uçuş hasarı',
+        flightKnockback: 'uçuş itmesi', chainKbFactor: 'zincirleme gücü',
+        hitsOnReturn: 'dönüşte vurur', cooldownOnCatch: 'yakalama indirimi',
+        burnZoneDuration: 'yanma süresi', burnSlowAmount: 'yanma yavaşlatma',
+        destroysSpells: 'söz kırar', launchSpeedBonus: 'fırlatma hızı',
+        flightDuration: 'uçuş süresi',
+      };
       const modText = Object.entries(nextTier.mods)
-        .map(([k, v]) => typeof v === 'boolean' ? `${k}: ${v}` : `${k}: ${v > 0 ? '+' : ''}${v}`)
+        .map(([k, v]) => typeof v === 'boolean' ? `${MOD_LABELS[k] || k}: ${v ? 'evet' : 'hayır'}` : `${MOD_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v}`)
         .join(', ');
       const upgMods = s.add.text(upgradeX, upgradeY + 38, modText, {
         fontSize: '16px', fontFamily: UI_FONT, fill: '#2a4466',
@@ -717,11 +749,11 @@ export class ShopOverlay {
 
     // Inline stats
     const statParts = [];
-    if (stats.damage) statParts.push(`DMG:${stats.damage}`);
-    if (stats.knockbackForce) statParts.push(`KB:${(stats.knockbackForce * 1000).toFixed(0)}`);
-    if (stats.cooldown) statParts.push(`CD:${(stats.cooldown / 1000).toFixed(1)}s`);
-    if (stats.speed) statParts.push(`Spd:${stats.speed}`);
-    if (stats.range) statParts.push(`Rng:${stats.range}`);
+    if (stats.damage) statParts.push(`HSR:${stats.damage}`);
+    if (stats.knockbackForce) statParts.push(`İTME:${(stats.knockbackForce * 1000).toFixed(0)}`);
+    if (stats.cooldown) statParts.push(`BKL:${(stats.cooldown / 1000).toFixed(1)}s`);
+    if (stats.speed) statParts.push(`HIZ:${stats.speed}`);
+    if (stats.range) statParts.push(`MNZ:${stats.range}`);
     if (statParts.length) lines.push(statParts.join(' | '));
 
     if (isFirstChoice) lines.push('', `Bedel: ${SP.SPELL_CHOICE_COST} İlham`);

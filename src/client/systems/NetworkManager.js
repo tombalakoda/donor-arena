@@ -41,19 +41,16 @@ export class NetworkManager {
 
     this.socket.on('connect', () => {
       this.connected = true;
-      console.log('Connected to server:', this.socket.id);
     });
 
     this.socket.on('disconnect', () => {
       this.connected = false;
       this.playerId = null;
-      console.log('Disconnected from server');
     });
 
     // Server confirmed our join
     this.socket.on(MSG.SERVER_JOINED, (data) => {
       this.playerId = data.playerId;
-      console.log('Joined room:', data.roomId, 'as', this.playerId);
       if (this.onJoined) this.onJoined(data);
     });
 
