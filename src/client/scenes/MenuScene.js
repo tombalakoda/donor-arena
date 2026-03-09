@@ -374,8 +374,9 @@ export class MenuScene extends Phaser.Scene {
       this.startGame('sandbox');
     });
 
-    this.add.text(camW / 2, btnY + 34, 'Serbest Meydan: Sınırsız İlham, talim kuklaları, meydan daralmasız', {
-      fontSize: '16px', fontFamily: UI_FONT, fill: '#5a3a28',
+    this.add.text(camW / 2, btnY + 36, 'Serbest Meydan: Sınırsız İlham, talim kuklaları, meydan daralmasız', {
+      fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218',
+      stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5).setDepth(12);
 
     // Room list panel elements (hidden initially)
@@ -393,9 +394,9 @@ export class MenuScene extends Phaser.Scene {
       .setDepth(10);
 
     const text = this.add.text(x, y - 1, label, {
-      fontSize: '16px', fontFamily: UI_FONT,
+      fontSize: '22px', fontFamily: UI_FONT,
       fill: '#ffffff', fontStyle: 'bold',
-      stroke: '#000000', strokeThickness: 2,
+      stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5).setDepth(11);
 
     const hitArea = this.add.rectangle(x, y, w, h, 0xffffff, 0)
