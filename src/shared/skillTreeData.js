@@ -346,16 +346,16 @@ export const SKILL_TREES = {
       damage: 1,
       knockbackForce: 0.02,
       cooldown: 11000,
-      speed: 8,
+      speed: 6,                   // slower → tighter turning radius (60 vs 133)
       radius: 5,
-      lifetime: 3000,
-      turnRate: 0.06,
-      trackingRange: 150,       // shorter tracking range
-      missileCount: 5,          // how many missiles to spawn
-      isSwarm: true,            // flag for multi-missile behavior
+      lifetime: 4000,             // more time to find and chase targets
+      turnRate: 0.10,             // sharp turns, can do near-180° corrections
+      trackingRange: 280,         // detect targets much earlier, actually "seek"
+      missileCount: 5,
+      isSwarm: true,
     },
     tiers: [
-      { cost: 3, name: 'Barrage', description: 'More missiles, longer duration', mods: { missileCount: 3, lifetime: 1000 } },
+      { cost: 3, name: 'Barrage', description: 'More missiles, longer duration', mods: { missileCount: 3, lifetime: 500 } },
       { cost: 5, name: 'Saturation', description: 'Stronger missiles, wider tracking', mods: { knockbackForce: 0.01, trackingRange: 50, cooldown: -2000 } },
     ],
   },

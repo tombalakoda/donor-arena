@@ -219,11 +219,19 @@ export class ServerPhysics {
     const vel = body.velocity;
     const currentSpeed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
     if (currentSpeed > effectiveMaxSpeed) {
-      const scale = effectiveMaxSpeed / currentSpeed;
-      Body.setVelocity(body, {
-        x: vel.x * scale,
-        y: vel.y * scale,
-      });
+      // Post-knockback ease: soft cap decays excess smoothly instead of instant clamp
+      const kbUntil = this.knockbackUntil.get(playerId) || 0;
+      const kbEndedAgo = Date.now() - kbUntil;
+      if (kbEndedAgo >= 0 && kbEndedAgo < (PLAYER.KNOCKBACK_EASE_MS || 1000)) {
+        const excess = currentSpeed - effectiveMaxSpeed;
+        const targetSpeed = effectiveMaxSpeed + excess * (PLAYER.SPEED_CAP_DECAY || 0.82);
+        const scale = targetSpeed / currentSpeed;
+        Body.setVelocity(body, { x: vel.x * scale, y: vel.y * scale });
+      } else {
+        // Normal movement: hard cap
+        const scale = effectiveMaxSpeed / currentSpeed;
+        Body.setVelocity(body, { x: vel.x * scale, y: vel.y * scale });
+      }
     }
 
     return reached;

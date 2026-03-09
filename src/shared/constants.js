@@ -26,6 +26,8 @@ export const PLAYER = {
   KNOCKBACK_BASE_MULT: 1.0,       // Minimum knockback multiplier at full HP
   KNOCKBACK_SCALE: 2.5,           // At 0 HP remaining, knockback is (1 + 2.5) = 3.5× base (Smash Bros %)
   DI_STRENGTH: 0.15,              // 15% of current speed as steering force during knockback
+  SPEED_CAP_DECAY: 0.82,          // Retain 82% of excess speed per tick (smooth post-knockback decel)
+  KNOCKBACK_EASE_MS: 1000,        // Post-knockback ease window: soft cap for 1s, then hard cap resumes
 };
 
 export const ARENA = {

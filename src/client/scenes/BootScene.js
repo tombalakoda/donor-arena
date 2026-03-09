@@ -11,6 +11,7 @@ export const CHARACTERS = [
   { id: 'demon-red', folder: 'DemonRed', name: 'Cin' },
   { id: 'mask-racoon', folder: 'MaskRacoon', name: 'Kemal' },
   { id: 'fighter-white', folder: 'FighterWhite', name: 'Boran' },
+  { id: 'semazen', folder: 'Semazen', name: 'Semazen' },
 ];
 
 // Animation names mapped to their spritesheet files

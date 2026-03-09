@@ -599,9 +599,15 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    // During knockback: near-fully trust server velocity (0.8 blend vs normal 0.2)
+    // Smooth velocity blend: ease from 0.8 → 0.2 over 300ms after knockback ends
     const vel = this.playerBody.velocity;
-    const velBlend = inKnockback ? 0.8 : 0.2;
+    let velBlend;
+    if (inKnockback) {
+      velBlend = 0.8;
+    } else {
+      const kbEndedAgo = performance.now() - this.knockbackUntil;
+      velBlend = kbEndedAgo < 300 ? 0.8 - 0.6 * (kbEndedAgo / 300) : 0.2;
+    }
     MatterBody.setVelocity(this.playerBody, {
       x: vel.x + (serverState.vx - vel.x) * velBlend,
       y: vel.y + (serverState.vy - vel.y) * velBlend,
@@ -1454,15 +1460,23 @@ export class GameScene extends Phaser.Scene {
       this.moveTarget = null;
     }
 
-    // Cap max velocity (never kill momentum — let friction handle decel)
+    // Speed cap: soft decay during post-knockback ease, hard clamp otherwise
     const vel = this.playerBody.velocity;
     const currentSpeed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
     if (currentSpeed > maxSpeed) {
-      const scale = maxSpeed / currentSpeed;
-      MatterBody.setVelocity(this.playerBody, {
-        x: vel.x * scale,
-        y: vel.y * scale,
-      });
+      const kbEndedAgo = performance.now() - this.knockbackUntil;
+      if (kbEndedAgo >= 0 && kbEndedAgo < (PLAYER.KNOCKBACK_EASE_MS || 1000)) {
+        // Post-knockback ease: soft cap decays excess smoothly
+        const excess = currentSpeed - maxSpeed;
+        const decay = Math.pow(PLAYER.SPEED_CAP_DECAY || 0.82, delta / 50);
+        const targetSpeed = maxSpeed + excess * decay;
+        const scale = targetSpeed / currentSpeed;
+        MatterBody.setVelocity(this.playerBody, { x: vel.x * scale, y: vel.y * scale });
+      } else {
+        // Normal movement: hard cap
+        const scale = maxSpeed / currentSpeed;
+        MatterBody.setVelocity(this.playerBody, { x: vel.x * scale, y: vel.y * scale });
+      }
     }
   }
 
