@@ -386,17 +386,17 @@ export class MenuScene extends Phaser.Scene {
   }
 
   createButton(x, y, label, callback) {
-    const w = 180;
-    const h = 40;
+    const w = 210;
+    const h = 48;
 
     // Single nineslice button — tint-based states
     const btn = this.add.nineslice(x, y, 'ui-button', null, w, h, 16, 16, 2, 4)
       .setDepth(10);
 
     const text = this.add.text(x, y - 1, label, {
-      fontSize: '22px', fontFamily: UI_FONT,
+      fontSize: '26px', fontFamily: UI_FONT,
       fill: '#ffffff', fontStyle: 'bold',
-      stroke: '#000000', strokeThickness: 3,
+      stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(11);
 
     const hitArea = this.add.rectangle(x, y, w, h, 0xffffff, 0)
@@ -412,7 +412,7 @@ export class MenuScene extends Phaser.Scene {
     });
     hitArea.on('pointerdown', () => {
       btn.setTint(0xccaa88);
-      text.setY(y + 1);
+      text.setY(y + 2);
     });
     hitArea.on('pointerup', () => {
       btn.clearTint();
