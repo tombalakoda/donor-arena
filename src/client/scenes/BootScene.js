@@ -267,6 +267,12 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-title-bar',       'assets/ui/theme-wood/nine_path_panel_interior.png');
     this.load.image('ui-panel-disabled',  'assets/ui/theme-wood/nine_path_panel_disabled.png');
 
+    // --- Arrow navigation sprites ---
+    this.load.image('ui-arrow-left',       'assets/ui/theme-wood/arrow_left.png');
+    this.load.image('ui-arrow-left-hover', 'assets/ui/theme-wood/arrow_left_hover.png');
+    this.load.image('ui-arrow-right',      'assets/ui/theme-wood/arrow_right.png');
+    this.load.image('ui-arrow-right-hover','assets/ui/theme-wood/arrow_right_hover.png');
+
     // --- Keyboard key sprites (for spell slot keybind hints) ---
     this.load.image('key-Q', 'assets/ui/keys/KeyQ.png');
     this.load.image('key-W', 'assets/ui/keys/KeyW.png');

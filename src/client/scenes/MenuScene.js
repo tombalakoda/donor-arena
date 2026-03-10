@@ -7,349 +7,375 @@ import { TIPS } from '../config.js';
 import {
   COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle,
 } from '../ui/UIConfig.js';
-import { createButton, createIconButton, createPanel, createDimmer, createSeparator, createText, animateIn } from '../ui/UIHelpers.js';
+import {
+  createButton, createIconButton, createPanel, createDimmer,
+  createSeparator, createText, animateIn,
+} from '../ui/UIHelpers.js';
 
-// ─── Layout Constants ─────────────────────────────────────────
 const CX = SCREEN.CX;
 const CY = SCREEN.CY;
 
-// Character grid — 4 cols × 2 rows, big face icons
-const GRID_COLS = 4;
-const GRID_ROWS = 2;
-const CELL_SIZE = 64;
-const CELL_GAP = 10;
-const GRID_W = GRID_COLS * CELL_SIZE + (GRID_COLS - 1) * CELL_GAP;
-const GRID_H = GRID_ROWS * (CELL_SIZE + 22) + (GRID_ROWS - 1) * CELL_GAP;
+// Face strip
+const FACE_SIZE = 40;
+const FACE_INNER = 32;
+const FACE_GAP = 6;
+const FACE_COUNT = CHARACTERS.length;
+const STRIP_W = FACE_COUNT * FACE_SIZE + (FACE_COUNT - 1) * FACE_GAP;
+
+// Vertical positions
+const TITLE_Y = 52;
+const CHAR_NAME_Y = 150;
+const CHAR_PASSIVE_Y = 172;
+const CHAR_DESC_Y = 190;
+const CHAR_SPRITE_Y = 310;
+const ARROW_Y = 310;
+const FACE_STRIP_Y = 455;
+const BOTTOM_Y = 530;
+const TIP_Y = SCREEN.H - 16;
+
+// Arrow positions
+const ARROW_LEFT_X = CX - 170;
+const ARROW_RIGHT_X = CX + 170;
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MenuScene' });
     this.selectedCharIndex = 0;
     this.playerName = 'Âşık';
-    this.charCells = [];
-    this.previewSprite = null;
+    this.faceCells = [];
+    this.charSprite = null;
+    this.charGlow = null;
     this.nameInput = null;
     this.transitioning = false;
+    this.switching = false;
     this.menuMusic = null;
   }
 
   create() {
     this.transitioning = false;
+    this.switching = false;
     this.cameras.main.fadeIn(500, 0, 0, 0);
 
-    this.createBackground();
-    this.createTitle();
-    this.createMainPanel();
-    this.createCharacterGrid();
-    this.createPreview();
-    this.createNameInput();
-    this.createButtons();
-    this.createBottomTip();
-    this.createSoundToggle();
-    this.selectCharacter(0);
-    this.startMenuMusic();
+    this._createBackground();
+    this._createSnowParticles();
+    this._createTitle();
+    this._createCharInfo();
+    this._createCharDisplay();
+    this._createArrows();
+    this._createFaceStrip();
+    this._createBottomBar();
+    this._createBottomTip();
+    this._createSoundToggle();
+    this._createKeyboardNav();
 
-    this.events.once('shutdown', () => this.destroyRoomList(), this);
+    this._selectCharacter(0, true);
+    this._startMenuMusic();
+
+    this.events.once('shutdown', () => this._destroyRoomList(), this);
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // BACKGROUND
-  // ═══════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // BACKGROUND — let the art breathe
+  // ═══════════════════════════════════════════════════════════════
 
-  createBackground() {
+  _createBackground() {
     if (this.textures.exists('menu-bg')) {
       const bg = this.add.image(CX, CY, 'menu-bg').setDepth(0);
       const scale = Math.max(SCREEN.W / bg.width, SCREEN.H / bg.height);
       bg.setScale(scale);
     } else {
-      this.cameras.main.setBackgroundColor('#0a0a1e');
+      this.cameras.main.setBackgroundColor('#1a1510');
     }
 
-    // Subtle dark overlay
+    // Very subtle dark overlay — lighter than before so the art shows
     this.add.nineslice(CX, CY, 'ui-bg-2', null, SCREEN.W, SCREEN.H, 4, 4, 4, 4)
-      .setDepth(1).setTint(0x000000).setAlpha(0.3);
+      .setDepth(1).setTint(0x000000).setAlpha(0.2);
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // TITLE — big, centered, with gentle float animation
-  // ═══════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // SNOW PARTICLES — ambient atmosphere
+  // ═══════════════════════════════════════════════════════════════
 
-  createTitle() {
-    const titleY = 50;
+  _createSnowParticles() {
+    if (!this.textures.exists('fx-particle-snow')) return;
 
-    // Shadow/glow duplicate (subtle)
-    const shadow = this.add.text(CX + 2, titleY + 2, 'ÂŞIKLAR MEYDANE', textStyle(FONT.TITLE_LG, {
+    this.snowEmitter = this.add.particles(0, 0, 'fx-particle-snow', {
+      x: { min: 0, max: SCREEN.W },
+      y: -10,
+      lifespan: { min: 4000, max: 7000 },
+      speedY: { min: 15, max: 40 },
+      speedX: { min: -12, max: 12 },
+      scale: { min: 1.0, max: 2.5 },
+      alpha: { start: 0.7, end: 0 },
+      frequency: 100,
+      quantity: 1,
+    });
+    this.snowEmitter.setDepth(3);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // TITLE — floating gold text
+  // ═══════════════════════════════════════════════════════════════
+
+  _createTitle() {
+    // Shadow
+    const shadow = this.add.text(CX + 2, TITLE_Y + 2, 'ÂŞIKLAR MEYDANE', textStyle(FONT.TITLE_LG, {
       fill: '#000000',
     })).setDepth(16).setOrigin(0.5).setAlpha(0.3);
 
     // Main title
-    const title = createText(this, CX, titleY, 'ÂŞIKLAR MEYDANE', FONT.TITLE_LG, {
+    const title = createText(this, CX, TITLE_Y, 'ÂŞIKLAR MEYDANE', FONT.TITLE_LG, {
       fill: COLOR.ACCENT_GOLD, depth: 17,
       stroke: '#000000', strokeThickness: 4,
     });
 
-    // Gentle floating animation
+    // Gentle float
     this.tweens.add({
       targets: [title, shadow],
-      y: titleY + 3,
-      duration: 2000,
+      y: '+=3',
+      duration: 2200,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
 
-    // Entrance
     animateIn(this, title, { from: 'slideDown', delay: 100, duration: 400 });
     animateIn(this, shadow, { from: 'slideDown', delay: 100, duration: 400 });
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // MAIN PANEL — warm wood container
-  // ═══════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // CHARACTER INFO — name + passive floating above character
+  // ═══════════════════════════════════════════════════════════════
 
-  createMainPanel() {
-    const panelW = 820;
-    const panelH = 265;
-    const panelY = CY + 18;
-
-    // Store panel position for other methods
-    this._panelY = panelY;
-    this._panelH = panelH;
-
-    // Outer panel
-    this._mainPanel = createPanel(this, CX, panelY, panelW, panelH, {
-      texture: 'ui-panel', depth: 5,
-    });
-    animateIn(this, this._mainPanel, { from: 'scale', delay: 50, duration: 350 });
-
-    // Inner content area
-    const inner = createPanel(this, CX, panelY, panelW - 16, panelH - 16, {
-      texture: 'ui-panel-interior', depth: 6, alpha: 0.5,
-    });
-    animateIn(this, inner, { from: 'fadeOnly', delay: 200, duration: 300 });
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // CHARACTER GRID — 4×2 big face icons with names below
-  // ═══════════════════════════════════════════════════════════
-
-  createCharacterGrid() {
-    const panelY = this._panelY || CY + 20;
-    const gridLeftEdge = CX - 420 / 2 - 40;
-    const gridTop = panelY - this._panelH / 2 + 30;
-
-    // Section label
-    const label = createText(this, gridLeftEdge + GRID_W / 2, gridTop - 18,
-      'ÂŞIĞINI SEÇ', FONT.SMALL, {
-        fill: COLOR.TEXT_SECONDARY, depth: 12,
-        stroke: '#000000', strokeThickness: 1,
-      });
-    animateIn(this, label, { from: 'fadeOnly', delay: 300, duration: 300 });
-
-    this.charCells = [];
-    let idx = 0;
-
-    for (let row = 0; row < GRID_ROWS; row++) {
-      for (let col = 0; col < GRID_COLS; col++) {
-        if (idx >= CHARACTERS.length) break;
-        const char = CHARACTERS[idx];
-        const cellIdx = idx;
-
-        const cx = gridLeftEdge + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
-        const cy = gridTop + row * (CELL_SIZE + 22 + CELL_GAP) + CELL_SIZE / 2;
-
-        // Selection highlight (gold border, behind, hidden by default)
-        const highlight = this.add.nineslice(cx, cy, 'ui-focus', null,
-          CELL_SIZE + 6, CELL_SIZE + 6, 2, 2, 2, 2)
-          .setTint(COLOR.TINT_GOLD).setDepth(9).setVisible(false);
-
-        // Cell background
-        const cell = this.add.nineslice(cx, cy, 'ui-inventory-cell', null,
-          CELL_SIZE, CELL_SIZE, ...NINE.CELL)
-          .setDepth(10);
-
-        // Face portrait (big, fills the cell)
-        let face;
-        const faceKey = `${char.id}-face`;
-        if (this.textures.exists(faceKey)) {
-          face = this.add.image(cx, cy - 2, faceKey)
-            .setDisplaySize(CELL_SIZE - 8, CELL_SIZE - 8).setDepth(11);
-        } else {
-          face = this.add.sprite(cx, cy - 2, `${char.id}-idle`, 0)
-            .setDisplaySize(CELL_SIZE - 8, CELL_SIZE - 8).setDepth(11);
-        }
-
-        // Name below cell
-        const nameText = this.add.text(cx, cy + CELL_SIZE / 2 + 8, char.name, textStyle(FONT.SMALL, {
-          fill: COLOR.TEXT_SECONDARY,
-        })).setDepth(12).setOrigin(0.5, 0);
-
-        // Hit area
-        const hitArea = this.add.nineslice(cx, cy, 'ui-button', null,
-          CELL_SIZE + 2, CELL_SIZE + 2, ...NINE.BUTTON)
-          .setDepth(14).setAlpha(0.001)
-          .setInteractive({ useHandCursor: true });
-
-        hitArea.on('pointerover', () => {
-          if (this.selectedCharIndex !== cellIdx) {
-            cell.setTint(COLOR.TINT_HOVER);
-            face.setScale(face.scaleX * 1.05, face.scaleY * 1.05);
-          }
-          this.playSfx('sfx-move');
-        });
-        hitArea.on('pointerout', () => {
-          if (this.selectedCharIndex !== cellIdx) {
-            cell.clearTint();
-            const s = (CELL_SIZE - 8) / Math.max(face.width, face.height);
-            face.setScale(s, s);
-          }
-        });
-        hitArea.on('pointerdown', () => {
-          this.playSfx('sfx-accept');
-          this.selectCharacter(cellIdx);
-        });
-
-        // Entrance animation — staggered
-        const delay = 200 + idx * 50;
-        animateIn(this, cell, { from: 'scale', delay, duration: 250 });
-        animateIn(this, face, { from: 'scale', delay: delay + 30, duration: 250 });
-        animateIn(this, nameText, { from: 'fadeOnly', delay: delay + 80, duration: 200 });
-
-        this.charCells.push({ cell, face, nameText, highlight, hitArea, origFaceScale: null });
-        idx++;
-      }
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // PREVIEW — walking sprite + character info on right side
-  // ═══════════════════════════════════════════════════════════
-
-  createPreview() {
-    const panelY = this._panelY || CY + 20;
-    const panelH = this._panelH || 340;
-
-    // Right side of main panel
-    const previewX = CX + 130;
-    const previewY = panelY - 20;
-
-    // Compact dark inset for sprite display
-    const insetH = 120;
-    const inset = createPanel(this, previewX, previewY, 110, insetH, {
-      texture: 'ui-bg', depth: 8, alpha: 0.25,
-    });
-    animateIn(this, inset, { from: 'fadeOnly', delay: 300, duration: 300 });
-
-    // Walking sprite — properly sized and playing animation
-    this.previewSprite = this.add.sprite(previewX, previewY + 6, 'boy-walk', 0)
-      .setScale(4.5).setDepth(9);
-
-    // Start the animation immediately
-    if (this.anims.exists('boy-walk-down')) {
-      this.previewSprite.play('boy-walk-down');
-    }
-    animateIn(this, this.previewSprite, { from: 'scale', delay: 350, duration: 300 });
-
-    // Character info — right of preview
-    const infoX = previewX + 80;
-    const infoTop = previewY - 40;
-
-    // Name (big, gold, with stroke for readability)
-    this.previewName = createText(this, infoX, infoTop, 'Cevheri', FONT.TITLE_SM, {
-      fill: COLOR.ACCENT_GOLD, depth: 12, originX: 0,
+  _createCharInfo() {
+    this.charNameText = createText(this, CX, CHAR_NAME_Y, '', FONT.TITLE_SM, {
+      fill: COLOR.ACCENT_GOLD, depth: 15,
       stroke: '#000000', strokeThickness: 3,
     });
-    animateIn(this, this.previewName, { from: 'slideUp', delay: 400, duration: 250 });
 
-    // Separator below name
-    createSeparator(this, infoX + 75, infoTop + 16, 150, { depth: 12 });
-
-    // Passive label
-    createText(this, infoX, infoTop + 30, 'HÜNER:', FONT.SMALL, {
-      fill: COLOR.TEXT_SECONDARY, depth: 12, originX: 0,
-      stroke: '#000000', strokeThickness: 1,
+    this.charPassiveText = createText(this, CX, CHAR_PASSIVE_Y, '', FONT.BODY, {
+      fill: COLOR.ACCENT_INFO, depth: 15,
+      stroke: '#000000', strokeThickness: 2,
     });
 
-    // Passive name
-    this.passiveName = createText(this, infoX, infoTop + 46, '', FONT.BODY_BOLD, {
-      fill: COLOR.ACCENT_INFO, depth: 12, originX: 0,
+    this.charDescText = this.add.text(CX, CHAR_DESC_Y, '', textStyle(FONT.SMALL, {
+      fill: COLOR.TEXT_CREAM,
       stroke: '#000000', strokeThickness: 1,
-    });
-
-    // Passive description (with word wrap)
-    this.passiveDesc = this.add.text(infoX, infoTop + 64, '', textStyle(FONT.SMALL, {
-      fill: COLOR.TEXT_SECONDARY, wordWrap: { width: 180 },
-      stroke: '#000000', strokeThickness: 1,
-    })).setDepth(12).setOrigin(0, 0);
+      wordWrap: { width: 300 },
+      align: 'center',
+    })).setDepth(15).setOrigin(0.5, 0);
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // NAME INPUT
-  // ═══════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // BIG CHARACTER DISPLAY — center stage hero
+  // ═══════════════════════════════════════════════════════════════
 
-  createNameInput() {
-    const panelY = this._panelY || CY + 20;
-    const panelH = this._panelH || 340;
-    const nameY = panelY + panelH / 2 + 28;
+  _createCharDisplay() {
+    // Glow/shadow beneath character — simple graphics ellipse
+    this.charGlow = this.add.graphics().setDepth(8);
+    this._drawCharGlow(0xffdd44);
 
-    // Panel behind input
-    const bg = createPanel(this, CX, nameY, 320, 34, {
-      texture: 'ui-panel-2', depth: 10,
+    // Walking sprite — big and proud
+    this.charSprite = this.add.sprite(CX, CHAR_SPRITE_Y, 'boy-walk', 0)
+      .setScale(5.5).setDepth(10);
+
+    if (this.anims.exists('boy-walk-down')) {
+      this.charSprite.play('boy-walk-down');
+    }
+
+    animateIn(this, this.charSprite, { from: 'scale', delay: 200, duration: 350 });
+  }
+
+  _drawCharGlow(color) {
+    const g = this.charGlow;
+    g.clear();
+
+    // Shadow ellipse
+    g.fillStyle(0x000000, 0.35);
+    g.fillEllipse(CX, CHAR_SPRITE_Y + 46, 80, 18);
+
+    // Colored glow (outer)
+    g.fillStyle(color, 0.08);
+    g.fillEllipse(CX, CHAR_SPRITE_Y + 40, 140, 36);
+
+    // Colored glow (inner)
+    g.fillStyle(color, 0.15);
+    g.fillEllipse(CX, CHAR_SPRITE_Y + 42, 90, 22);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // LEFT/RIGHT ARROWS — cycle characters
+  // ═══════════════════════════════════════════════════════════════
+
+  _createArrows() {
+    this._createArrow('left', ARROW_LEFT_X, ARROW_Y, -1);
+    this._createArrow('right', ARROW_RIGHT_X, ARROW_Y, 1);
+  }
+
+  _createArrow(dir, x, y, delta) {
+    const key = `ui-arrow-${dir}`;
+    const hoverKey = `ui-arrow-${dir}-hover`;
+    const hasTexture = this.textures.exists(key);
+    if (!hasTexture) return;
+
+    const arrow = this.add.image(x, y, key).setScale(2.5).setDepth(15)
+      .setInteractive({ useHandCursor: true });
+
+    arrow.on('pointerover', () => {
+      if (this.textures.exists(hoverKey)) arrow.setTexture(hoverKey);
+      arrow.setScale(2.8);
+      this._playSfx('sfx-move');
     });
-    animateIn(this, bg, { from: 'slideUp', delay: 500, duration: 250 });
 
-    // Label
-    createText(this, CX - 135, nameY, 'Mahlas:', FONT.BODY_BOLD, {
-      fill: COLOR.TEXT_PRIMARY, depth: 12, originX: 0,
+    arrow.on('pointerout', () => {
+      arrow.setTexture(key);
+      arrow.setScale(2.5);
     });
 
+    arrow.on('pointerdown', () => {
+      this._cycleCharacter(delta);
+      // Bounce animation
+      const shift = delta * 5;
+      this.tweens.add({
+        targets: arrow,
+        x: x + shift,
+        duration: 80,
+        yoyo: true,
+        ease: 'Sine.easeOut',
+      });
+    });
+
+    animateIn(this, arrow, { from: 'fadeOnly', delay: 350, duration: 300 });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FACE STRIP — 8 character portraits in a row
+  // ═══════════════════════════════════════════════════════════════
+
+  _createFaceStrip() {
+    this.faceCells = [];
+    const startX = CX - STRIP_W / 2 + FACE_SIZE / 2;
+
+    for (let i = 0; i < FACE_COUNT; i++) {
+      const char = CHARACTERS[i];
+      const x = startX + i * (FACE_SIZE + FACE_GAP);
+      const y = FACE_STRIP_Y;
+
+      // Gold highlight border (hidden by default)
+      const highlight = this.add.nineslice(x, y, 'ui-focus', null,
+        FACE_SIZE + 6, FACE_SIZE + 6, 2, 2, 2, 2)
+        .setTint(COLOR.TINT_GOLD).setDepth(19).setVisible(false);
+
+      // Cell background
+      const cell = this.add.nineslice(x, y, 'ui-inventory-cell', null,
+        FACE_SIZE, FACE_SIZE, ...NINE.CELL)
+        .setDepth(20);
+
+      // Face image
+      let face;
+      const faceKey = `${char.id}-face`;
+      if (this.textures.exists(faceKey)) {
+        face = this.add.image(x, y - 1, faceKey)
+          .setDisplaySize(FACE_INNER, FACE_INNER).setDepth(21);
+      } else {
+        face = this.add.sprite(x, y - 1, `${char.id}-idle`, 0)
+          .setDisplaySize(FACE_INNER, FACE_INNER).setDepth(21);
+      }
+
+      // Hit area (invisible interactive zone)
+      const hitArea = this.add.rectangle(x, y, FACE_SIZE + 2, FACE_SIZE + 2)
+        .setDepth(25).setAlpha(0.001)
+        .setInteractive({ useHandCursor: true });
+
+      const cellIdx = i;
+
+      hitArea.on('pointerover', () => {
+        if (this.selectedCharIndex !== cellIdx) {
+          cell.setTint(COLOR.TINT_HOVER);
+          this.tweens.add({ targets: [cell, face], scaleX: 1.06, scaleY: 1.06, duration: 100 });
+        }
+        this._playSfx('sfx-move');
+      });
+
+      hitArea.on('pointerout', () => {
+        if (this.selectedCharIndex !== cellIdx) {
+          cell.clearTint();
+          const s = FACE_INNER / Math.max(face.width, face.height);
+          this.tweens.add({
+            targets: face, scaleX: s, scaleY: s, duration: 100,
+          });
+          this.tweens.add({
+            targets: cell, scaleX: 1, scaleY: 1, duration: 100,
+          });
+        }
+      });
+
+      hitArea.on('pointerdown', () => {
+        this._playSfx('sfx-accept');
+        this._selectCharacter(cellIdx);
+      });
+
+      // Staggered entrance
+      const delay = 150 + i * 40;
+      animateIn(this, cell, { from: 'scale', delay, duration: 200 });
+      animateIn(this, face, { from: 'scale', delay: delay + 20, duration: 200 });
+
+      this.faceCells.push({ cell, face, highlight, hitArea });
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // BOTTOM BAR — name input + action buttons
+  // ═══════════════════════════════════════════════════════════════
+
+  _createBottomBar() {
+    const y = BOTTOM_Y;
+
+    // Name input background (small panel)
+    const inputBg = createPanel(this, CX - 180, y, 220, 32, {
+      texture: 'ui-panel-2', depth: 15,
+    });
+    animateIn(this, inputBg, { from: 'slideUp', delay: 450, duration: 250 });
+
+    // "Mahlas:" label
+    const label = createText(this, CX - 275, y, 'Mahlas:', FONT.BODY_BOLD, {
+      fill: COLOR.TEXT_PRIMARY, depth: 16, originX: 0,
+      stroke: '#000000', strokeThickness: 1,
+    });
+    animateIn(this, label, { from: 'slideUp', delay: 450, duration: 250 });
+
+    // DOM input element
     const inputElement = document.createElement('input');
     inputElement.type = 'text';
     inputElement.value = 'Âşık';
     inputElement.maxLength = 16;
     inputElement.style.cssText = `
       font-size: 14px; font-family: 'KiwiSoda', monospace;
-      padding: 4px 10px; width: 180px;
+      padding: 4px 8px; width: 140px;
       background: transparent; color: ${COLOR.ACCENT_GOLD};
       border: none; outline: none; caret-color: ${COLOR.ACCENT_GOLD};
       font-weight: bold;
     `;
+    this.nameInput = this.add.dom(CX - 165, y, inputElement).setDepth(17);
 
-    this.nameInput = this.add.dom(CX + 40, nameY, inputElement).setDepth(12);
-  }
-
-  // ═══════════════════════════════════════════════════════════
-  // BUTTONS — properly sized, with staggered entrance
-  // ═══════════════════════════════════════════════════════════
-
-  createButtons() {
-    const panelY = this._panelY || CY + 20;
-    const panelH = this._panelH || 340;
-    const btnY = panelY + panelH / 2 + 68;
-
+    // Action buttons — to the right of name input
+    const btnStartX = CX + 50;
+    const btnGap = 125;
     const btns = [
-      { label: 'MEYDANE', x: CX - 155, onClick: () => this.startGame('normal') },
-      { label: 'ODALAR',  x: CX,       onClick: () => this.showRoomList() },
-      { label: 'SERBEST', x: CX + 155, onClick: () => this.startGame('sandbox') },
+      { label: 'MEYDANE', x: btnStartX, onClick: () => this._startGame('normal') },
+      { label: 'ODALAR',  x: btnStartX + btnGap, onClick: () => this._showRoomList() },
+      { label: 'SERBEST', x: btnStartX + btnGap * 2, onClick: () => this._startGame('sandbox') },
     ];
 
     btns.forEach((b, i) => {
-      const { elements } = createButton(this, b.x, btnY, b.label, {
-        width: 130, height: 34, depth: 10,
+      const { elements } = createButton(this, b.x, y, b.label, {
+        width: 110, height: 30, depth: 15,
         onClick: b.onClick,
       });
-      // Staggered entrance
       elements.forEach(el => animateIn(this, el, {
-        from: 'slideUp', delay: 550 + i * 80, duration: 250,
+        from: 'slideUp', delay: 500 + i * 70, duration: 250,
       }));
     });
-
-    // Subtle hint text
-    const hint = createText(this, CX, btnY + 26,
-      'Serbest: Sınırsız ilham, talim kuklaları', FONT.SMALL, {
-        fill: COLOR.TEXT_DISABLED, depth: 12,
-      });
-    animateIn(this, hint, { from: 'fadeOnly', delay: 800, duration: 300 });
 
     // Room list state
     this.roomListElements = [];
@@ -357,15 +383,15 @@ export class MenuScene extends Phaser.Scene {
     this.selectedRoomId = null;
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // BOTTOM TIP
-  // ═══════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // TIP TEXT
+  // ═══════════════════════════════════════════════════════════════
 
-  createBottomTip() {
-    const tipText = createText(this, CX, SCREEN.H - 18, TIPS[0], FONT.SMALL, {
-      fill: COLOR.TEXT_DISABLED, depth: 12,
+  _createBottomTip() {
+    const tipText = createText(this, CX, TIP_Y, TIPS[0], FONT.SMALL, {
+      fill: COLOR.TEXT_DISABLED, depth: 15,
     });
-    animateIn(this, tipText, { from: 'fadeOnly', delay: 900, duration: 400 });
+    animateIn(this, tipText, { from: 'fadeOnly', delay: 800, duration: 400 });
 
     let tipIndex = 0;
     this._tipTimer = this.time.addEvent({
@@ -383,7 +409,7 @@ export class MenuScene extends Phaser.Scene {
     });
   }
 
-  createSoundToggle() {
+  _createSoundToggle() {
     const isMuted = this.sound.mute;
     createIconButton(this, SCREEN.W - 28, 28,
       isMuted ? 'spell-BookThunder-off' : 'spell-BookThunder', {
@@ -395,88 +421,148 @@ export class MenuScene extends Phaser.Scene {
       });
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // CHARACTER SELECTION
-  // ═══════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
+  // KEYBOARD NAVIGATION
+  // ═══════════════════════════════════════════════════════════════
 
-  selectCharacter(index) {
-    // Deselect previous
-    const prev = this.charCells[this.selectedCharIndex];
+  _createKeyboardNav() {
+    this.input.keyboard.on('keydown-LEFT', () => this._cycleCharacter(-1));
+    this.input.keyboard.on('keydown-RIGHT', () => this._cycleCharacter(1));
+    this.input.keyboard.on('keydown-ENTER', () => {
+      // Don't trigger if typing in name input
+      if (document.activeElement === this.nameInput?.node) return;
+      this._startGame('normal');
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // CHARACTER SELECTION LOGIC
+  // ═══════════════════════════════════════════════════════════════
+
+  _cycleCharacter(delta) {
+    if (this.switching) return;
+    const newIdx = (this.selectedCharIndex + delta + CHARACTERS.length) % CHARACTERS.length;
+    this._selectCharacter(newIdx);
+  }
+
+  _selectCharacter(index, instant = false) {
+    if (this.switching && !instant) return;
+    const oldIdx = this.selectedCharIndex;
+
+    // Deselect previous face
+    const prev = this.faceCells[oldIdx];
     if (prev) {
       prev.highlight.setVisible(false);
       prev.cell.clearTint();
-      prev.nameText.setFill(COLOR.TEXT_SECONDARY);
-      // Reset face scale
-      const sz = (CELL_SIZE - 8);
-      const w = prev.face.width;
-      const h = prev.face.height;
-      prev.face.setScale(sz / w, sz / h);
+      // Reset scale
+      this.tweens.add({ targets: [prev.cell], scaleX: 1, scaleY: 1, duration: 100 });
+      const s = FACE_INNER / Math.max(prev.face.width, prev.face.height);
+      this.tweens.add({ targets: prev.face, scaleX: s, scaleY: s, duration: 100 });
     }
 
     this.selectedCharIndex = index;
-    const row = this.charCells[index];
     const char = CHARACTERS[index];
+    const passive = getPassive(char.id);
 
-    // Select new
-    row.highlight.setVisible(true);
-    row.cell.setTint(COLOR.TINT_GOLD);
-    row.nameText.setFill(COLOR.ACCENT_GOLD);
+    // Highlight new face
+    const curr = this.faceCells[index];
+    if (curr) {
+      curr.highlight.setVisible(true);
+      curr.cell.setTint(COLOR.TINT_GOLD);
 
-    // Subtle pulse on the selected highlight
-    this.tweens.add({
-      targets: row.highlight,
-      alpha: { from: 0.8, to: 1 },
-      duration: 800,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    });
-
-    // Update walking sprite
-    if (this.previewSprite) {
+      // Lift + scale selected face
       this.tweens.add({
-        targets: this.previewSprite,
-        scaleX: 4, scaleY: 4, alpha: 0.5, duration: 80,
-        onComplete: () => {
-          this.previewSprite.play(`${char.id}-walk-down`);
-          this.tweens.add({
-            targets: this.previewSprite,
-            scaleX: 4.5, scaleY: 4.5, alpha: 1, duration: 120, ease: 'Back.easeOut',
-          });
-        },
+        targets: [curr.cell, curr.face],
+        scaleX: 1.12, scaleY: 1.12,
+        duration: 150,
+        ease: 'Back.easeOut',
+      });
+
+      // Pulse on highlight
+      this.tweens.killTweensOf(curr.highlight);
+      this.tweens.add({
+        targets: curr.highlight,
+        alpha: { from: 0.7, to: 1 },
+        duration: 800,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
       });
     }
 
-    // Update name
-    if (this.previewName) this.previewName.setText(char.name);
+    // Update character info text
+    const icon = this._getPassiveIcon(passive);
+    if (this.charNameText) this.charNameText.setText(char.name);
+    if (this.charPassiveText) this.charPassiveText.setText(`${icon} ${passive.name || ''}`);
+    if (this.charDescText) this.charDescText.setText(passive.description || '');
 
-    // Update passive info
-    const passive = getPassive(char.id);
-    if (this.passiveName) {
-      const icon = this.getPassiveIcon(passive);
-      this.passiveName.setText(`${icon} ${passive.name || ''}`);
+    // Update character glow color
+    const glowColors = {
+      'demonic-vitality': 0xff4444,
+      'iron-armor': 0x88aacc,
+      'frost-resistance': 0x66ddff,
+      'fire-resistance': 0xff6644,
+      'quick-learner': 0xffdd44,
+      'shadow-step': 0x88ff88,
+      'bully': 0xff8844,
+      'rush': 0x44ddff,
+    };
+    this._drawCharGlow(glowColors[passive.id] || 0xffdd44);
+
+    // Transition sprite
+    if (instant) {
+      // No animation for initial load
+      if (this.charSprite) {
+        this.charSprite.play(`${char.id}-walk-down`);
+      }
+    } else {
+      this._transitionCharSprite(char);
     }
-    if (this.passiveDesc) this.passiveDesc.setText(passive.description || '');
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // ROOM LIST
-  // ═══════════════════════════════════════════════════════════
+  _transitionCharSprite(char) {
+    if (!this.charSprite || this.switching) return;
+    this.switching = true;
 
-  showRoomList() {
+    // Shrink + fade out old
+    this.tweens.add({
+      targets: this.charSprite,
+      scaleX: 4.8, scaleY: 4.8, alpha: 0,
+      duration: 100,
+      ease: 'Sine.easeIn',
+      onComplete: () => {
+        // Switch sprite and play new walk
+        this.charSprite.play(`${char.id}-walk-down`);
+        this.charSprite.setScale(6).setAlpha(0);
+
+        // Pop in new
+        this.tweens.add({
+          targets: this.charSprite,
+          scaleX: 5.5, scaleY: 5.5, alpha: 1,
+          duration: 160,
+          ease: 'Back.easeOut',
+          onComplete: () => { this.switching = false; },
+        });
+      },
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ROOM LIST (preserved from current implementation)
+  // ═══════════════════════════════════════════════════════════════
+
+  _showRoomList() {
     if (this.roomListElements && this.roomListElements.length > 0) {
-      this.refreshRoomList();
+      this._refreshRoomList();
       return;
     }
 
     const DPT = DEPTH.OVERLAY_DIM;
 
-    // Dimmer
     const dimmer = createDimmer(this, { depth: DPT, alpha: 0.6 });
     dimmer.setInteractive();
     this.roomListElements.push(dimmer);
 
-    // Panel
     const panelW = 400;
     const panelH = 340;
     const panel = createPanel(this, CX, CY, panelW, panelH, {
@@ -485,7 +571,6 @@ export class MenuScene extends Phaser.Scene {
     this.roomListElements.push(panel);
     animateIn(this, panel, { from: 'scale', duration: 250 });
 
-    // Title
     const py = CY - panelH / 2;
     const title = createText(this, CX, py + 26, 'AÇIK ODALAR', FONT.TITLE_SM, {
       fill: COLOR.ACCENT_GOLD, depth: DPT + 2,
@@ -494,34 +579,30 @@ export class MenuScene extends Phaser.Scene {
     this.roomListElements.push(title);
     animateIn(this, title, { from: 'slideDown', delay: 100, duration: 200 });
 
-    // Separator
     const sep = createSeparator(this, CX, py + 46, panelW - 32, { depth: DPT + 2 });
     this.roomListElements.push(sep);
 
-    // Loading text
     this.roomListLoading = createText(this, CX, CY, 'Yükleniyor...', FONT.BODY, {
       fill: COLOR.TEXT_SECONDARY, depth: DPT + 3,
     });
     this.roomListElements.push(this.roomListLoading);
 
-    // YENİLE button
     const { elements: refreshEls } = createButton(this, CX - 75, py + panelH - 32, 'YENİLE', {
       width: 120, height: 30, depth: DPT + 2,
-      onClick: () => this.refreshRoomList(),
+      onClick: () => this._refreshRoomList(),
     });
     this.roomListElements.push(...refreshEls);
 
-    // KAPAT button
     const { elements: closeEls } = createButton(this, CX + 75, py + panelH - 32, 'KAPAT', {
       width: 120, height: 30, depth: DPT + 2,
-      onClick: () => this.destroyRoomList(),
+      onClick: () => this._destroyRoomList(),
     });
     this.roomListElements.push(...closeEls);
 
-    this.connectAndFetchRooms();
+    this._connectAndFetchRooms();
   }
 
-  connectAndFetchRooms() {
+  _connectAndFetchRooms() {
     if (this.roomListSocket) this.roomListSocket.disconnect();
     const serverUrl = window.location.origin;
     this.roomListSocket = io(serverUrl, { transports: ['websocket'] });
@@ -529,19 +610,19 @@ export class MenuScene extends Phaser.Scene {
       this.roomListSocket.emit(MSG.CLIENT_LIST_ROOMS);
     });
     this.roomListSocket.on(MSG.SERVER_ROOM_LIST, (data) => {
-      this.renderRoomList(data.rooms || []);
+      this._renderRoomList(data.rooms || []);
     });
   }
 
-  refreshRoomList() {
+  _refreshRoomList() {
     if (this.roomListSocket && this.roomListSocket.connected) {
       this.roomListSocket.emit(MSG.CLIENT_LIST_ROOMS);
     } else {
-      this.connectAndFetchRooms();
+      this._connectAndFetchRooms();
     }
   }
 
-  renderRoomList(rooms) {
+  _renderRoomList(rooms) {
     if (this.roomRowElements) {
       for (const el of this.roomRowElements) { if (el && !el.destroyed) el.destroy(); }
     }
@@ -596,14 +677,13 @@ export class MenuScene extends Phaser.Scene {
       this.roomRowElements.push(countText);
       this.roomListElements.push(countText);
 
-      // KATIL button
       const btnX = CX + rowW / 2 - 48;
       const { elements: joinEls } = createButton(this, btnX, rowY, 'KATIL', {
         width: 70, height: 26, depth: DPT + 3,
         onClick: () => {
-          this.playSfx('sfx-accept');
+          this._playSfx('sfx-accept');
           this.selectedRoomId = room.roomId;
-          this.startGame('join');
+          this._startGame('join');
         },
       });
       this.roomRowElements.push(...joinEls);
@@ -611,7 +691,7 @@ export class MenuScene extends Phaser.Scene {
     }
   }
 
-  destroyRoomList() {
+  _destroyRoomList() {
     if (this.roomListSocket) {
       this.roomListSocket.removeAllListeners();
       this.roomListSocket.disconnect();
@@ -629,11 +709,11 @@ export class MenuScene extends Phaser.Scene {
     this.selectedRoomId = null;
   }
 
-  // ═══════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
   // GAME START
-  // ═══════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
 
-  startGame(mode) {
+  _startGame(mode) {
     if (this.transitioning) return;
     this.transitioning = true;
 
@@ -641,12 +721,13 @@ export class MenuScene extends Phaser.Scene {
     const name = this.nameInput ? this.nameInput.node.value.trim() || 'Âşık' : 'Âşık';
     const roomId = this.selectedRoomId || null;
 
-    this.playSfx('sfx-accept');
-    this.destroyRoomList();
+    this._playSfx('sfx-accept');
+    this._destroyRoomList();
 
     if (this.nameInput) { this.nameInput.destroy(); this.nameInput = null; }
-    this.stopMenuMusic();
+    this._stopMenuMusic();
     if (this._tipTimer) { this._tipTimer.destroy(); this._tipTimer = null; }
+    if (this.snowEmitter) { this.snowEmitter.stop(); }
 
     this.cameras.main.fadeOut(400, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
@@ -659,11 +740,11 @@ export class MenuScene extends Phaser.Scene {
     });
   }
 
-  // ═══════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
   // AUDIO
-  // ═══════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════
 
-  startMenuMusic() {
+  _startMenuMusic() {
     if (this.menuMusic && this.menuMusic.isPlaying) return;
     if (this.sound.get('music-menu')) {
       this.menuMusic = this.sound.get('music-menu');
@@ -676,7 +757,7 @@ export class MenuScene extends Phaser.Scene {
     }
   }
 
-  stopMenuMusic() {
+  _stopMenuMusic() {
     if (this.menuMusic && this.menuMusic.isPlaying) {
       this.tweens.add({
         targets: this.menuMusic, volume: 0, duration: 400,
@@ -685,7 +766,7 @@ export class MenuScene extends Phaser.Scene {
     }
   }
 
-  getPassiveIcon(passive) {
+  _getPassiveIcon(passive) {
     if (!passive || !passive.id) return '';
     const icons = {
       'demonic-vitality': '\u2764',
@@ -700,7 +781,7 @@ export class MenuScene extends Phaser.Scene {
     return icons[passive.id] || '\u2728';
   }
 
-  playSfx(key) {
+  _playSfx(key) {
     try { this.sound.play(key, { volume: 0.5 }); } catch (e) { /* */ }
   }
 }
