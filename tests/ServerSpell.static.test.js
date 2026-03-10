@@ -86,7 +86,7 @@ describe('ServerSpell.serializeForClient', () => {
       'targetX', 'targetY', 'pullSelf', 'hooked', 'hookedPlayerId',
       'released', 'anchorX', 'anchorY', 'swingElapsed', 'swingDuration',
       'pullActive', 'flightActive', 'returning', 'isMeteor', 'impactDelay',
-      'impactTriggered', 'buffType', 'wallWidth', 'wallThickness', 'wallHp', 'maxWallHp',
+      'impactTriggered', 'buffType', 'wallRadius', 'wallHp', 'maxWallHp',
     ];
     for (const key of expectedKeys) {
       expect(result).toHaveProperty(key);
@@ -113,6 +113,6 @@ describe('ServerSpell.serializeForClient', () => {
     expect(result.anchorY).toBe(0);
     expect(result.isMeteor).toBe(false);
     expect(result.buffType).toBeNull();
-    expect(result.wallWidth).toBe(0);
+    expect(result.wallRadius).toBe(0);
   });
 });

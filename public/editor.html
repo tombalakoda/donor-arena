@@ -113,6 +113,14 @@ html, body { height:100vh; overflow:hidden; background:#1a1a2e; color:#ccc; font
     <button class="btn btn-accent" id="btn-import" title="Import (Ctrl+O)">Import</button>
     <button class="btn btn-accent" id="btn-export" title="Export (Ctrl+S)">Export</button>
     <button class="btn" id="btn-clear">Clear All</button>
+    <div class="sep"></div>
+    <label>Obs Type:</label>
+    <select id="obstacle-type-select" style="padding:2px 4px;border-radius:4px;background:#2a2a2a;color:#eee;border:1px solid #555;">
+      <option value="normal">Normal</option>
+      <option value="breakable">Breakable</option>
+      <option value="bouncer">Bouncer</option>
+      <option value="explosive">Explosive</option>
+    </select>
     <div style="flex:1"></div>
     <label>Zoom: <span id="zoom-label">100%</span></label>
   </div>
@@ -140,6 +148,7 @@ html, body { height:100vh; overflow:hidden; background:#1a1a2e; color:#ccc; font
     <div>Tiles placed: <span id="st-count">0</span></div>
     <div>Obstacles: <span id="st-obstacles">0</span></div>
     <div id="st-radius-wrap" style="display:none">Radius: <span id="st-radius">24</span></div>
+    <div id="st-type-wrap" style="display:none">Type: <span id="st-type">normal</span></div>
   </div>
 </div>
 
@@ -320,6 +329,7 @@ class Editor {
     this.draggingObstacle = false;
     this.obstacleRadius = 24;
     this.obstacleScale = 3;
+    this.obstacleType = 'normal';
 
     // DOM
     this.canvas = document.getElementById('main-canvas');
@@ -478,11 +488,19 @@ class Editor {
       ctx.restore();
     }
 
-    // Obstacles
+    // Obstacles — type-aware colors
+    const OBS_TYPE_COLORS = {
+      normal:    { stroke: 'rgba(0,200,255,0.5)',   fill: 'rgba(0,200,255,0.08)' },
+      breakable: { stroke: 'rgba(220,170,0,0.5)',   fill: 'rgba(220,170,0,0.08)' },
+      bouncer:   { stroke: 'rgba(0,255,100,0.5)',   fill: 'rgba(0,255,100,0.08)' },
+      explosive: { stroke: 'rgba(255,60,60,0.5)',   fill: 'rgba(255,60,60,0.08)' },
+    };
     for (let i = 0; i < this.map.obstacles.length; i++) {
       const o = this.map.obstacles[i];
       const r = o.radius || 24;
       const s = o.scale || 3;
+      const type = o.type || 'normal';
+      const colors = OBS_TYPE_COLORS[type] || OBS_TYPE_COLORS.normal;
       ctx.save();
       // Draw tile sprite centered
       const ds = s * TILE;
@@ -490,12 +508,19 @@ class Editor {
       // Draw physics radius circle
       ctx.beginPath();
       ctx.arc(o.x, o.y, r, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(0,200,255,0.5)';
+      ctx.strokeStyle = colors.stroke;
       ctx.lineWidth = 1.5 / this.zoom;
       ctx.stroke();
       // Fill semi-transparent
-      ctx.fillStyle = 'rgba(0,200,255,0.08)';
+      ctx.fillStyle = colors.fill;
       ctx.fill();
+      // Type label
+      if (type !== 'normal') {
+        ctx.fillStyle = colors.stroke;
+        ctx.font = `${Math.max(10, 12 / this.zoom)}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText(type.charAt(0).toUpperCase(), o.x, o.y + 4 / this.zoom);
+      }
       // Selection highlight
       if (i === this.selectedObstacle && this.layer === 'obstacle') {
         ctx.strokeStyle = '#ffaa00';
@@ -692,6 +717,21 @@ class Editor {
       if(confirm('Clear entire map?')) { this.map.clear(); this.dirty=true; }
     };
 
+    // Obstacle type dropdown
+    document.getElementById('obstacle-type-select').onchange = (e) => {
+      this.obstacleType = e.target.value;
+      // If an obstacle is selected, update its type
+      if (this.selectedObstacle >= 0 && this.map.obstacles[this.selectedObstacle]) {
+        const obs = this.map.obstacles[this.selectedObstacle];
+        if (this.obstacleType === 'normal') {
+          delete obs.type;
+        } else {
+          obs.type = this.obstacleType;
+        }
+        this.dirty = true;
+      }
+    };
+
     // Palette click
     this.palCanvas.onclick = (e) => {
       const rect = this.palCanvas.getBoundingClientRect();
@@ -806,13 +846,17 @@ class Editor {
           this.draggingObstacle = true;
         } else if (this.selectedFrame !== null) {
           // Place new obstacle
-          this.map.obstacles.push({
+          const newObs = {
             x: w.x, y: w.y,
             radius: this.obstacleRadius,
             tileset: this.selectedTileset,
             frame: this.selectedFrame,
             scale: this.obstacleScale,
-          });
+          };
+          if (this.obstacleType !== 'normal') {
+            newObs.type = this.obstacleType;
+          }
+          this.map.obstacles.push(newObs);
           this.selectedObstacle = this.map.obstacles.length - 1;
         }
         this.dirty = true;
@@ -990,15 +1034,25 @@ class Editor {
     // Obstacle status
     document.getElementById('st-obstacles').textContent = this.map.obstacles.length;
     const radiusWrap = document.getElementById('st-radius-wrap');
+    const typeWrap = document.getElementById('st-type-wrap');
     if (this.layer === 'obstacle' && this.selectedObstacle >= 0) {
       const obs = this.map.obstacles[this.selectedObstacle];
       radiusWrap.style.display = '';
+      typeWrap.style.display = '';
       document.getElementById('st-radius').textContent = obs ? obs.radius : this.obstacleRadius;
+      document.getElementById('st-type').textContent = obs ? (obs.type || 'normal') : this.obstacleType;
+      // Sync dropdown to selected obstacle's type
+      if (obs) {
+        document.getElementById('obstacle-type-select').value = obs.type || 'normal';
+      }
     } else if (this.layer === 'obstacle') {
       radiusWrap.style.display = '';
+      typeWrap.style.display = '';
       document.getElementById('st-radius').textContent = this.obstacleRadius + ' (new)';
+      document.getElementById('st-type').textContent = this.obstacleType;
     } else {
       radiusWrap.style.display = 'none';
+      typeWrap.style.display = 'none';
     }
   }
 

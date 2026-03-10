@@ -101,7 +101,18 @@ export const homingHandler = {
     spell.y += spell.vy;
 
     // Obstacle collision
-    if (ctx.checkObstacleHit(spell.x, spell.y, spell.radius)) {
+    const hitObs = ctx.checkObstacleHit(spell.x, spell.y, spell.radius);
+    if (hitObs) {
+      // Damage destructible obstacles (breakable/explosive map obstacles)
+      if (hitObs.hp !== undefined) {
+        hitObs.hp -= (spell.damage || 1);
+        if (hitObs.hp <= 0 && !hitObs.isTemporary) {
+          if (hitObs.type === 'explosive') {
+            ctx.handleObstacleExplosion(hitObs);
+          }
+          ctx.obstacleManager.queueDestroy(hitObs);
+        }
+      }
       spell.active = false;
       ctx.removeSpell(i);
       return 'continue';

@@ -21,6 +21,7 @@ export class NetworkManager {
     this.onMatchEnd = null;
     this.onShopOpen = null;        // (data) => {}
     this.onShopUpdate = null;      // (data) => {} — progression state after purchase
+    this.onObstacleEvent = null;   // (data) => {} — obstacle destruction events
     this.onLobbyUpdate = null;     // (data) => {} — lobby player list / host change
     this.onLobbyError = null;      // (data) => {} — lobby error message
 
@@ -98,6 +99,11 @@ export class NetworkManager {
 
     this.socket.on(MSG.SERVER_SHOP_UPDATE, (data) => {
       if (this.onShopUpdate) this.onShopUpdate(data);
+    });
+
+    // Obstacle destruction events
+    this.socket.on(MSG.SERVER_OBSTACLE_EVENT, (data) => {
+      if (this.onObstacleEvent) this.onObstacleEvent(data);
     });
 
     // Lobby events

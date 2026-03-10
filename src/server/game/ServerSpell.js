@@ -106,6 +106,7 @@ export class ServerSpell {
       checkObstacleHit: this.checkObstacleHit.bind(this),
       applyStatusEffect: this.applyStatusEffect.bind(this),
       handleExplosion: this.handleExplosion.bind(this),
+      handleObstacleExplosion: this.handleObstacleExplosion.bind(this),
       getKnockbackMultiplier: this._getKnockbackMultiplier.bind(this),
       removeSpell: this.removeSpell.bind(this),
       cleanupSpell: this._cleanupSpell.bind(this),
@@ -488,6 +489,37 @@ export class ServerSpell {
           ny * Math.max(force, spell.knockbackForce * 0.3) * expKbMult,
           this.getDamageTaken(playerId),
           spell.ownerId,
+        );
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // OBSTACLE EXPLOSION
+  // ═══════════════════════════════════════════════════════
+
+  /**
+   * Handle an explosive obstacle being destroyed.
+   * Unlike spell explosions, this has no owner — it knockbacks ALL players.
+   */
+  handleObstacleExplosion(obstacle) {
+    const { x, y, explosionRadius, explosionForce } = obstacle;
+    for (const [playerId, body] of this.physics.playerBodies) {
+      if (this.isEliminated(playerId)) continue;
+      const dx = body.position.x - x;
+      const dy = body.position.y - y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < explosionRadius + PLAYER.RADIUS) {
+        const nx = dist > 0 ? dx / dist : 0;
+        const ny = dist > 0 ? dy / dist : 1;
+        const force = explosionForce * (1 - dist / (explosionRadius + PLAYER.RADIUS));
+        const effectiveForce = Math.max(force, explosionForce * 0.3);
+        this.physics.applyKnockback(playerId,
+          nx * effectiveForce,
+          ny * effectiveForce,
+          this.getDamageTaken(playerId),
+          null, // no owner
         );
       }
     }

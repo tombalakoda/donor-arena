@@ -34914,7 +34914,8 @@
       "radius": 24,
       "tileset": "tile-dungeon",
       "frame": 29,
-      "scale": 3
+      "scale": 3,
+      "type": "breakable"
     },
     {
       "x": 888.7650765394113,
@@ -34922,7 +34923,8 @@
       "radius": 24,
       "tileset": "tile-dungeon",
       "frame": 29,
-      "scale": 3
+      "scale": 3,
+      "type": "bouncer"
     },
     {
       "x": 689.201440175775,

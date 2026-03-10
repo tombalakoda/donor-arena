@@ -71,9 +71,16 @@ export const projectileHandler = {
     // Obstacle collision (includes temporary wall obstacles)
     const hitObs = ctx.checkObstacleHit(spell.x, spell.y, spell.radius);
     if (hitObs) {
-      // Damage destructible obstacles (wall spells)
+      // Damage destructible obstacles (wall spells + breakable/explosive map obstacles)
       if (hitObs.hp !== undefined) {
         hitObs.hp -= (spell.damage || 1);
+        // Destroy map obstacle when HP depleted
+        if (hitObs.hp <= 0 && !hitObs.isTemporary) {
+          if (hitObs.type === 'explosive') {
+            ctx.handleObstacleExplosion(hitObs);
+          }
+          ctx.obstacleManager.queueDestroy(hitObs);
+        }
       }
 
       if (spell.maxBounces > 0 && spell.bounceCount < spell.maxBounces) {

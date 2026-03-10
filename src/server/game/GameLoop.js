@@ -61,6 +61,12 @@ export class GameLoop {
       // Process deferred spell hits
       this.processSpellHits(room.spells.drainHits());
 
+      // Broadcast obstacle destruction events
+      const destroyed = room.obstacleManager.flushDestroyed();
+      if (destroyed.length > 0) {
+        room.broadcast(MSG.SERVER_OBSTACLE_EVENT, { destroyed });
+      }
+
       // Check ring damage (skip in sandbox)
       if (!room.sandbox) {
         this.checkRingDamage();

@@ -314,6 +314,10 @@ export class GameScene extends Phaser.Scene {
       this.handleShopUpdate(data);
     };
 
+    this.network.onObstacleEvent = (data) => {
+      this.handleObstacleEvent(data);
+    };
+
     this.network.connect();
     // Wait for actual connection before joining (cloudflare can be slow)
     const tryJoin = () => {
@@ -1011,11 +1015,20 @@ export class GameScene extends Phaser.Scene {
     const half = ARENA.FLOOR_SIZE / 2;
     this.obstacleSprites = [];
 
-    for (const obs of obstacles) {
+    // Type → tint map
+    const TYPE_TINTS = {
+      breakable: 0xddaa44,  // amber
+      bouncer:   0x44ff88,  // green
+      explosive: 0xff4444,  // red
+    };
+
+    for (let i = 0; i < obstacles.length; i++) {
+      const obs = obstacles[i];
       const worldX = obs.x - half;
       const worldY = obs.y - half;
       const scale = obs.scale || 2.25;
       const radius = obs.radius || 24;
+      const type = obs.type || 'normal';
 
       // Subtle shadow under the pillar
       const shadow = this.add.ellipse(worldX, worldY + 4, radius * 2, radius, 0x000000, 0.3);
@@ -1027,7 +1040,26 @@ export class GameScene extends Phaser.Scene {
       sprite.setOrigin(0.5, 0.5);
       sprite.setDepth(5); // Above floor (0), ring (1), decos (2); below spells (10+)
 
-      this.obstacleSprites.push({ sprite, shadow });
+      // Type-specific tint
+      const tint = TYPE_TINTS[type];
+      if (tint) {
+        sprite.setTint(tint);
+      }
+
+      // Bouncer: subtle scale pulse tween
+      if (type === 'bouncer') {
+        this.tweens.add({
+          targets: sprite,
+          scaleX: scale * 1.08,
+          scaleY: scale * 1.08,
+          duration: 800,
+          yoyo: true,
+          repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
+      }
+
+      this.obstacleSprites.push({ sprite, shadow, mapIndex: i, type });
     }
   }
 
@@ -1052,6 +1084,72 @@ export class GameScene extends Phaser.Scene {
       const mapData = this.arenaMaps[mapIndex];
       if (mapData && mapData.obstacles && mapData.obstacles.length > 0) {
         this.createObstaclesFromMap(mapData.obstacles);
+      }
+    }
+  }
+
+  /**
+   * Handle obstacle destruction events from server.
+   * Removes sprite/shadow and shows visual effects for explosive obstacles.
+   */
+  handleObstacleEvent(data) {
+    if (!data || !data.destroyed) return;
+
+    for (const evt of data.destroyed) {
+      // Find the obstacle sprite by mapIndex
+      const idx = this.obstacleSprites.findIndex(o => o.mapIndex === evt.mapIndex);
+      if (idx === -1) continue;
+
+      const obs = this.obstacleSprites[idx];
+      const x = obs.sprite ? obs.sprite.x : evt.x;
+      const y = obs.sprite ? obs.sprite.y : evt.y;
+
+      // Destroy sprite and shadow
+      if (obs.sprite && !obs.sprite.destroyed) obs.sprite.destroy();
+      if (obs.shadow && !obs.shadow.destroyed) obs.shadow.destroy();
+      this.obstacleSprites.splice(idx, 1);
+
+      // Explosion effect for explosive obstacles
+      if (evt.type === 'explosive') {
+        const explosionRadius = evt.explosionRadius || 120;
+
+        // Expanding circle flash
+        const flash = this.add.circle(x, y, 10, 0xff4444, 0.8);
+        flash.setDepth(15);
+        this.tweens.add({
+          targets: flash,
+          radius: explosionRadius,
+          alpha: 0,
+          duration: 400,
+          ease: 'Quad.easeOut',
+          onComplete: () => flash.destroy(),
+        });
+
+        // Inner bright core
+        const core = this.add.circle(x, y, 20, 0xffaa00, 1);
+        core.setDepth(16);
+        this.tweens.add({
+          targets: core,
+          scaleX: 3,
+          scaleY: 3,
+          alpha: 0,
+          duration: 300,
+          ease: 'Quad.easeOut',
+          onComplete: () => core.destroy(),
+        });
+      } else {
+        // Breakable: simple crumble puff
+        const puff = this.add.circle(x, y, 16, 0xddaa44, 0.6);
+        puff.setDepth(15);
+        this.tweens.add({
+          targets: puff,
+          scaleX: 2.5,
+          scaleY: 2.5,
+          alpha: 0,
+          duration: 350,
+          ease: 'Quad.easeOut',
+          onComplete: () => puff.destroy(),
+        });
       }
     }
   }

@@ -38,6 +38,7 @@ export const MSG = {
   SERVER_SPELL_CONFIRM: 's:spellOk',
   SERVER_SPELL_DENY: 's:spellNo',
   SERVER_PONG: 's:pong',
+  SERVER_OBSTACLE_EVENT: 's:obstacleEvent',
 
   // Server -> Client (lobby)
   SERVER_ROOM_LIST: 's:roomList',
