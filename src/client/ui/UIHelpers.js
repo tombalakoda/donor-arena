@@ -9,8 +9,8 @@ import { UI_FONT } from '../config.js';
  * @param {number} y - Center Y
  * @param {string} label - Button text
  * @param {object} opts
- * @param {number} [opts.width=180]
- * @param {number} [opts.height=40]
+ * @param {number} [opts.width=160]
+ * @param {number} [opts.height=34]
  * @param {number} [opts.depth=10]
  * @param {string} [opts.fontSize='14px']
  * @param {boolean} [opts.enabled=true]
@@ -19,17 +19,17 @@ import { UI_FONT } from '../config.js';
  * @returns {{ elements: Phaser.GameObjects.GameObject[] }}
  */
 export function createNinesliceButton(scene, x, y, label, opts = {}) {
-  const w = opts.width || 180;
-  const h = opts.height || 40;
+  const w = opts.width || 160;
+  const h = opts.height || 34;
   const depth = opts.depth || 10;
-  const fontSize = opts.fontSize || '16px';
+  const fontSize = opts.fontSize || '13px';
   const enabled = opts.enabled !== false;
   const onClick = opts.onClick || (() => {});
   const sfx = opts.sfx !== false;
   const elements = [];
 
   // Single nineslice button — tint-based states
-  const btn = scene.add.nineslice(x, y, 'ui-button', null, w, h, 16, 16, 2, 4)
+  const btn = scene.add.nineslice(x, y, 'ui-button', null, w, h, 4, 4, 2, 2)
     .setScrollFactor(0).setDepth(depth);
 
   if (!enabled) {

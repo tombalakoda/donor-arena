@@ -245,26 +245,35 @@ export class BootScene extends Phaser.Scene {
     // Fallback default map
     this.load.json('arena-map', 'assets/maps/arena-default.json');
 
-    // --- Load UI (Humble Gift v1.3 kit) ---
-    this.load.image('ui-panel',           'assets/ui/humble/panel.png');
-    this.load.image('ui-button',          'assets/ui/humble/button.png');
-    this.load.image('ui-button-hover',    'assets/ui/humble/button.png');          // tint-based
-    this.load.image('ui-button-pressed',  'assets/ui/humble/button_small.png');
-    this.load.image('ui-inventory-cell',  'assets/ui/humble/cell.png');
+    // --- Load UI (Ninja Adventure – Theme Wood kit) ---
+    this.load.image('ui-panel',           'assets/ui/theme-wood/nine_path_panel.png');
+    this.load.image('ui-button',          'assets/ui/theme-wood/button_normal.png');
+    this.load.image('ui-button-hover',    'assets/ui/theme-wood/button_hover.png');
+    this.load.image('ui-button-pressed',  'assets/ui/theme-wood/button_pressed.png');
+    this.load.image('ui-inventory-cell',  'assets/ui/theme-wood/inventory_cell.png');
     this.load.image('ui-heart',           'assets/ui/receptacle/Heart.png');
-    this.load.image('ui-panel-2',         'assets/ui/humble/panel_tab.png');
-    this.load.image('ui-panel-3',         'assets/ui/humble/panel_alt.png');
-    this.load.image('ui-bg',              'assets/ui/humble/cell.png');
-    this.load.image('ui-bg-2',            'assets/ui/humble/cell_alt.png');
-    this.load.image('ui-panel-interior',  'assets/ui/humble/bar_wide.png');
-    this.load.image('ui-focus',           'assets/ui/humble/cell_alt.png');        // distinct from cell, tinted at use-time
-    this.load.image('ui-scroll',          'assets/ui/humble/dialogue.png');
-    this.load.image('ui-slider-progress', 'assets/ui/humble/hp_bar_fill.png');
-    this.load.image('ui-tab',             'assets/ui/humble/btn_tab_a.png');
-    this.load.image('ui-button-disabled', 'assets/ui/humble/button.png');          // tint-based
-    this.load.image('ui-tab-unselected',  'assets/ui/humble/btn_tab_b.png');
-    this.load.image('ui-nameplate',       'assets/ui/humble/nameplate.png');
-    this.load.image('ui-title-bar',       'assets/ui/humble/title_bar.png');
+    this.load.image('ui-panel-2',         'assets/ui/theme-wood/nine_path_panel_2.png');
+    this.load.image('ui-panel-3',         'assets/ui/theme-wood/nine_path_panel_3.png');
+    this.load.image('ui-bg',              'assets/ui/theme-wood/nine_path_bg.png');
+    this.load.image('ui-bg-2',            'assets/ui/theme-wood/nine_path_bg_2.png');
+    this.load.image('ui-panel-interior',  'assets/ui/theme-wood/nine_path_panel_interior.png');
+    this.load.image('ui-focus',           'assets/ui/theme-wood/nine_path_focus.png');
+    this.load.image('ui-scroll',          'assets/ui/theme-wood/nine_path_panel_3.png');
+    this.load.image('ui-slider-progress', 'assets/ui/theme-wood/slider_progress.png');
+    this.load.image('ui-tab',             'assets/ui/theme-wood/tab_selected.png');
+    this.load.image('ui-button-disabled', 'assets/ui/theme-wood/button_disabled.png');
+    this.load.image('ui-tab-unselected',  'assets/ui/theme-wood/tab_unselected.png');
+    this.load.image('ui-nameplate',       'assets/ui/theme-wood/nine_path_panel_2.png');
+    this.load.image('ui-title-bar',       'assets/ui/theme-wood/nine_path_panel_interior.png');
+
+    // --- Receptacle & Dialog assets ---
+    this.load.image('ui-lifebar-fill',    'assets/ui/receptacle/LifeBarMiniProgress.png');
+    this.load.image('ui-lifebar-bg',      'assets/ui/receptacle/LifeBarMiniUnder.png');
+    this.load.image('ui-sphere-bg',       'assets/ui/receptacle/sphere/BackgroundWood.png');
+    this.load.image('ui-sphere-mana',     'assets/ui/receptacle/sphere/ProgressMana.png');
+    this.load.image('ui-sphere-over',     'assets/ui/receptacle/sphere/Over.png');
+    this.load.image('ui-dialog-info',     'assets/ui/dialog/DialogInfo.png');
+    this.load.image('ui-icon-heart',      'assets/ui/receptacle/IconHeart.png');
     this.load.image('menu-bg', 'assets/ui/menu-bg.png');
 
     // --- Load Spell Icons ---

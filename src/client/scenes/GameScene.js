@@ -623,15 +623,15 @@ export class GameScene extends Phaser.Scene {
     const isDummy = playerId.startsWith('dummy-');
     const displayName = isDummy ? 'Kukla' : (playerName || playerId.slice(-4));
     const nameLabel = this.add.text(x, y - 30, displayName, {
-      fontSize: '16px',
+      fontSize: '12px',
       fontFamily: UI_FONT,
       fill: isDummy ? '#ff8866' : '#aaaaaa',
       align: 'center',
     }).setOrigin(0.5).setDepth(11);
 
     // HP bar for remote player
-    const hpBg = this.add.rectangle(x, y - 22, 36, 4, 0x333333).setOrigin(0.5).setDepth(11);
-    const hpFill = this.add.rectangle(x - 18, y - 22, 36, 4, 0x44dd44).setOrigin(0, 0.5).setDepth(11);
+    const hpBg = this.add.image(x, y - 22, 'ui-lifebar-bg').setOrigin(0.5).setDepth(11).setDisplaySize(32, 4);
+    const hpFill = this.add.image(x - 18, y - 22, 'ui-lifebar-fill').setOrigin(0, 0.5).setDepth(11).setDisplaySize(32, 4).setTint(0x44dd44);
 
     this.remotePlayers.set(playerId, {
       sprite, shadow, nameLabel, hpBg, hpFill,
@@ -773,15 +773,15 @@ export class GameScene extends Phaser.Scene {
       const hpRatio = Math.max(0, rp.hp / rp.maxHp);
       if (hpRatio !== rp._lastHpRatio) {
         rp._lastHpRatio = hpRatio;
-        rp.hpFill.width = 36 * hpRatio;
+        rp.hpFill.displayWidth = 32 * hpRatio;
         if (hpRatio > 0.75) {
-          rp.hpFill.fillColor = 0x44bbff;
+          rp.hpFill.setTint(0x44bbff);
         } else if (hpRatio > 0.5) {
-          rp.hpFill.fillColor = 0xdddd44;
+          rp.hpFill.setTint(0xdddd44);
         } else if (hpRatio > 0.25) {
-          rp.hpFill.fillColor = 0xff8833;
+          rp.hpFill.setTint(0xff8833);
         } else {
-          rp.hpFill.fillColor = 0xff3333;
+          rp.hpFill.setTint(0xff3333);
         }
       }
 
@@ -835,8 +835,7 @@ export class GameScene extends Phaser.Scene {
     this.playerSprite.setDepth(10);
     this.playerSprite.play(`${this.characterId}-idle-down`);
 
-    this.moveTargetMarker = this.add.circle(0, 0, 4, 0x44aadd, 0.6);
-    this.moveTargetMarker.setStrokeStyle(1, 0x88ccff, 0.8);
+    this.moveTargetMarker = this.add.image(0, 0, 'fx-particle-spark', 0).setTint(0x44aadd).setAlpha(0.6).setDisplaySize(8, 8);
     this.moveTargetMarker.setVisible(false);
     this.moveTargetMarker.setDepth(5);
   }

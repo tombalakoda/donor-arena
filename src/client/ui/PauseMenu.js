@@ -55,20 +55,20 @@ export class PauseMenu {
     const DEPTH = 400;
 
     // Dark overlay
-    const bg = scene.add.rectangle(camW / 2, camH / 2, camW, camH, 0x000000, 0.7)
-      .setScrollFactor(0).setDepth(DEPTH).setInteractive();
+    const bg = scene.add.nineslice(camW / 2, camH / 2, 'ui-bg-2', null, camW, camH, 4, 4, 4, 4)
+      .setScrollFactor(0).setDepth(DEPTH).setTint(0x000000).setAlpha(0.7).setInteractive();
     this.elements.push(bg);
 
     // Panel — nineslice
-    const panelW = 320;
-    const panelH = 260;
-    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 7, 7, 7, 7)
+    const panelW = 280;
+    const panelH = 220;
+    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.elements.push(panel);
 
     // Title
     const title = scene.add.text(camW / 2, camH / 2 - 90, 'ARA', {
-      fontSize: '32px',
+      fontSize: '24px',
       fontFamily: UI_FONT,
       fill: '#ffdd44',
       stroke: '#000000',
@@ -78,7 +78,7 @@ export class PauseMenu {
 
     // Subtitle
     const sub = scene.add.text(camW / 2, camH / 2 - 55, 'ÂŞIKLAR MEYDANE', {
-      fontSize: '16px',
+      fontSize: '13px',
       fontFamily: UI_FONT,
       fill: '#3a2218',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
@@ -86,7 +86,7 @@ export class PauseMenu {
 
     // Resume button
     const { elements: resumeEls } = createNinesliceButton(scene, camW / 2, camH / 2, 'Devam', {
-      width: 240, height: 44, depth: DEPTH + 2, fontSize: '16px',
+      width: 200, height: 36, depth: DEPTH + 2, fontSize: '13px',
       onClick: () => {
         this.playSfx('sfx-accept');
         this.hide();
@@ -97,7 +97,7 @@ export class PauseMenu {
 
     // Return to Menu button
     const { elements: menuEls } = createNinesliceButton(scene, camW / 2, camH / 2 + 60, 'Meydana Dön', {
-      width: 240, height: 44, depth: DEPTH + 2, fontSize: '16px',
+      width: 200, height: 36, depth: DEPTH + 2, fontSize: '13px',
       onClick: () => {
         this.playSfx('sfx-accept');
         this.showConfirm();
@@ -115,19 +115,19 @@ export class PauseMenu {
     const DEPTH = 410;
 
     // Darken more
-    const overlay = scene.add.rectangle(camW / 2, camH / 2, camW, camH, 0x000000, 0.5)
-      .setScrollFactor(0).setDepth(DEPTH).setInteractive();
+    const overlay = scene.add.nineslice(camW / 2, camH / 2, 'ui-bg-2', null, camW, camH, 4, 4, 4, 4)
+      .setScrollFactor(0).setDepth(DEPTH).setTint(0x000000).setAlpha(0.5).setInteractive();
     this.elements.push(overlay);
 
     // Confirm panel — nineslice (panel-2 variant)
-    const pw = 300;
-    const ph = 160;
-    const confirmPanel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel-2', null, pw, ph, 7, 7, 7, 7)
+    const pw = 260;
+    const ph = 140;
+    const confirmPanel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel-2', null, pw, ph, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.elements.push(confirmPanel);
 
     const msg = scene.add.text(camW / 2, camH / 2 - 35, 'Atışmadan ayrılacak mısın?', {
-      fontSize: '16px',
+      fontSize: '13px',
       fontFamily: UI_FONT,
       fill: '#ffdd44',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
@@ -135,7 +135,7 @@ export class PauseMenu {
 
     // Yes button
     const { elements: yesEls } = createNinesliceButton(scene, camW / 2 - 70, camH / 2 + 25, 'He', {
-      width: 110, height: 40, depth: DEPTH + 2, fontSize: '16px',
+      width: 100, height: 34, depth: DEPTH + 2, fontSize: '13px',
       onClick: () => {
         this.returnToMenu();
       },
@@ -145,7 +145,7 @@ export class PauseMenu {
 
     // No button
     const { elements: noEls } = createNinesliceButton(scene, camW / 2 + 70, camH / 2 + 25, 'Yok', {
-      width: 110, height: 40, depth: DEPTH + 2, fontSize: '16px',
+      width: 100, height: 34, depth: DEPTH + 2, fontSize: '13px',
       onClick: () => {
         this.playSfx('sfx-cancel');
         // Remove confirm elements (rebuild the pause menu)

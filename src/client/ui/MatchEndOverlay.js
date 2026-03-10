@@ -50,23 +50,23 @@ export class MatchEndOverlay {
       this.playSfx('jingle-gameover');
     }
 
-    // Dark overlay (kept as rectangle dimmer)
-    const bg = scene.add.rectangle(camW / 2, camH / 2, camW, camH, 0x000000, 0.8)
-      .setScrollFactor(0).setDepth(DEPTH).setInteractive();
+    // Dark overlay
+    const bg = scene.add.nineslice(camW / 2, camH / 2, 'ui-bg-2', null, camW, camH, 4, 4, 4, 4)
+      .setScrollFactor(0).setDepth(DEPTH).setTint(0x000000).setAlpha(0.8).setInteractive();
     this.elements.push(bg);
 
     // Main panel — nineslice
-    const panelW = 520;
-    const panelH = 440;
+    const panelW = 440;
+    const panelH = 380;
     const py = camH / 2 - panelH / 2;
     const px = camW / 2 - panelW / 2;
-    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 7, 7, 7, 7)
+    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.elements.push(panel);
 
     // Title
     const title = scene.add.text(camW / 2, py + 30, 'ATIŞMA BİTTİ', {
-      fontSize: '32px',
+      fontSize: '24px',
       fontFamily: UI_FONT,
       fill: '#ffdd44',
       stroke: '#000000',
@@ -75,7 +75,7 @@ export class MatchEndOverlay {
     this.elements.push(title);
 
     const sub = scene.add.text(camW / 2, py + 60, 'ÂŞIKLAR MEYDANE', {
-      fontSize: '16px',
+      fontSize: '13px',
       fontFamily: UI_FONT,
       fill: '#3a2218',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
@@ -90,7 +90,7 @@ export class MatchEndOverlay {
       const faceKey = `${winnerCharId}-face`;
       if (scene.textures.exists(faceKey)) {
         const face = scene.add.image(camW / 2, py + 105, faceKey)
-          .setScale(2.5)
+          .setScale(2.0)
           .setScrollFactor(0).setDepth(DEPTH + 3);
         this.elements.push(face);
 
@@ -109,7 +109,7 @@ export class MatchEndOverlay {
       // Winner name
       const winnerName = winner.name || winner.id.slice(-4);
       const nameLabel = scene.add.text(camW / 2, py + 135, `${winnerName}`, {
-        fontSize: '16px',
+        fontSize: '13px',
         fontFamily: UI_FONT,
         fill: '#ffdd44',
         stroke: '#000000',
@@ -120,11 +120,11 @@ export class MatchEndOverlay {
 
     // --- Scoreboard table ---
     const tableY = py + 165;
-    const rowH = 28;
+    const rowH = 22;
     const cols = { rank: px + 25, face: px + 60, name: px + 100, pts: px + 300, elims: px + 370, wins: px + 440 };
 
     // Header
-    const headerStyle = { fontSize: '16px', fontFamily: UI_FONT, fill: '#5a3a28' };
+    const headerStyle = { fontSize: '12px', fontFamily: UI_FONT, fill: '#5a3a28' };
     const headers = [
       scene.add.text(cols.rank, tableY, '#', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
       scene.add.text(cols.name, tableY, 'Âşık', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
@@ -135,9 +135,9 @@ export class MatchEndOverlay {
     this.elements.push(...headers);
 
     // Divider
-    const divG = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH + 2);
-    divG.lineStyle(1, 0x444466, 0.5);
-    divG.lineBetween(px + 15, tableY + 16, px + panelW - 15, tableY + 16);
+    const dividerY = tableY + 16;
+    const dividerWidth = panelW - 30;
+    const divG = scene.add.image(camW / 2, dividerY, 'ui-slider-progress').setDisplaySize(dividerWidth, 1).setTint(0x444466).setAlpha(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
     this.elements.push(divG);
 
     // Rank colors
@@ -154,7 +154,7 @@ export class MatchEndOverlay {
 
       // Alternating row background for even rows
       if (i % 2 === 0) {
-        const rowBgAlt = scene.add.nineslice(camW / 2, ry + 6, 'ui-bg', null, panelW - 30, rowH - 2, 7, 7, 7, 7)
+        const rowBgAlt = scene.add.nineslice(camW / 2, ry + 6, 'ui-bg', null, panelW - 30, rowH - 2, 4, 4, 4, 4)
           .setAlpha(0.15)
           .setScrollFactor(0).setDepth(DEPTH + 1);
         this.elements.push(rowBgAlt);
@@ -162,7 +162,7 @@ export class MatchEndOverlay {
 
       // Highlight row for local player — nineslice focus
       if (isLocal) {
-        const rowHighlight = scene.add.nineslice(camW / 2, ry + 6, 'ui-focus', null, panelW - 30, rowH - 2, 7, 7, 7, 7)
+        const rowHighlight = scene.add.nineslice(camW / 2, ry + 6, 'ui-focus', null, panelW - 30, rowH - 2, 2, 2, 2, 2)
           .setTint(0xffdd44).setAlpha(0.3)
           .setScrollFactor(0).setDepth(DEPTH + 1);
         this.elements.push(rowHighlight);
@@ -170,7 +170,7 @@ export class MatchEndOverlay {
 
       // Rank
       const rankText = scene.add.text(cols.rank + 8, ry, `${i + 1}`, {
-        fontSize: '16px', fontFamily: UI_FONT, fill: rankColor, fontStyle: 'bold',
+        fontSize: '12px', fontFamily: UI_FONT, fill: rankColor, fontStyle: 'bold',
       }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(DEPTH + 3);
       this.elements.push(rankText);
 
@@ -179,7 +179,7 @@ export class MatchEndOverlay {
       const faceKey = `${charId}-face`;
       if (scene.textures.exists(faceKey)) {
         const faceIcon = scene.add.image(cols.face, ry + 6, faceKey)
-          .setScale(0.65)
+          .setScale(0.55)
           .setScrollFactor(0).setDepth(DEPTH + 3);
         this.elements.push(faceIcon);
       }
@@ -187,25 +187,25 @@ export class MatchEndOverlay {
       // Name
       const name = s.name || s.id.slice(-4);
       const nameText = scene.add.text(cols.name, ry, name, {
-        fontSize: '16px', fontFamily: UI_FONT, fill: nameColor,
+        fontSize: '12px', fontFamily: UI_FONT, fill: nameColor,
       }).setScrollFactor(0).setDepth(DEPTH + 3);
       this.elements.push(nameText);
 
       // Points
       const ptsText = scene.add.text(cols.pts + 10, ry, `${s.points}`, {
-        fontSize: '16px', fontFamily: UI_FONT, fill: '#ffdd44',
+        fontSize: '12px', fontFamily: UI_FONT, fill: '#ffdd44',
       }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(DEPTH + 3);
       this.elements.push(ptsText);
 
       // Eliminations
       const elimText = scene.add.text(cols.elims + 10, ry, `${s.eliminations}`, {
-        fontSize: '16px', fontFamily: UI_FONT, fill: '#ff6644',
+        fontSize: '12px', fontFamily: UI_FONT, fill: '#ff6644',
       }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(DEPTH + 3);
       this.elements.push(elimText);
 
       // Rounds won
       const winsText = scene.add.text(cols.wins + 10, ry, `${s.roundsWon}`, {
-        fontSize: '16px', fontFamily: UI_FONT, fill: '#44cc88',
+        fontSize: '12px', fontFamily: UI_FONT, fill: '#44cc88',
       }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(DEPTH + 3);
       this.elements.push(winsText);
     }
@@ -214,7 +214,7 @@ export class MatchEndOverlay {
     const btnY = py + panelH - 45;
 
     const { elements: menuEls } = createNinesliceButton(scene, camW / 2 - 90, btnY, 'Meydan', {
-      width: 150, height: 40, depth: DEPTH + 3, fontSize: '16px',
+      width: 130, height: 34, depth: DEPTH + 3, fontSize: '13px',
       onClick: () => {
         this.playSfx('sfx-accept');
         this.returnToMenu();
@@ -224,7 +224,7 @@ export class MatchEndOverlay {
     this.elements.push(...menuEls);
 
     const { elements: playEls } = createNinesliceButton(scene, camW / 2 + 90, btnY, 'Bir Daha', {
-      width: 150, height: 40, depth: DEPTH + 3, fontSize: '16px',
+      width: 130, height: 34, depth: DEPTH + 3, fontSize: '13px',
       onClick: () => {
         this.playSfx('sfx-accept');
         this.playAgain();

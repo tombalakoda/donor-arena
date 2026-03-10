@@ -71,51 +71,51 @@ export class HUDManager {
 
   createHUD() {
     const scene = this.scene;
-    this.pingText = scene.add.text(10, 10, 'Ping: --', {
-      fontSize: '16px', fontFamily: UI_FONT,
+    this.pingText = scene.add.text(8, 8, 'Ping: --', {
+      fontSize: '12px', fontFamily: UI_FONT,
       fill: '#88ccff',
     }).setScrollFactor(0).setDepth(100);
 
-    this.playerCountText = scene.add.text(10, 30, 'Âşıklar: 0', {
-      fontSize: '16px', fontFamily: UI_FONT,
+    this.playerCountText = scene.add.text(8, 22, 'Âşıklar: 0', {
+      fontSize: '12px', fontFamily: UI_FONT,
       fill: '#88ccff',
     }).setScrollFactor(0).setDepth(100);
 
     const camW = scene.cameras.main.width;
     const camH = scene.cameras.main.height;
 
-    // HP bar: nineslice frame + colored fill rectangle inside
-    this.hpBarBg = scene.add.nineslice(camW / 2, 20, 'ui-panel-2', null, 208, 18, 7, 7, 7, 7)
+    // HP bar: nineslice frame + sprite fill inside
+    this.hpBarBg = scene.add.nineslice(camW / 2, 16, 'ui-panel-2', null, 168, 14, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(100).setOrigin(0.5);
-    this.hpBarFill = scene.add.rectangle(camW / 2 - 100, 20, 200, 10, 0x44dd44)
-      .setScrollFactor(0).setDepth(101).setOrigin(0, 0.5);
-    this.hpText = scene.add.text(camW / 2, 20, '100/100', {
-      fontSize: '16px', fontFamily: UI_FONT,
+    this.hpBarFill = scene.add.nineslice(camW / 2 - 80, 16, 'ui-slider-progress', null, 160, 8, 4, 4, 4, 4)
+      .setScrollFactor(0).setDepth(101).setOrigin(0, 0.5).setTint(0x44dd44);
+    this.hpText = scene.add.text(camW / 2, 16, '100/100', {
+      fontSize: '13px', fontFamily: UI_FONT,
       fill: '#ffffff',
     }).setScrollFactor(0).setDepth(102).setOrigin(0.5);
 
-    this.roundText = scene.add.text(camW - 10, 10, 'Fasıl 0/20', {
-      fontSize: '16px', fontFamily: UI_FONT,
+    this.roundText = scene.add.text(camW - 10, 8, 'Fasıl 0/20', {
+      fontSize: '13px', fontFamily: UI_FONT,
       fill: '#ffdd44',
       fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(100).setOrigin(1, 0);
 
-    this.timerText = scene.add.text(camW - 10, 30, '60s', {
-      fontSize: '16px', fontFamily: UI_FONT,
+    this.timerText = scene.add.text(camW - 10, 24, '60s', {
+      fontSize: '13px', fontFamily: UI_FONT,
       fill: '#88ccff',
     }).setScrollFactor(0).setDepth(100).setOrigin(1, 0);
 
-    this.phaseText = scene.add.text(camW / 2, 40, '', {
-      fontSize: '16px', fontFamily: UI_FONT,
+    this.phaseText = scene.add.text(camW / 2, 34, '', {
+      fontSize: '12px', fontFamily: UI_FONT,
       fill: '#aaaaaa',
     }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
 
     this.countdownText = scene.add.text(camW / 2, camH / 2 - 40, '', {
-      fontSize: '64px', fontFamily: UI_FONT,
+      fontSize: '48px', fontFamily: UI_FONT,
       fill: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 6,
+      strokeThickness: 4,
     }).setScrollFactor(0).setDepth(250).setOrigin(0.5).setVisible(false);
 
     this.createSoundToggle(camW);
@@ -125,15 +125,15 @@ export class HUDManager {
   createSoundToggle(camW) {
     const scene = this.scene;
     const isMuted = scene.sound.mute;
-    const btnSize = 28;
-    const x = camW - 24;
-    const y = 52;
+    const btnSize = 22;
+    const x = camW - 20;
+    const y = 46;
 
-    const bg = scene.add.nineslice(x, y, 'ui-inventory-cell', null, btnSize, btnSize, 7, 7, 7, 7)
+    const bg = scene.add.nineslice(x, y, 'ui-inventory-cell', null, btnSize, btnSize, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(100);
 
     const icon = scene.add.image(x, y, isMuted ? 'spell-BookThunder-off' : 'spell-BookThunder')
-      .setScrollFactor(0).setDepth(101).setDisplaySize(22, 22);
+      .setScrollFactor(0).setDepth(101).setDisplaySize(18, 18);
 
     const hitArea = scene.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
       .setScrollFactor(0).setDepth(102).setInteractive({ useHandCursor: true });
@@ -149,15 +149,15 @@ export class HUDManager {
 
   createScoreboardToggle(camW) {
     const scene = this.scene;
-    const btnSize = 28;
-    const x = camW - 24;
-    const y = 52 + 36; // below the mute button
+    const btnSize = 22;
+    const x = camW - 20;
+    const y = 46 + 28; // below the mute button
 
-    const bg = scene.add.nineslice(x, y, 'ui-inventory-cell', null, btnSize, btnSize, 7, 7, 7, 7)
+    const bg = scene.add.nineslice(x, y, 'ui-inventory-cell', null, btnSize, btnSize, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(100);
 
     scene.add.image(x, y, 'spell-Cut')
-      .setScrollFactor(0).setDepth(101).setDisplaySize(22, 22);
+      .setScrollFactor(0).setDepth(101).setDisplaySize(18, 18);
 
     const hitArea = scene.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
       .setScrollFactor(0).setDepth(102).setInteractive({ useHandCursor: true });
@@ -178,11 +178,11 @@ export class HUDManager {
     const scene = this.scene;
     const camW = scene.cameras.main.width;
     const camH = scene.cameras.main.height;
-    const slotSize = 48;
-    const slotGap = 8;
+    const slotSize = 40;
+    const slotGap = 6;
     const totalWidth = 4 * slotSize + 3 * slotGap;
     const startX = (camW - totalWidth) / 2;
-    const slotY = camH - 60;
+    const slotY = camH - 50;
 
     const slots = ['Q', 'W', 'E', 'R'];
 
@@ -190,8 +190,8 @@ export class HUDManager {
       const key = slots[i];
       const x = startX + i * (slotSize + slotGap) + slotSize / 2;
 
-      // Nineslice inventory cell instead of plain rectangle
-      const bg = scene.add.nineslice(x, slotY, 'ui-inventory-cell', null, slotSize, slotSize, 7, 7, 7, 7)
+      // Nineslice inventory cell
+      const bg = scene.add.nineslice(x, slotY, 'ui-inventory-cell', null, slotSize, slotSize, 4, 4, 4, 4)
         .setScrollFactor(0).setDepth(100);
 
       let icon = null;
@@ -204,33 +204,27 @@ export class HUDManager {
       cdOverlay._slotSize = slotSize;
 
       const cdText = scene.add.text(x, slotY, '', {
-        fontSize: '16px', fontFamily: UI_FONT,
+        fontSize: '13px', fontFamily: UI_FONT,
         fill: '#ffffff',
         fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(103).setOrigin(0.5).setVisible(false);
 
-      scene.add.text(x - slotSize / 2 + 4, slotY - slotSize / 2 + 2, key, {
-        fontSize: '16px', fontFamily: UI_FONT,
+      scene.add.text(x - slotSize / 2 + 3, slotY - slotSize / 2 + 2, key, {
+        fontSize: '11px', fontFamily: UI_FONT,
         fill: '#aaccff',
         fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(103);
 
-      const lockOverlay = scene.add.rectangle(x, slotY, slotSize - 2, slotSize - 2, 0x000000, 0.7)
-        .setScrollFactor(0).setDepth(104).setVisible(false);
-      const lockText = scene.add.text(x, slotY, '🔒', {
-        fontSize: '16px',
-        fill: '#555555',
-        fontStyle: 'bold',
-      }).setScrollFactor(0).setDepth(105).setOrigin(0.5).setVisible(false);
+      const lockOverlay = scene.add.nineslice(x, slotY, 'ui-bg-2', null, slotSize - 2, slotSize - 2, 4, 4, 4, 4)
+        .setScrollFactor(0).setDepth(104).setTint(0x111111).setAlpha(0.8).setVisible(false);
+      // Lock text removed — dark overlay is sufficient indicator
+      const lockText = null;
 
-      const emptyText = scene.add.text(x, slotY, '?', {
-        fontSize: '16px', fontFamily: UI_FONT,
-        fill: '#555555',
-        fontStyle: 'bold',
-      }).setScrollFactor(0).setDepth(105).setOrigin(0.5).setVisible(false);
+      const emptyText = scene.add.image(x, slotY, 'spell-BookLight-off')
+        .setScrollFactor(0).setDepth(105).setDisplaySize(20, 20).setAlpha(0.5).setVisible(false);
 
-      const chargeText = scene.add.text(x + slotSize / 2 - 4, slotY + slotSize / 2 - 4, '', {
-        fontSize: '16px', fontFamily: UI_FONT,
+      const chargeText = scene.add.text(x + slotSize / 2 - 3, slotY + slotSize / 2 - 3, '', {
+        fontSize: '12px', fontFamily: UI_FONT,
         fill: '#ffdd44',
         fontStyle: 'bold',
         stroke: '#000000',
@@ -252,19 +246,26 @@ export class HUDManager {
       });
     }
 
-    // SP counter with panel background
-    this.spBg = scene.add.nineslice(camW / 2, slotY + slotSize / 2 + 14, 'ui-panel-2', null, 80, 20, 7, 7, 7, 7)
-      .setScrollFactor(0).setDepth(99).setAlpha(0.7);
+    // SP counter — mana sphere
+    const spY = slotY + slotSize / 2 + 10;
+    this.spBg = scene.add.image(camW / 2, spY, 'ui-sphere-bg')
+      .setScrollFactor(0).setDepth(99).setDisplaySize(28, 28);
+    this._spMana = scene.add.image(camW / 2, spY, 'ui-sphere-mana')
+      .setScrollFactor(0).setDepth(100).setDisplaySize(20, 20);
+    this._spOver = scene.add.image(camW / 2, spY, 'ui-sphere-over')
+      .setScrollFactor(0).setDepth(101).setDisplaySize(28, 28);
 
-    this.spText = scene.add.text(camW / 2, slotY + slotSize / 2 + 14, 'İlham: 0', {
-      fontSize: '16px', fontFamily: UI_FONT,
-      fill: '#44ddff',
+    this.spText = scene.add.text(camW / 2, spY, '0', {
+      fontSize: '11px', fontFamily: UI_FONT,
+      fill: '#ffffff',
       fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(100).setOrigin(0.5);
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setScrollFactor(0).setDepth(102).setOrigin(0.5);
 
     if (scene.gameMode === 'sandbox') {
-      scene.add.text(camW / 2, slotY + slotSize / 2 + 30, "Dükkânı açmak için B'ye bas", {
-        fontSize: '16px', fontFamily: UI_FONT,
+      scene.add.text(camW / 2, spY + 16, "Dükkânı açmak için B'ye bas", {
+        fontSize: '13px', fontFamily: UI_FONT,
         fill: '#666688',
       }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
     }
@@ -278,11 +279,11 @@ export class HUDManager {
     const camW = scene.cameras.main.width;
     const camH = scene.cameras.main.height;
     this.announcementText = scene.add.text(camW / 2, camH / 3, text, {
-      fontSize: '32px', fontFamily: UI_FONT,
+      fontSize: '24px', fontFamily: UI_FONT,
       fill: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 4,
+      strokeThickness: 3,
       align: 'center',
     }).setScrollFactor(0).setDepth(200).setOrigin(0.5).setAlpha(1);
 
@@ -303,11 +304,11 @@ export class HUDManager {
   showDamageNumber(x, y, amount) {
     const scene = this.scene;
     const text = scene.add.text(x, y - 20, `-${Math.ceil(amount)}`, {
-      fontSize: '16px', fontFamily: UI_FONT,
+      fontSize: '14px', fontFamily: UI_FONT,
       color: '#ff4444',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 3,
+      strokeThickness: 2,
     }).setDepth(200).setOrigin(0.5);
 
     scene.tweens.add({
@@ -322,9 +323,9 @@ export class HUDManager {
   addKillFeed(text) {
     const scene = this.scene;
     const camW = scene.cameras.main.width;
-    const y = 72 + this.killFeedTexts.length * 18;
+    const y = 60 + this.killFeedTexts.length * 15;
     const feedText = scene.add.text(camW - 10, y, text, {
-      fontSize: '16px', fontFamily: UI_FONT,
+      fontSize: '12px', fontFamily: UI_FONT,
       fill: '#ff8888',
       stroke: '#000000',
       strokeThickness: 2,
@@ -336,7 +337,7 @@ export class HUDManager {
       const old = this.killFeedTexts.shift();
       old.destroy();
       this.killFeedTexts.forEach((t, i) => {
-        t.setY(72 + i * 18);
+        t.setY(60 + i * 15);
       });
     }
 
@@ -349,7 +350,7 @@ export class HUDManager {
         this.killFeedTexts.splice(idx, 1);
         feedText.destroy();
         this.killFeedTexts.forEach((t, i) => {
-          t.setY(72 + i * 18);
+          t.setY(60 + i * 15);
         });
       }
     }, 4000);
@@ -521,15 +522,15 @@ export class HUDManager {
       // Only update bar width, color, and text when HP ratio changes
       if (hpRatio !== this._lastHpRatio) {
         this._lastHpRatio = hpRatio;
-        this.hpBarFill.width = 200 * hpRatio;
+        this.hpBarFill.displayWidth = 160 * hpRatio;
         if (hpRatio > 0.75) {
-          this.hpBarFill.fillColor = 0x44bbff;
+          this.hpBarFill.setTint(0x44bbff);
         } else if (hpRatio > 0.5) {
-          this.hpBarFill.fillColor = 0xdddd44;
+          this.hpBarFill.setTint(0xdddd44);
         } else if (hpRatio > 0.25) {
-          this.hpBarFill.fillColor = 0xff8833;
+          this.hpBarFill.setTint(0xff8833);
         } else {
-          this.hpBarFill.fillColor = 0xff3333;
+          this.hpBarFill.setTint(0xff3333);
         }
         const vulnPercent = Math.round((1 - hpRatio) * 100);
         this.hpText.setText(`${Math.ceil(scene.localHp)} Nefes  (${vulnPercent}% açık)`);
@@ -664,10 +665,10 @@ export class HUDManager {
 
       slot.spellId = spellId;
 
-      if (slot.lockOverlay && slot.lockText) {
+      if (slot.lockOverlay) {
         if (isLocked !== slot._lastLocked) {
           slot.lockOverlay.setVisible(isLocked);
-          slot.lockText.setVisible(isLocked);
+          if (slot.lockText) slot.lockText.setVisible(isLocked);
           slot._lastLocked = isLocked;
         }
       }
@@ -811,7 +812,7 @@ export class HUDManager {
     }
 
     if (this.spText && scene.progression) {
-      const spStr = `İlham: ${scene.progression.sp}`;
+      const spStr = `${scene.progression.sp}`;
       if (spStr !== this._lastSpText) {
         this.spText.setText(spStr);
         this._lastSpText = spStr;
@@ -882,19 +883,19 @@ export class HUDManager {
     const sorted = [...this._cachedScores].sort((a, b) => b.points - a.points);
 
     const panelX = camW - 10;
-    const panelY = 100;
-    const rowH = 22;
-    const panelW = 220;
-    const panelH = 30 + sorted.length * rowH + 10;
+    const panelY = 90;
+    const rowH = 18;
+    const panelW = 180;
+    const panelH = 24 + sorted.length * rowH + 8;
 
-    // Background
-    const bg = scene.add.rectangle(panelX - panelW / 2, panelY + panelH / 2, panelW, panelH, 0x000000, 0.5)
-      .setScrollFactor(0).setDepth(140).setOrigin(0.5);
+    // Background — nineslice panel instead of rectangle
+    const bg = scene.add.nineslice(panelX - panelW / 2, panelY + panelH / 2, 'ui-panel-2', null, panelW, panelH, 4, 4, 4, 4)
+      .setScrollFactor(0).setDepth(140).setOrigin(0.5).setAlpha(0.85);
     this._leaderboardElements.push(bg);
 
     // Header
-    const header = scene.add.text(panelX - panelW + 10, panelY + 6, 'PUAN TABLOSU', {
-      fontSize: '14px', fontFamily: UI_FONT,
+    const header = scene.add.text(panelX - panelW + 8, panelY + 4, 'PUAN TABLOSU', {
+      fontSize: '12px', fontFamily: UI_FONT,
       fill: '#ffdd44',
       fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(141);
@@ -905,10 +906,10 @@ export class HUDManager {
       const s = sorted[i];
       const isLocal = s.id === this._cachedLocalPlayerId;
       const color = isLocal ? '#44ddff' : '#cccccc';
-      const y = panelY + 28 + i * rowH;
-      const row = scene.add.text(panelX - panelW + 10, y,
+      const y = panelY + 22 + i * rowH;
+      const row = scene.add.text(panelX - panelW + 8, y,
         `${i + 1}. ${s.name}  ${s.points}p  ${s.eliminations}k`, {
-        fontSize: '13px', fontFamily: UI_FONT,
+        fontSize: '11px', fontFamily: UI_FONT,
         fill: color,
       }).setScrollFactor(0).setDepth(141);
       this._leaderboardElements.push(row);
@@ -932,17 +933,17 @@ export class HUDManager {
     const camW = scene.cameras.main.width;
     const camH = scene.cameras.main.height;
 
-    const nameText = scene.add.text(camW / 2, camH - 120, `İzleniyor: ${playerName}`, {
-      fontSize: '20px', fontFamily: UI_FONT,
+    const nameText = scene.add.text(camW / 2, camH - 110, `İzleniyor: ${playerName}`, {
+      fontSize: '16px', fontFamily: UI_FONT,
       fill: '#ffffff',
       fontStyle: 'bold',
       stroke: '#000000',
-      strokeThickness: 3,
+      strokeThickness: 2,
     }).setScrollFactor(0).setDepth(200).setOrigin(0.5);
     this._spectateElements.push(nameText);
 
-    const hint = scene.add.text(camW / 2, camH - 96, 'Tıkla veya ← → ile değiştir', {
-      fontSize: '14px', fontFamily: UI_FONT,
+    const hint = scene.add.text(camW / 2, camH - 90, 'Tıkla veya ← → ile değiştir', {
+      fontSize: '12px', fontFamily: UI_FONT,
       fill: '#888899',
     }).setScrollFactor(0).setDepth(200).setOrigin(0.5);
     this._spectateElements.push(hint);

@@ -97,7 +97,7 @@ export class ShopOverlay {
     // Store layout metrics for content builders
     this._W = W;
     this._H = H;
-    this._margin = 20;
+    this._margin = 14;
     this._bodyTop = 112;   // below tab row
     this._bodyBot = 660;   // above bottom bar
     this._bodyCY = (this._bodyTop + this._bodyBot) / 2;
@@ -110,8 +110,8 @@ export class ShopOverlay {
     this._rightW = W - 2 * this._margin - this._leftW - 10; // 10px gap between panels
 
     // ── Dimmer ──
-    const dimmer = s.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.82)
-      .setScrollFactor(0).setDepth(DEPTH).setInteractive();
+    const dimmer = s.add.nineslice(W / 2, H / 2, 'ui-bg-2', null, W, H, 4, 4, 4, 4)
+      .setScrollFactor(0).setDepth(DEPTH).setTint(0x000000).setAlpha(0.82).setInteractive();
     this.chrome.push(dimmer);
 
     // ── Title Bar ──
@@ -122,7 +122,7 @@ export class ShopOverlay {
 
     // ── Main Body Panel (outer) ──
     const bodyW = W - 2 * this._margin;
-    const body = s.add.nineslice(W / 2, this._bodyCY, 'ui-panel', null, bodyW, this._bodyH, 7, 7, 7, 7)
+    const body = s.add.nineslice(W / 2, this._bodyCY, 'ui-panel', null, bodyW, this._bodyH, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.chrome.push(body);
 
@@ -139,24 +139,24 @@ export class ShopOverlay {
   _buildTitleBar(W) {
     const s = this.scene;
 
-    const bar = s.add.nineslice(W / 2, 44, 'ui-title-bar', null, W - 40, 48, 7, 7, 7, 7)
+    const bar = s.add.nineslice(W / 2, 44, 'ui-title-bar', null, W - 40, 38, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.chrome.push(bar);
 
     const title = s.add.text(W / 2, 44, 'HÜNER DÜKKÂNI', {
-      fontSize: '32px', fontFamily: UI_FONT, fill: '#ffdd44', fontStyle: 'bold',
+      fontSize: '24px', fontFamily: UI_FONT, fill: '#ffdd44', fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 3,
     }).setScrollFactor(0).setDepth(DEPTH + 2).setOrigin(0.5);
     this.chrome.push(title);
 
     const sp = this.progression ? this.progression.sp : 0;
     this._spTextTitle = s.add.text(60, 44, `İlham: ${sp}`, {
-      fontSize: '16px', fontFamily: UI_FONT, fill: '#44ddff', fontStyle: 'bold',
+      fontSize: '13px', fontFamily: UI_FONT, fill: '#44ddff', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(DEPTH + 2).setOrigin(0, 0.5);
     this.chrome.push(this._spTextTitle);
 
     this._timerText = s.add.text(W - 60, 44, `${Math.ceil(this.shopTimer)}s`, {
-      fontSize: '16px', fontFamily: UI_FONT, fill: '#aaaaaa',
+      fontSize: '13px', fontFamily: UI_FONT, fill: '#aaaaaa',
     }).setScrollFactor(0).setDepth(DEPTH + 2).setOrigin(1, 0.5);
     this.chrome.push(this._timerText);
   }
@@ -168,11 +168,11 @@ export class ShopOverlay {
     const s = this.scene;
 
     // Tab bar background
-    const tabBar = s.add.nineslice(W / 2, 90, 'ui-panel-interior', null, W - 40, 36, 7, 7, 7, 7)
+    const tabBar = s.add.nineslice(W / 2, 90, 'ui-panel-interior', null, W - 40, 28, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.chrome.push(tabBar);
 
-    const tabW = 160, tabH = 32, tabGap = 8;
+    const tabW = 130, tabH = 26, tabGap = 8;
     const totalW = SLOTS.length * tabW + (SLOTS.length - 1) * tabGap;
     const startX = (W - totalW) / 2;
 
@@ -184,15 +184,14 @@ export class ShopOverlay {
 
       const tabBg = s.add.nineslice(
         cx, 90, isActive ? 'ui-tab' : 'ui-tab-unselected', null,
-        tabW, tabH, 8, 8, 4, 4
+        tabW, tabH, 4, 4, 3, 3
       ).setScrollFactor(0).setDepth(DEPTH + 2);
       if (isLocked) tabBg.setTint(0x777777);
       else if (isActive) tabBg.setTint(SLOT_COLORS[slot].tint);
       this.chrome.push(tabBg);
 
-      const lockPrefix = isLocked ? '🔒 ' : '';
-      const label = s.add.text(cx, 90, `${lockPrefix}[${slot}] ${SLOT_NAMES[slot]}`, {
-        fontSize: '16px', fontFamily: UI_FONT,
+      const label = s.add.text(cx, 90, `[${slot}] ${SLOT_NAMES[slot]}`, {
+        fontSize: '13px', fontFamily: UI_FONT,
         fill: isActive ? '#ffffff' : (isLocked ? '#666666' : '#cccccc'),
         fontStyle: 'bold',
         stroke: isActive ? '#000000' : undefined,
@@ -200,7 +199,7 @@ export class ShopOverlay {
       }).setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5);
       this.chrome.push(label);
 
-      const hit = s.add.nineslice(cx, 90, 'ui-tab-unselected', null, tabW, tabH, 8, 8, 4, 4)
+      const hit = s.add.nineslice(cx, 90, 'ui-tab-unselected', null, tabW, tabH, 4, 4, 3, 3)
         .setScrollFactor(0).setDepth(DEPTH + 4).setAlpha(0.001).setInteractive({ useHandCursor: true });
       hit.on('pointerdown', () => {
         if (this.activeSlot !== slot) {
@@ -219,13 +218,13 @@ export class ShopOverlay {
     const s = this.scene;
     const barY = this._bodyBot + 30;
 
-    const bar = s.add.nineslice(W / 2, barY, 'ui-scroll', null, W - 2 * this._margin, 48, 7, 7, 7, 7)
+    const bar = s.add.nineslice(W / 2, barY, 'ui-scroll', null, W - 2 * this._margin, 38, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.chrome.push(bar);
 
     const sp = this.progression ? this.progression.sp : 0;
     this._spTextBottom = s.add.text(this._margin + 100, barY, `İlham: ${sp}`, {
-      fontSize: '32px', fontFamily: UI_FONT, fill: '#44ddff', fontStyle: 'bold',
+      fontSize: '24px', fontFamily: UI_FONT, fill: '#44ddff', fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 2,
     }).setScrollFactor(0).setDepth(DEPTH + 2).setOrigin(0.5);
     this.chrome.push(this._spTextBottom);
@@ -273,18 +272,18 @@ export class ShopOverlay {
     const panelCY = (panelTop + panelBot) / 2;
 
     // Left panel background
-    const leftPanel = s.add.nineslice(LCX, panelCY, 'ui-panel-2', null, LW, panelH, 7, 7, 7, 7)
+    const leftPanel = s.add.nineslice(LCX, panelCY, 'ui-panel-2', null, LW, panelH, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 2);
     this.content.push(leftPanel);
 
     // Section header — inside panel, near top
     const headerY = panelTop + 24;
-    const headerBg = s.add.nineslice(LCX, headerY, 'ui-nameplate', null, LW - 40, 38, 7, 7, 7, 7)
+    const headerBg = s.add.nineslice(LCX, headerY, 'ui-nameplate', null, LW - 40, 30, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(headerBg);
 
     const headerText = s.add.text(LCX, headerY - 4, `${SLOT_NAMES[slot]} Hünerleri`, {
-      fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
+      fontSize: '13px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
     this.content.push(headerText);
 
@@ -313,13 +312,13 @@ export class ShopOverlay {
       const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
 
       // Cell background
-      const cellBg = s.add.nineslice(cellX, rowY, 'ui-inventory-cell', null, 56, 56, 7, 7, 7, 7)
+      const cellBg = s.add.nineslice(cellX, rowY, 'ui-inventory-cell', null, 44, 44, 4, 4, 4, 4)
         .setScrollFactor(0).setDepth(DEPTH + 3);
       this.content.push(cellBg);
 
       // Chosen highlight
       if (isChosen) {
-        const focus = s.add.nineslice(cellX, rowY, 'ui-focus', null, 62, 62, 7, 7, 7, 7)
+        const focus = s.add.nineslice(cellX, rowY, 'ui-focus', null, 50, 50, 2, 2, 2, 2)
           .setTint(0xffdd44).setScrollFactor(0).setDepth(DEPTH + 3);
         this.content.push(focus);
       }
@@ -327,26 +326,26 @@ export class ShopOverlay {
       // Spell icon
       if (def.icon && s.textures.exists(def.icon)) {
         const icon = s.add.image(cellX, rowY, def.icon).setScrollFactor(0).setDepth(DEPTH + 4);
-        const scale = 40 / Math.max(icon.width, icon.height);
+        const scale = 32 / Math.max(icon.width, icon.height);
         icon.setScale(scale);
         this.content.push(icon);
       }
 
       // Spell name (nameplate)
-      const nameBg = s.add.nineslice(nameX, rowY, 'ui-nameplate', null, nameW, 36, 7, 7, 7, 7)
+      const nameBg = s.add.nineslice(nameX, rowY, 'ui-nameplate', null, nameW, 28, 4, 4, 4, 4)
         .setScrollFactor(0).setDepth(DEPTH + 3);
       if (isChosen) nameBg.setTint(SLOT_COLORS[slot].tint);
       this.content.push(nameBg);
 
       const nameColor = isChosen ? '#ffffff' : '#3a2218';
       const nameText = s.add.text(nameX, rowY - 4, def.name, {
-        fontSize: '16px', fontFamily: UI_FONT, fill: nameColor,
+        fontSize: '13px', fontFamily: UI_FONT, fill: nameColor,
         fontStyle: isChosen ? 'bold' : 'normal',
       }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
       this.content.push(nameText);
 
       // Hit area for the whole row
-      const hit = s.add.nineslice(LCX, rowY, 'ui-inventory-cell', null, LW - 10, rowH - 4, 7, 7, 7, 7)
+      const hit = s.add.nineslice(LCX, rowY, 'ui-inventory-cell', null, LW - 10, rowH - 4, 4, 4, 4, 4)
         .setScrollFactor(0).setDepth(DEPTH + 5).setAlpha(0.001)
         .setInteractive({ useHandCursor: !isChosen && canAfford });
       this.content.push(hit);
@@ -400,7 +399,7 @@ export class ShopOverlay {
     const RR = RCX + RW / 2;  // right panel right edge
 
     // Right panel background
-    const rightPanel = s.add.nineslice(RCX, panelCY, 'ui-panel', null, RW, panelH, 7, 7, 7, 7)
+    const rightPanel = s.add.nineslice(RCX, panelCY, 'ui-panel', null, RW, panelH, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 2);
     this.content.push(rightPanel);
 
@@ -423,14 +422,14 @@ export class ShopOverlay {
     const frameX = RL + 60;
     const frameY = panelTop + 60;
 
-    const frameBg = s.add.nineslice(frameX, frameY, 'ui-inventory-cell', null, 80, 80, 7, 7, 7, 7)
+    const frameBg = s.add.nineslice(frameX, frameY, 'ui-inventory-cell', null, 64, 64, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(frameBg);
 
     if (def.icon && s.textures.exists(def.icon)) {
       const bigIcon = s.add.image(frameX, frameY, def.icon)
         .setScrollFactor(0).setDepth(DEPTH + 4);
-      const iconScale = 56 / Math.max(bigIcon.width, bigIcon.height);
+      const iconScale = 44 / Math.max(bigIcon.width, bigIcon.height);
       bigIcon.setScale(iconScale);
       this.content.push(bigIcon);
     }
@@ -438,31 +437,31 @@ export class ShopOverlay {
     // Spell name title bar — to the right of the icon
     const nameCX = frameX + 50 + (RR - frameX - 50) / 2;
     const nameTitleW = Math.min(RR - frameX - 70, 400);
-    const nameBar = s.add.nineslice(nameCX, frameY - 15, 'ui-title-bar', null, nameTitleW, 44, 7, 7, 7, 7)
+    const nameBar = s.add.nineslice(nameCX, frameY - 15, 'ui-title-bar', null, nameTitleW, 36, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(nameBar);
 
     const nameText = s.add.text(nameCX, frameY - 15, def.name, {
-      fontSize: '32px', fontFamily: UI_FONT, fill: SLOT_COLORS[slot].hex, fontStyle: 'bold',
+      fontSize: '24px', fontFamily: UI_FONT, fill: SLOT_COLORS[slot].hex, fontStyle: 'bold',
       stroke: '#000000', strokeThickness: 2,
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
     this.content.push(nameText);
 
     // Description
     const desc = s.add.text(nameCX, frameY + 10, def.description, {
-      fontSize: '16px', fontFamily: UI_FONT, fill: '#5a3a28',
+      fontSize: '13px', fontFamily: UI_FONT, fill: '#5a3a28',
       wordWrap: { width: nameTitleW - 20 }, align: 'center',
     }).setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5, 0);
     this.content.push(desc);
 
     // ── Middle: Stat Bars ──
     const statsStartY = frameY + 64;
-    const statsHeaderBg = s.add.nineslice(RCX, statsStartY, 'ui-nameplate', null, Math.min(320, RW - 60), 38, 7, 7, 7, 7)
+    const statsHeaderBg = s.add.nineslice(RCX, statsStartY, 'ui-nameplate', null, Math.min(320, RW - 60), 30, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(statsHeaderBg);
 
     const statsHeader = s.add.text(RCX, statsStartY - 4, 'Değerler', {
-      fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
+      fontSize: '13px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
     this.content.push(statsHeader);
 
@@ -470,7 +469,7 @@ export class ShopOverlay {
     const visibleStats = STAT_DEFS.filter(sd => stats[sd.key] != null && stats[sd.key] !== 0);
 
     for (const sd of visibleStats) {
-      statY += 32;
+      statY += 26;
       this._buildStatBar(sd, stats[sd.key], statY, slot);
     }
 
@@ -480,18 +479,18 @@ export class ShopOverlay {
     const tierCX = tierLeftX + 100;
 
     // Tier header
-    const tierHeaderBg = s.add.nineslice(tierCX, tierY, 'ui-nameplate', null, 160, 38, 7, 7, 7, 7)
+    const tierHeaderBg = s.add.nineslice(tierCX, tierY, 'ui-nameplate', null, 160, 30, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(tierHeaderBg);
 
     const tierHeader = s.add.text(tierCX, tierY - 4, `Pâye ${currentTier}/${maxTier}`, {
-      fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
+      fontSize: '13px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
     this.content.push(tierHeader);
 
     // Tier dots
-    const dotSize = 28;
-    const dotGap = 6;
+    const dotSize = 22;
+    const dotGap = 4;
     const dotsW = maxTier * dotSize + (maxTier - 1) * dotGap;
     const dotsStartX = tierCX - dotsW / 2 + dotSize / 2;
 
@@ -502,13 +501,13 @@ export class ShopOverlay {
 
       const dot = s.add.nineslice(
         dx, dy, filled ? 'ui-focus' : 'ui-inventory-cell', null,
-        dotSize, dotSize, 5, 5, 5, 5
+        dotSize, dotSize, filled ? 2 : 4, filled ? 2 : 4, filled ? 2 : 4, filled ? 2 : 4
       ).setScrollFactor(0).setDepth(DEPTH + 3);
       if (filled) dot.setTint(SLOT_COLORS[slot].tint);
       this.content.push(dot);
 
       const num = s.add.text(dx, dy, `${t + 1}`, {
-        fontSize: '16px', fontFamily: UI_FONT,
+        fontSize: '13px', fontFamily: UI_FONT,
         fill: filled ? '#ffffff' : '#666666', fontStyle: 'bold',
         stroke: filled ? '#000000' : undefined,
         strokeThickness: filled ? 2 : 0,
@@ -521,7 +520,7 @@ export class ShopOverlay {
     for (let t = 0; t < currentTier && t < tree.tiers.length; t++) {
       const tier = tree.tiers[t];
       const check = s.add.text(tierLeftX, completedY, `✓ T${t + 1}: ${tier.name}`, {
-        fontSize: '16px', fontFamily: UI_FONT, fill: '#1a7733',
+        fontSize: '13px', fontFamily: UI_FONT, fill: '#1a7733',
       }).setScrollFactor(0).setDepth(DEPTH + 3);
       this.content.push(check);
       completedY += 22;
@@ -535,17 +534,17 @@ export class ShopOverlay {
     if (nextTier) {
       const upgradeY = tierY;
 
-      const upgBox = s.add.nineslice(upgradeX, upgradeY + 20, 'ui-panel-2', null, upgBoxW, 96, 7, 7, 7, 7)
+      const upgBox = s.add.nineslice(upgradeX, upgradeY + 20, 'ui-panel-2', null, upgBoxW, 96, 4, 4, 4, 4)
         .setScrollFactor(0).setDepth(DEPTH + 3);
       this.content.push(upgBox);
 
       const upgTitle = s.add.text(upgradeX, upgradeY - 2, `Sonraki: ${nextTier.name}`, {
-        fontSize: '16px', fontFamily: UI_FONT, fill: '#2a1a08', fontStyle: 'bold',
+        fontSize: '13px', fontFamily: UI_FONT, fill: '#2a1a08', fontStyle: 'bold',
       }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5, 0);
       this.content.push(upgTitle);
 
       const upgDesc = s.add.text(upgradeX, upgradeY + 18, nextTier.description, {
-        fontSize: '16px', fontFamily: UI_FONT, fill: '#5a3a28',
+        fontSize: '13px', fontFamily: UI_FONT, fill: '#5a3a28',
         wordWrap: { width: upgBoxW - 30 }, align: 'center',
       }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5, 0);
       this.content.push(upgDesc);
@@ -586,7 +585,7 @@ export class ShopOverlay {
         .map(([k, v]) => typeof v === 'boolean' ? `${MOD_LABELS[k] || k}: ${v ? 'evet' : 'hayır'}` : `${MOD_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v}`)
         .join(', ');
       const upgMods = s.add.text(upgradeX, upgradeY + 38, modText, {
-        fontSize: '16px', fontFamily: UI_FONT, fill: '#2a4466',
+        fontSize: '13px', fontFamily: UI_FONT, fill: '#2a4466',
         wordWrap: { width: upgBoxW - 30 }, align: 'center',
       }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5, 0);
       this.content.push(upgMods);
@@ -597,12 +596,12 @@ export class ShopOverlay {
       upgBox.setY(upgradeY - 10 + boxH / 2);
 
     } else {
-      const maxBadge = s.add.nineslice(upgradeX, tierY + 20, 'ui-panel-interior', null, 240, 48, 7, 7, 7, 7)
+      const maxBadge = s.add.nineslice(upgradeX, tierY + 20, 'ui-panel-interior', null, 240, 48, 4, 4, 4, 4)
         .setScrollFactor(0).setDepth(DEPTH + 3);
       this.content.push(maxBadge);
 
       const maxLabel = s.add.text(upgradeX, tierY + 20, '✦ EN ÜST PÂYE ✦', {
-        fontSize: '16px', fontFamily: UI_FONT, fill: '#ffdd44', fontStyle: 'bold',
+        fontSize: '13px', fontFamily: UI_FONT, fill: '#ffdd44', fontStyle: 'bold',
         stroke: '#000000', strokeThickness: 2,
       }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
       this.content.push(maxLabel);
@@ -620,22 +619,22 @@ export class ShopOverlay {
     const RR = RCX + RW / 2;
 
     const labelX = RL + 20;
-    const labelW = 100;
+    const labelW = 80;
     const barL = labelX + labelW + 8;
     const barR = RR - 60;
     const barW = barR - barL;
     const barCX = barL + barW / 2;
-    const barH = 24;
+    const barH = 20;
     const fillMaxW = barW - 20;
 
     // Label — nudge up 4px so KiwiSoda descenders don't clip the bar
     const label = s.add.text(labelX, y - 4, `${statDef.label}:`, {
-      fontSize: '16px', fontFamily: UI_FONT, fill: '#3a2218',
+      fontSize: '13px', fontFamily: UI_FONT, fill: '#3a2218',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0, 0.5);
     this.content.push(label);
 
     // Bar container
-    const container = s.add.nineslice(barCX, y, 'ui-panel-interior', null, barW, barH, 7, 7, 7, 7)
+    const container = s.add.nineslice(barCX, y, 'ui-panel-interior', null, barW, barH, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 3);
     this.content.push(container);
 
@@ -650,14 +649,14 @@ export class ShopOverlay {
     const fill = s.add.nineslice(
       fillLeftEdge + fillW / 2, y,
       'ui-slider-progress', null,
-      fillW, 10, 2, 2, 1, 1
+      fillW, 8, 2, 2, 1, 1
     ).setScrollFactor(0).setDepth(DEPTH + 4).setTint(SLOT_COLORS[slot].tint);
     this.content.push(fill);
 
     // Value text — nudge up 4px to match label
     const displayVal = statDef.fmt(value);
     const valText = s.add.text(barR + 6, y - 4, displayVal, {
-      fontSize: '16px', fontFamily: UI_FONT, fill: '#2a4466',
+      fontSize: '13px', fontFamily: UI_FONT, fill: '#2a4466',
     }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0, 0.5);
     this.content.push(valText);
   }
@@ -683,7 +682,7 @@ export class ShopOverlay {
     const barY = this._bodyBot + 30;
     const btnX = this._W - this._margin - 140;
     const { elements: btnEls } = createNinesliceButton(s, btnX, barY, `Pişir (${cost} İlham)`, {
-      width: 240, height: 40, depth: DEPTH + 3, fontSize: '16px',
+      width: 200, height: 34, depth: DEPTH + 3, fontSize: '13px',
       enabled: canUpgrade,
       onClick: () => {
         if (s.network && s.network.connected) {
@@ -706,8 +705,8 @@ export class ShopOverlay {
     const cx = this._W / 2;
     const cy = this._bodyCY;
 
-    const lockIcon = s.add.text(cx, cy - 46, '🔒', { fontSize: '48px' })
-      .setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5);
+    const lockIcon = s.add.image(cx, cy - 46, 'spell-BookDarkness-off').setDisplaySize(36, 36).setDepth(DEPTH + 3)
+      .setScrollFactor(0).setOrigin(0.5);
     this.content.push(lockIcon);
 
     const label = s.add.text(cx, cy + 14, `[${slot}] ${SLOT_NAMES[slot]} — KİLİTLİ`, {
@@ -716,7 +715,7 @@ export class ShopOverlay {
     this.content.push(label);
 
     const costLabel = s.add.text(cx, cy + 54, `Açmak için ${SP.SLOT_UNLOCK_COST} İlham gerekir`, {
-      fontSize: '16px', fontFamily: UI_FONT, fill: '#8a7a6a',
+      fontSize: '13px', fontFamily: UI_FONT, fill: '#8a7a6a',
     }).setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5);
     this.content.push(costLabel);
 
@@ -725,7 +724,7 @@ export class ShopOverlay {
     const barY = this._bodyBot + 30;
     const btnX = this._W - this._margin - 140;
     const { elements: btnEls } = createNinesliceButton(s, btnX, barY, `Kilidi Aç (${SP.SLOT_UNLOCK_COST} İlham)`, {
-      width: 260, height: 40, depth: DEPTH + 3, fontSize: '16px',
+      width: 260, height: 40, depth: DEPTH + 3, fontSize: '13px',
       enabled: canUnlock,
       onClick: () => {
         if (s.network && s.network.connected) {
@@ -763,14 +762,14 @@ export class ShopOverlay {
     const text = lines.join('\n');
 
     const tipText = s.add.text(x, y, text, {
-      fontSize: '16px', fontFamily: UI_FONT, fill: '#2a1a08', lineSpacing: 4,
-      wordWrap: { width: 260 }, align: 'center',
+      fontSize: '13px', fontFamily: UI_FONT, fill: '#2a1a08', lineSpacing: 4,
+      wordWrap: { width: 220 }, align: 'center',
     }).setScrollFactor(0).setDepth(DEPTH + 11).setOrigin(0, 0.5);
 
     const tipH = tipText.height + 16;
-    const tipW = 280;
+    const tipW = 240;
     const tipBg = s.add.nineslice(
-      x + tipW / 2, y, 'ui-panel-2', null, tipW, tipH, 7, 7, 7, 7
+      x + tipW / 2, y, 'ui-panel-2', null, tipW, tipH, 4, 4, 4, 4
     ).setScrollFactor(0).setDepth(DEPTH + 10);
 
     tipText.setX(x + 10);

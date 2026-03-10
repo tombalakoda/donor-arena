@@ -100,14 +100,14 @@ export class LobbyOverlay {
     const DEPTH = 280;
 
     // Semi-transparent overlay
-    const bg = scene.add.rectangle(camW / 2, camH / 2, camW, camH, 0x000000, 0.6)
-      .setScrollFactor(0).setDepth(DEPTH).setInteractive();
+    const bg = scene.add.nineslice(camW / 2, camH / 2, 'ui-bg-2', null, camW, camH, 4, 4, 4, 4)
+      .setScrollFactor(0).setDepth(DEPTH).setTint(0x000000).setAlpha(0.6).setInteractive();
     this.elements.push(bg);
 
     // Main panel — nineslice (taller for lobby mode to fit start button)
-    const panelW = 440;
-    const panelH = this.lobbyMode ? 400 : 350;
-    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 7, 7, 7, 7)
+    const panelW = 380;
+    const panelH = this.lobbyMode ? 340 : 300;
+    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 4, 4, 4, 4)
       .setScrollFactor(0).setDepth(DEPTH + 1);
     this.elements.push(panel);
 
@@ -115,7 +115,7 @@ export class LobbyOverlay {
     const py = camH / 2 - panelH / 2;
     const titleLabel = this.lobbyMode ? 'ODA HAZIR' : 'ÂŞIKLAR BEKLENİYOR';
     this.titleText = scene.add.text(camW / 2, py + 30, titleLabel, {
-      fontSize: '32px',
+      fontSize: '24px',
       fontFamily: UI_FONT,
       fill: '#ffdd44',
       stroke: '#000000',
@@ -141,7 +141,7 @@ export class LobbyOverlay {
 
     // Subtitle
     const sub = scene.add.text(camW / 2, py + 55, 'ÂŞIKLAR MEYDANE', {
-      fontSize: '16px',
+      fontSize: '13px',
       fontFamily: UI_FONT,
       fill: '#3a2218',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
@@ -149,15 +149,15 @@ export class LobbyOverlay {
 
     // Player count
     this.countText = scene.add.text(camW / 2, py + 80, `0 / ${MATCH.MAX_PLAYERS} âşık`, {
-      fontSize: '16px',
+      fontSize: '13px',
       fontFamily: UI_FONT,
       fill: '#1a5588',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
     this.elements.push(this.countText);
 
     // --- Player slots grid (2 rows x 4 cols) ---
-    const slotSize = 72;
-    const gap = 12;
+    const slotSize = 56;
+    const gap = 10;
     const gridCols = 4;
     const gridRows = 2;
     const gridW = gridCols * slotSize + (gridCols - 1) * gap;
@@ -171,18 +171,18 @@ export class LobbyOverlay {
         const sy = gridStartY + row * (slotSize + gap + 8);
 
         // Focus highlight (behind slot, initially hidden)
-        const focusHighlight = scene.add.nineslice(sx, sy, 'ui-focus', null, slotSize + 6, slotSize + 6, 7, 7, 7, 7)
+        const focusHighlight = scene.add.nineslice(sx, sy, 'ui-focus', null, slotSize + 4, slotSize + 4, 2, 2, 2, 2)
           .setTint(0xffdd44).setScrollFactor(0).setDepth(DEPTH + 2).setVisible(false);
         this.elements.push(focusHighlight);
 
         // Slot background — nineslice inventory cell
-        const slotBg = scene.add.nineslice(sx, sy, 'ui-inventory-cell', null, slotSize, slotSize, 7, 7, 7, 7)
+        const slotBg = scene.add.nineslice(sx, sy, 'ui-inventory-cell', null, slotSize, slotSize, 4, 4, 4, 4)
           .setScrollFactor(0).setDepth(DEPTH + 2);
         this.elements.push(slotBg);
 
         // Placeholder "?"
         const placeholder = scene.add.text(sx, sy - 8, '?', {
-          fontSize: '32px',
+          fontSize: '24px',
           fontFamily: UI_FONT,
           fill: '#5a3a28',
         }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 3);
@@ -190,17 +190,15 @@ export class LobbyOverlay {
 
         // Name (empty initially)
         const nameText = scene.add.text(sx, sy + 28, '', {
-          fontSize: '16px',
+          fontSize: '12px',
           fontFamily: UI_FONT,
           fill: '#5a3a28',
         }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 3);
         this.elements.push(nameText);
 
         // Host crown icon (hidden by default)
-        const hostIcon = scene.add.text(sx + slotSize / 2 - 4, sy - slotSize / 2 + 4, '★', {
-          fontSize: '16px',
-          fill: '#ffdd44',
-        }).setOrigin(1, 0).setScrollFactor(0).setDepth(DEPTH + 4).setVisible(false);
+        const hostIcon = scene.add.image(sx + slotSize / 2 - 4, sy - slotSize / 2 + 4, 'spell-AttackUpgrade')
+          .setDisplaySize(14, 14).setTint(0xffdd44).setOrigin(1, 0).setScrollFactor(0).setDepth(DEPTH + 4).setVisible(false);
         this.elements.push(hostIcon);
 
         this.playerSlots.push({ bg: slotBg, focusHighlight, placeholder, nameText, faceSprite: null, hostIcon });
@@ -210,7 +208,7 @@ export class LobbyOverlay {
     // --- Tip text ---
     this.tipIndex = 0;
     this.tipText = scene.add.text(camW / 2, py + panelH - 30, TIPS[0], {
-      fontSize: '16px',
+      fontSize: '12px',
       fontFamily: UI_FONT,
       fill: '#5a3a28',
       fontStyle: 'italic',
@@ -241,10 +239,10 @@ export class LobbyOverlay {
     // BAŞLAT button — only visible to host
     const btnY = camH / 2 + 140;
     const { elements } = createNinesliceButton(scene, camW / 2, btnY, 'BAŞLAT', {
-      width: 180,
-      height: 44,
+      width: 150,
+      height: 36,
       depth: DEPTH + 5,
-      fontSize: '16px',
+      fontSize: '12px',
       enabled: true,
       onClick: () => {
         if (scene.network) {
