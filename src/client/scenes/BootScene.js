@@ -203,9 +203,9 @@ export class BootScene extends Phaser.Scene {
     });
 
     // --- Load Arena Maps (hand-designed in editor.html) ---
-    // Load all arena variants for per-round obstacle rotation
-    for (let i = 0; i <= 9; i++) {
-      this.load.json(`arena-map-${i}`, `assets/maps/arena${i}.json`);
+    // Load all map variants for per-round rotation (map1..map29)
+    for (let i = 1; i <= 29; i++) {
+      this.load.json(`arena-map-${i}`, `assets/maps/map${i}.json`);
     }
     // Fallback default map
     this.load.json('arena-map', 'assets/maps/arena-default.json');

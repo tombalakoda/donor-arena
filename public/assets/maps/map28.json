@@ -34909,40 +34909,60 @@
   ],
   "obstacles": [
     {
-      "x": 595.3911854545453,
-      "y": 561.6820363636363,
+      "x": 691.1530317878576,
+      "y": 382.2281206667133,
+      "radius": 24,
+      "tileset": "tile-dungeon",
+      "frame": 28,
+      "scale": 3,
+      "type": "bouncer"
+    },
+    {
+      "x": 533.6854993203252,
+      "y": 900.085263523856,
+      "radius": 24,
+      "tileset": "tile-dungeon",
+      "frame": 30,
+      "scale": 3,
+      "type": "explosive"
+    },
+    {
+      "x": 694.3997850346109,
+      "y": 239.37097780957055,
+      "radius": 24,
+      "tileset": "tile-dungeon",
+      "frame": 30,
+      "scale": 3,
+      "type": "explosive"
+    },
+    {
+      "x": 522.3218629566888,
+      "y": 711.7735752121678,
+      "radius": 24,
+      "tileset": "tile-dungeon",
+      "frame": 28,
+      "scale": 3,
+      "type": "bouncer"
+    },
+    {
+      "x": 601.8673175021434,
+      "y": 536.4488998874925,
       "radius": 24,
       "tileset": "tile-dungeon",
       "frame": 29,
       "scale": 3
     },
     {
-      "x": 590.2823563636363,
-      "y": 257.7067054545454,
+      "x": 908.6854993203251,
+      "y": 390.34500378359644,
       "radius": 24,
       "tileset": "tile-dungeon",
       "frame": 29,
       "scale": 3
     },
     {
-      "x": 590.2823563636363,
-      "y": 855.439709090909,
-      "radius": 24,
-      "tileset": "tile-dungeon",
-      "frame": 29,
-      "scale": 3
-    },
-    {
-      "x": 927.4650763636363,
-      "y": 569.3452799999999,
-      "radius": 24,
-      "tileset": "tile-dungeon",
-      "frame": 29,
-      "scale": 3
-    },
-    {
-      "x": 316.95999999999987,
-      "y": 551.4643781818181,
+      "x": 330.7634213982473,
+      "y": 716.6437050822976,
       "radius": 24,
       "tileset": "tile-dungeon",
       "frame": 29,

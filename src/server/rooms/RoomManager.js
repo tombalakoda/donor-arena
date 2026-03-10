@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFileSync, readdirSync } from 'fs';
 import path from 'path';
 import { Room } from './Room.js';
 import { MATCH } from '../../shared/constants.js';
@@ -13,12 +13,24 @@ export class RoomManager {
 
   // Load arena maps once at startup (avoids blocking I/O in Room constructor)
   loadMaps(mapsDir) {
-    for (let i = 0; i <= 9; i++) {
-      try {
-        const mapPath = path.join(mapsDir, `arena${i}.json`);
-        this.arenaMaps.push(JSON.parse(readFileSync(mapPath, 'utf-8')));
-      } catch (e) { /* skip missing */ }
-    }
+    // Scan for map*.json files and sort numerically
+    try {
+      const files = readdirSync(mapsDir)
+        .filter(f => /^map\d+\.json$/.test(f))
+        .sort((a, b) => {
+          const na = parseInt(a.match(/\d+/)[0], 10);
+          const nb = parseInt(b.match(/\d+/)[0], 10);
+          return na - nb;
+        });
+      for (const file of files) {
+        try {
+          const mapPath = path.join(mapsDir, file);
+          this.arenaMaps.push(JSON.parse(readFileSync(mapPath, 'utf-8')));
+        } catch (e) {
+          console.warn(`Failed to load map: ${file}`, e.message);
+        }
+      }
+    } catch (e) { /* directory read failed */ }
     if (this.arenaMaps.length === 0) {
       try {
         const mapPath = path.join(mapsDir, 'arena-default.json');

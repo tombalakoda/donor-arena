@@ -923,7 +923,7 @@ export class GameScene extends Phaser.Scene {
   createArena() {
     // Load all arena map variants for per-round obstacle rotation
     this.arenaMaps = [];
-    for (let i = 0; i <= 9; i++) {
+    for (let i = 1; i <= 29; i++) {
       const m = this.cache.json.get(`arena-map-${i}`);
       if (m) this.arenaMaps.push(m);
     }

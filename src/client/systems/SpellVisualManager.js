@@ -253,23 +253,98 @@ export class SpellVisualManager {
       }
 
       case SPELL_TYPES.WALL: {
-        // Shadow underneath (tinted blue)
+        const wallRadius = spell.wallRadius || 22;
+
+        // Shadow underneath (tinted blue) — starts small, scales up
         const wallShadow = scene.add.ellipse(
           spell.x + 3, spell.y + 4,
-          (spell.wallRadius || 22) * 2.6,
-          (spell.wallRadius || 22) * 1.6,
+          wallRadius * 2.6,
+          wallRadius * 1.6,
           0x224466, 0.35
         );
         wallShadow.setDepth(4);
+        wallShadow.setScale(0);
         visual.shadow = wallShadow;
 
-        // Pillar sprite with ice blue tint
+        // Pillar sprite with ice blue tint — spawns from ground
         const wallSprite = scene.add.sprite(spell.x, spell.y, 'tile-dungeon', 29);
-        wallSprite.setScale(2.75);
+        wallSprite.setScale(0);
         wallSprite.setOrigin(0.5, 0.5);
         wallSprite.setDepth(5);
         wallSprite.setTint(0x88ccee);
+        wallSprite.setAlpha(0.6);
         visual.sprite = wallSprite;
+
+        // --- Spawn FX ---
+
+        // Ground ring expands outward
+        const ring = scene.add.circle(spell.x, spell.y, 5, 0x88ccee, 0);
+        ring.setStrokeStyle(2, 0xaaddff, 0.8);
+        ring.setDepth(4);
+        scene.tweens.add({
+          targets: ring,
+          radius: wallRadius * 1.8,
+          alpha: 0,
+          duration: 350,
+          ease: 'Quad.easeOut',
+          onUpdate: () => { ring.setStrokeStyle(2, 0xaaddff, ring.alpha); },
+          onComplete: () => ring.destroy(),
+        });
+
+        // Ice crystal burst (plays once)
+        if (scene.anims.exists('fx-ice-play')) {
+          const iceFx = scene.add.sprite(spell.x, spell.y - 8, 'fx-ice');
+          iceFx.setScale(2.5);
+          iceFx.setDepth(6);
+          iceFx.setAlpha(0.8);
+          iceFx.play('fx-ice-play');
+          iceFx.once('animationcomplete', () => iceFx.destroy());
+        }
+
+        // Pillar rises up with bounce
+        scene.tweens.add({
+          targets: wallSprite,
+          scaleX: 2.75,
+          scaleY: 2.75,
+          alpha: 1,
+          duration: 300,
+          ease: 'Back.easeOut',
+        });
+
+        // Shadow scales in
+        scene.tweens.add({
+          targets: wallShadow,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 300,
+          ease: 'Quad.easeOut',
+        });
+
+        // Frost particles scatter outward
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI * 2 / 6) * i + Math.random() * 0.3;
+          const dist = wallRadius + 10 + Math.random() * 15;
+          const px = spell.x + Math.cos(angle) * dist;
+          const py = spell.y + Math.sin(angle) * dist;
+          const particle = scene.add.circle(
+            spell.x, spell.y,
+            2 + Math.random() * 2,
+            0xcceeFF, 0.7
+          );
+          particle.setDepth(6);
+          scene.tweens.add({
+            targets: particle,
+            x: px,
+            y: py,
+            alpha: 0,
+            scaleX: 0.3,
+            scaleY: 0.3,
+            duration: 300 + Math.random() * 200,
+            ease: 'Quad.easeOut',
+            onComplete: () => particle.destroy(),
+          });
+        }
+
         break;
       }
 
