@@ -51,6 +51,23 @@ const FX_MAGIC = {
   spirit:     { file: 'Spirit/SpriteSheet.png',             frameW: 32, frameH: 32 },
 };
 
+const FX_SLASH = {
+  'circular-slash': { file: 'SlashFx/CircularSlash/SpriteSheet.png', frameW: 32, frameH: 32 },
+  'slash':          { file: 'SlashFx/Slash/SpriteSheet.png',         frameW: 32, frameH: 32 },
+  'slash-double':   { file: 'SlashFx/SlashDouble/SpriteSheet.png',   frameW: 32, frameH: 32 },
+};
+
+const FX_SMOKE = {
+  'smoke-circular': { file: 'Smoke/SmokeCircular/SpriteSheet.png', frameW: 16, frameH: 14 },
+};
+
+const FX_PARTICLES = {
+  'particle-snow':  { file: 'Particle/Snow.png',  frameW: 8,  frameH: 8 },
+  'particle-fire':  { file: 'Particle/Fire.png',   frameW: 12, frameH: 12 },
+  'particle-spark': { file: 'Particle/Spark.png',  frameW: 10, frameH: 8 },
+  'particle-rock':  { file: 'Particle/Rock.png',   frameW: 16, frameH: 16 },
+};
+
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -184,6 +201,24 @@ export class BootScene extends Phaser.Scene {
     for (const [name, fx] of Object.entries(FX_MAGIC)) {
       this.load.spritesheet(`fx-${name}`,
         `assets/fx/magic/${fx.file}`,
+        { frameWidth: fx.frameW, frameHeight: fx.frameH }
+      );
+    }
+    for (const [name, fx] of Object.entries(FX_SLASH)) {
+      this.load.spritesheet(`fx-${name}`,
+        `assets/fx/${fx.file}`,
+        { frameWidth: fx.frameW, frameHeight: fx.frameH }
+      );
+    }
+    for (const [name, fx] of Object.entries(FX_SMOKE)) {
+      this.load.spritesheet(`fx-${name}`,
+        `assets/fx/${fx.file}`,
+        { frameWidth: fx.frameW, frameHeight: fx.frameH }
+      );
+    }
+    for (const [name, fx] of Object.entries(FX_PARTICLES)) {
+      this.load.spritesheet(`fx-${name}`,
+        `assets/fx/${fx.file}`,
         { frameWidth: fx.frameW, frameHeight: fx.frameH }
       );
     }
@@ -375,6 +410,40 @@ export class BootScene extends Phaser.Scene {
             end: texture.frameTotal - 2,
           }),
           frameRate: 12,
+          repeat: 0,
+        });
+      }
+    }
+
+    // Slash FX animations
+    for (const [name] of Object.entries(FX_SLASH)) {
+      const key = `fx-${name}`;
+      const texture = this.textures.get(key);
+      if (texture && texture.frameTotal > 1) {
+        this.anims.create({
+          key: `${key}-play`,
+          frames: this.anims.generateFrameNumbers(key, {
+            start: 0,
+            end: texture.frameTotal - 2,
+          }),
+          frameRate: 14,
+          repeat: 0,
+        });
+      }
+    }
+
+    // Smoke FX animations
+    for (const [name] of Object.entries(FX_SMOKE)) {
+      const key = `fx-${name}`;
+      const texture = this.textures.get(key);
+      if (texture && texture.frameTotal > 1) {
+        this.anims.create({
+          key: `${key}-play`,
+          frames: this.anims.generateFrameNumbers(key, {
+            start: 0,
+            end: texture.frameTotal - 2,
+          }),
+          frameRate: 16,
           repeat: 0,
         });
       }

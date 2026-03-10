@@ -459,26 +459,30 @@ export class GameScene extends Phaser.Scene {
                   isLocal && this.playerBody ? { x: this.playerBody.position.x, y: this.playerBody.position.y } : null;
 
       if (pos) {
-        // Burst effect at elimination point
-        const burst = this.add.circle(pos.x, pos.y, 30, 0xff4444, 0.8);
-        burst.setDepth(20);
-        this.tweens.add({
-          targets: burst,
-          scaleX: 4, scaleY: 4, alpha: 0,
-          duration: 600,
-          onComplete: () => burst.destroy(),
-        });
+        // Burst effect at elimination point — explosion sprite
+        if (this.anims.exists('fx-explosion-play')) {
+          const burst = this.add.sprite(pos.x, pos.y, 'fx-explosion');
+          burst.setScale(3);
+          burst.setDepth(20);
+          burst.play({ key: 'fx-explosion-play', repeat: 0 });
+          burst.once('animationcomplete', () => burst.destroy());
+        }
 
-        // Secondary ring burst
-        const ring = this.add.circle(pos.x, pos.y, 20, 0, 0);
-        ring.setStrokeStyle(3, 0xff6644, 0.9);
-        ring.setDepth(20);
-        this.tweens.add({
-          targets: ring,
-          scaleX: 5, scaleY: 5, alpha: 0,
-          duration: 800,
-          onComplete: () => ring.destroy(),
-        });
+        // Secondary ring burst — circular slash sprite
+        if (this.anims.exists('fx-circular-slash-play')) {
+          const ring = this.add.sprite(pos.x, pos.y, 'fx-circular-slash');
+          ring.setTint(0xff6644);
+          ring.setScale(1.5);
+          ring.setDepth(20);
+          ring.setAlpha(0.9);
+          ring.play({ key: 'fx-circular-slash-play', repeat: 0 });
+          this.tweens.add({
+            targets: ring,
+            scaleX: 6, scaleY: 6, alpha: 0,
+            duration: 800,
+            onComplete: () => ring.destroy(),
+          });
+        }
       }
 
       // Camera shake for everyone
@@ -1113,43 +1117,69 @@ export class GameScene extends Phaser.Scene {
       if (evt.type === 'explosive') {
         const explosionRadius = evt.explosionRadius || 120;
 
-        // Expanding circle flash
-        const flash = this.add.circle(x, y, 10, 0xff4444, 0.8);
-        flash.setDepth(15);
-        this.tweens.add({
-          targets: flash,
-          radius: explosionRadius,
-          alpha: 0,
-          duration: 400,
-          ease: 'Quad.easeOut',
-          onComplete: () => flash.destroy(),
-        });
+        // Explosion sprite animation
+        if (this.anims.exists('fx-explosion-play')) {
+          const explosion = this.add.sprite(x, y, 'fx-explosion');
+          explosion.setScale(explosionRadius / 20);
+          explosion.setDepth(16);
+          explosion.play({ key: 'fx-explosion-play', repeat: 0 });
+          explosion.once('animationcomplete', () => explosion.destroy());
+        }
 
-        // Inner bright core
-        const core = this.add.circle(x, y, 20, 0xffaa00, 1);
-        core.setDepth(16);
-        this.tweens.add({
-          targets: core,
-          scaleX: 3,
-          scaleY: 3,
-          alpha: 0,
-          duration: 300,
-          ease: 'Quad.easeOut',
-          onComplete: () => core.destroy(),
-        });
+        // Expanding ring flash
+        if (this.anims.exists('fx-circular-slash-play')) {
+          const ring = this.add.sprite(x, y, 'fx-circular-slash');
+          ring.setTint(0xff4444);
+          ring.setScale(1);
+          ring.setDepth(15);
+          ring.setAlpha(0.8);
+          ring.play({ key: 'fx-circular-slash-play', repeat: 0 });
+          this.tweens.add({
+            targets: ring,
+            scaleX: explosionRadius / 16, scaleY: explosionRadius / 16,
+            alpha: 0,
+            duration: 400,
+            ease: 'Quad.easeOut',
+            onComplete: () => ring.destroy(),
+          });
+        }
       } else {
-        // Breakable: simple crumble puff
-        const puff = this.add.circle(x, y, 16, 0xddaa44, 0.6);
-        puff.setDepth(15);
-        this.tweens.add({
-          targets: puff,
-          scaleX: 2.5,
-          scaleY: 2.5,
-          alpha: 0,
-          duration: 350,
-          ease: 'Quad.easeOut',
-          onComplete: () => puff.destroy(),
-        });
+        // Breakable: smoke puff + rock debris
+        if (this.anims.exists('fx-smoke-circular-play')) {
+          const puff = this.add.sprite(x, y, 'fx-smoke-circular');
+          puff.setTint(0xddaa44);
+          puff.setScale(3);
+          puff.setDepth(15);
+          puff.play({ key: 'fx-smoke-circular-play', repeat: 0 });
+          puff.once('animationcomplete', () => puff.destroy());
+        }
+
+        // Scatter rock debris particles
+        const rockKey = 'fx-particle-rock';
+        const rockTex = this.textures.exists(rockKey) ? this.textures.get(rockKey) : null;
+        const rockFrames = rockTex ? Math.max(1, rockTex.frameTotal - 1) : 0;
+        if (rockFrames > 0) {
+          for (let i = 0; i < 5; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 20 + Math.random() * 30;
+            const frame = Math.floor(Math.random() * rockFrames);
+            const debris = this.add.sprite(x, y, rockKey, frame);
+            debris.setScale(1.5 + Math.random());
+            debris.setDepth(15);
+            debris.setAlpha(0.8);
+            this.tweens.add({
+              targets: debris,
+              x: x + Math.cos(angle) * dist,
+              y: y + Math.sin(angle) * dist,
+              alpha: 0,
+              scaleX: 0.5,
+              scaleY: 0.5,
+              duration: 300 + Math.random() * 200,
+              ease: 'Quad.easeOut',
+              onComplete: () => debris.destroy(),
+            });
+          }
+        }
       }
     }
   }
@@ -1851,36 +1881,69 @@ export class GameScene extends Phaser.Scene {
       this.playerSprite.play(`${this.characterId}-idle-${this.facingDir}`);
     }
 
-    // Speed trail for knockback flights
+    // Speed trail for knockback flights (spark sprites)
     if (this.playerBody) {
       const trailVel = this.playerBody.velocity;
       const trailSpeed = Math.sqrt(trailVel.x * trailVel.x + trailVel.y * trailVel.y);
       const maxSpeed = PLAYER.SPEED * 0.05;
 
       if (trailSpeed > maxSpeed * 1.5) {
-        // Player is flying from knockback — add trail point
-        this.speedTrail.push({
-          x: this.playerBody.position.x,
-          y: this.playerBody.position.y,
-          alpha: 0.6,
-        });
-        if (this.speedTrail.length > 8) this.speedTrail.shift();
+        // Player is flying from knockback — spawn spark sprite
+        if (!this._trailSprites) this._trailSprites = [];
+        const sparkKey = 'fx-particle-spark';
+        const sparkTex = this.textures.exists(sparkKey) ? this.textures.get(sparkKey) : null;
+        const sparkFrames = sparkTex ? Math.max(1, sparkTex.frameTotal - 1) : 0;
+
+        if (sparkFrames > 0) {
+          const frame = Math.floor(Math.random() * sparkFrames);
+          const spark = this.add.sprite(this.playerBody.position.x, this.playerBody.position.y, sparkKey, frame);
+          spark.setScale(2 + Math.random() * 2);
+          spark.setDepth(5);
+          spark.setAlpha(0.6);
+          spark.setTint(0xffffff);
+          this._trailSprites.push(spark);
+          this.tweens.add({
+            targets: spark,
+            alpha: 0,
+            scaleX: 0.5,
+            scaleY: 0.5,
+            duration: 300,
+            ease: 'Quad.easeOut',
+            onComplete: () => {
+              spark.destroy();
+              if (this._trailSprites) {
+                const idx = this._trailSprites.indexOf(spark);
+                if (idx >= 0) this._trailSprites.splice(idx, 1);
+              }
+            },
+          });
+          if (this._trailSprites.length > 12) {
+            const old = this._trailSprites.shift();
+            if (old && !old.destroyed) old.destroy();
+          }
+        } else {
+          // Fallback to old graphics trail
+          this.speedTrail.push({
+            x: this.playerBody.position.x,
+            y: this.playerBody.position.y,
+            alpha: 0.6,
+          });
+          if (this.speedTrail.length > 8) this.speedTrail.shift();
+        }
       }
 
-      // Draw and fade trail
+      // Draw and fade fallback trail (only if spark sprites unavailable)
       if (this.speedTrail.length > 0) {
         if (!this.trailGraphics) {
           this.trailGraphics = this.add.graphics().setDepth(5);
         }
         this.trailGraphics.clear();
-        // Fade and remove expired trail points (backward for safe splice)
         for (let i = this.speedTrail.length - 1; i >= 0; i--) {
           this.speedTrail[i].alpha -= 0.06;
           if (this.speedTrail[i].alpha <= 0) {
             this.speedTrail.splice(i, 1);
           }
         }
-        // Draw remaining trail points (forward for correct visual ordering)
         for (let i = 0; i < this.speedTrail.length; i++) {
           const t = this.speedTrail[i];
           const size = 6 + (i / this.speedTrail.length) * 8;

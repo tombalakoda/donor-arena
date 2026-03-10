@@ -24,29 +24,43 @@ export class SpellVisualManager {
   // --- Spawn / Death burst helpers ---
 
   _spawnBurst(x, y, color) {
-    const ring = this.scene.add.circle(x, y, 4, color, 0.6);
-    ring.setDepth(17);
-    this.scene.tweens.add({
-      targets: ring,
-      radius: 18,
-      alpha: 0,
-      duration: 200,
-      ease: 'Quad.easeOut',
-      onComplete: () => ring.destroy(),
-    });
+    const scene = this.scene;
+    if (scene.anims.exists('fx-circle-play')) {
+      const burst = scene.add.sprite(x, y, 'fx-circle');
+      burst.setDepth(17);
+      burst.setScale(0.5);
+      burst.setAlpha(0.8);
+      burst.setTint(color);
+      burst.play({ key: 'fx-circle-play', repeat: 0 });
+      scene.tweens.add({
+        targets: burst,
+        scaleX: 2.0, scaleY: 2.0,
+        alpha: 0,
+        duration: 200,
+        ease: 'Quad.easeOut',
+        onComplete: () => burst.destroy(),
+      });
+    }
   }
 
   _deathBurst(x, y, color) {
-    const ring = this.scene.add.circle(x, y, 6, color, 0.5);
-    ring.setDepth(17);
-    this.scene.tweens.add({
-      targets: ring,
-      radius: 22,
-      alpha: 0,
-      duration: 250,
-      ease: 'Quad.easeOut',
-      onComplete: () => ring.destroy(),
-    });
+    const scene = this.scene;
+    if (scene.anims.exists('fx-circle-play')) {
+      const burst = scene.add.sprite(x, y, 'fx-circle');
+      burst.setDepth(17);
+      burst.setScale(0.8);
+      burst.setAlpha(0.7);
+      burst.setTint(color);
+      burst.play({ key: 'fx-circle-play', repeat: 0 });
+      scene.tweens.add({
+        targets: burst,
+        scaleX: 2.5, scaleY: 2.5,
+        alpha: 0,
+        duration: 250,
+        ease: 'Quad.easeOut',
+        onComplete: () => burst.destroy(),
+      });
+    }
   }
 
   createSpellVisual(spell) {
@@ -78,8 +92,14 @@ export class SpellVisualManager {
         const color = fx.color || 0xff4400;
         const glowColor = fx.glowColor || color;
 
-        const glow = scene.add.circle(spell.x, spell.y, (spell.radius || 5) + 6, glowColor, 0.25);
+        const glow = scene.add.sprite(spell.x, spell.y, 'fx-aura');
         glow.setDepth(15);
+        glow.setScale(1.2);
+        glow.setAlpha(0.3);
+        glow.setTint(glowColor);
+        if (scene.anims.exists('fx-aura-play')) {
+          glow.play({ key: 'fx-aura-play', repeat: -1 });
+        }
 
         const sprite = scene.add.sprite(spell.x, spell.y, spriteKey);
         sprite.setScale(scale);
@@ -135,13 +155,27 @@ export class SpellVisualManager {
         arrival.setAlpha(0.9);
         arrival.play({ key: animKey, repeat: 0 });
 
-        const trail = scene.add.graphics();
-        trail.setDepth(14);
-        trail.lineStyle(3, color, 0.6);
-        trail.beginPath();
-        trail.moveTo(spell.x, spell.y);
-        trail.lineTo(destX, destY);
-        trail.strokePath();
+        let trail;
+        const dx = destX - spell.x;
+        const dy = destY - spell.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        if (scene.anims.exists('fx-slash-play')) {
+          trail = scene.add.sprite((spell.x + destX) / 2, (spell.y + destY) / 2, 'fx-slash');
+          trail.setDepth(14);
+          trail.setScale(Math.max(1, dist / 32), 1.5);
+          trail.setRotation(Math.atan2(dy, dx));
+          trail.setTint(color);
+          trail.setAlpha(0.7);
+          trail.play({ key: 'fx-slash-play', repeat: 0 });
+        } else {
+          trail = scene.add.graphics();
+          trail.setDepth(14);
+          trail.lineStyle(3, color, 0.6);
+          trail.beginPath();
+          trail.moveTo(spell.x, spell.y);
+          trail.lineTo(destX, destY);
+          trail.strokePath();
+        }
 
         visual.sprite = departure;
         visual.arrival = arrival;
@@ -158,18 +192,32 @@ export class SpellVisualManager {
         const destX = spell.targetX || spell.x;
         const destY = spell.targetY || spell.y;
 
-        const trail = scene.add.graphics();
-        trail.setDepth(14);
-        trail.lineStyle(14, dashColor, 0.15);
-        trail.beginPath();
-        trail.moveTo(spell.x, spell.y);
-        trail.lineTo(destX, destY);
-        trail.strokePath();
-        trail.lineStyle(6, dashColor, 0.7);
-        trail.beginPath();
-        trail.moveTo(spell.x, spell.y);
-        trail.lineTo(destX, destY);
-        trail.strokePath();
+        let trail;
+        const ddx = destX - spell.x;
+        const ddy = destY - spell.y;
+        const dashDist = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
+        if (scene.anims.exists('fx-slash-double-play')) {
+          trail = scene.add.sprite((spell.x + destX) / 2, (spell.y + destY) / 2, 'fx-slash-double');
+          trail.setDepth(14);
+          trail.setScale(Math.max(1, dashDist / 32), 2.0);
+          trail.setRotation(Math.atan2(ddy, ddx));
+          trail.setTint(dashColor);
+          trail.setAlpha(0.7);
+          trail.play({ key: 'fx-slash-double-play', repeat: 0 });
+        } else {
+          trail = scene.add.graphics();
+          trail.setDepth(14);
+          trail.lineStyle(14, dashColor, 0.15);
+          trail.beginPath();
+          trail.moveTo(spell.x, spell.y);
+          trail.lineTo(destX, destY);
+          trail.strokePath();
+          trail.lineStyle(6, dashColor, 0.7);
+          trail.beginPath();
+          trail.moveTo(spell.x, spell.y);
+          trail.lineTo(destX, destY);
+          trail.strokePath();
+        }
 
         const arrival = scene.add.sprite(destX, destY, dashSprite);
         arrival.setScale(2.5);
@@ -278,18 +326,22 @@ export class SpellVisualManager {
         // --- Spawn FX ---
 
         // Ground ring expands outward
-        const ring = scene.add.circle(spell.x, spell.y, 5, 0x88ccee, 0);
-        ring.setStrokeStyle(2, 0xaaddff, 0.8);
-        ring.setDepth(4);
-        scene.tweens.add({
-          targets: ring,
-          radius: wallRadius * 1.8,
-          alpha: 0,
-          duration: 350,
-          ease: 'Quad.easeOut',
-          onUpdate: () => { ring.setStrokeStyle(2, 0xaaddff, ring.alpha); },
-          onComplete: () => ring.destroy(),
-        });
+        if (scene.anims.exists('fx-circular-slash-play')) {
+          const ring = scene.add.sprite(spell.x, spell.y, 'fx-circular-slash');
+          ring.setTint(0xaaddff);
+          ring.setScale(0.5);
+          ring.setDepth(4);
+          ring.setAlpha(0.8);
+          ring.play({ key: 'fx-circular-slash-play', repeat: 0 });
+          scene.tweens.add({
+            targets: ring,
+            scaleX: wallRadius / 10, scaleY: wallRadius / 10,
+            alpha: 0,
+            duration: 350,
+            ease: 'Quad.easeOut',
+            onComplete: () => ring.destroy(),
+          });
+        }
 
         // Ice crystal burst (plays once)
         if (scene.anims.exists('fx-ice-play')) {
@@ -320,18 +372,26 @@ export class SpellVisualManager {
           ease: 'Quad.easeOut',
         });
 
-        // Frost particles scatter outward
+        // Frost particles scatter outward (snow sprites)
+        const snowKey = 'fx-particle-snow';
+        const snowTexture = scene.textures.exists(snowKey) ? scene.textures.get(snowKey) : null;
+        const snowFrames = snowTexture ? Math.max(1, snowTexture.frameTotal - 1) : 1;
         for (let i = 0; i < 6; i++) {
           const angle = (Math.PI * 2 / 6) * i + Math.random() * 0.3;
           const dist = wallRadius + 10 + Math.random() * 15;
           const px = spell.x + Math.cos(angle) * dist;
           const py = spell.y + Math.sin(angle) * dist;
-          const particle = scene.add.circle(
-            spell.x, spell.y,
-            2 + Math.random() * 2,
-            0xcceeFF, 0.7
-          );
+          let particle;
+          if (snowTexture) {
+            const frame = Math.floor(Math.random() * snowFrames);
+            particle = scene.add.sprite(spell.x, spell.y, snowKey, frame);
+            particle.setScale(2 + Math.random());
+            particle.setTint(0xcceeFF);
+          } else {
+            particle = scene.add.circle(spell.x, spell.y, 2 + Math.random() * 2, 0xcceeFF, 0.7);
+          }
           particle.setDepth(6);
+          particle.setAlpha(0.7);
           scene.tweens.add({
             targets: particle,
             x: px,
@@ -349,10 +409,19 @@ export class SpellVisualManager {
       }
 
       case SPELL_TYPES.INSTANT: {
-        const ring = scene.add.circle(spell.x, spell.y, spell.radius || 75, 0xffdd44, 0.3);
-        ring.setDepth(5);
-        ring.setStrokeStyle(3, 0xffee66, 0.8);
-        ring.isFilled = false;
+        let ring;
+        if (scene.anims.exists('fx-circular-slash-play')) {
+          ring = scene.add.sprite(spell.x, spell.y, 'fx-circular-slash');
+          ring.setTint(0xffdd44);
+          ring.setScale((spell.radius || 75) / 16);
+          ring.setDepth(5);
+          ring.setAlpha(0.8);
+          ring.play({ key: 'fx-circular-slash-play', repeat: 0 });
+        } else {
+          ring = scene.add.circle(spell.x, spell.y, spell.radius || 75, 0xffdd44, 0.3);
+          ring.setDepth(5);
+          ring.setStrokeStyle(3, 0xffee66, 0.8);
+        }
         visual.sprite = ring;
         visual.lifetime = spell.lifetime || 500;
         break;
@@ -366,9 +435,19 @@ export class SpellVisualManager {
         visual.buffType = buffType;
 
         if (buffType === 'shield') {
-          const bubble = scene.add.circle(spell.x, spell.y, PLAYER.RADIUS + 8, 0x44aaff, 0.15);
-          bubble.setDepth(4);
-          bubble.setStrokeStyle(2.5, 0x88ccff, 0.7);
+          let bubble;
+          if (scene.anims.exists('fx-aura-play')) {
+            bubble = scene.add.sprite(spell.x, spell.y, 'fx-aura');
+            bubble.setDepth(4);
+            bubble.setScale((PLAYER.RADIUS + 8) / 12);
+            bubble.setAlpha(0.25);
+            bubble.setTint(0x44aaff);
+            bubble.play({ key: 'fx-aura-play', repeat: -1 });
+          } else {
+            bubble = scene.add.circle(spell.x, spell.y, PLAYER.RADIUS + 8, 0x44aaff, 0.15);
+            bubble.setDepth(4);
+            bubble.setStrokeStyle(2.5, 0x88ccff, 0.7);
+          }
           visual.sprite = bubble;
           // Animated shield sprite on top
           const shieldSpriteKey = fx.sprite || 'fx-shield';
@@ -388,9 +467,19 @@ export class SpellVisualManager {
             scene.sound.play('sfx-shield', { volume: 0.4 });
           }
         } else if (buffType === 'ghost') {
-          const ghostGlow = scene.add.circle(spell.x, spell.y, PLAYER.RADIUS + 6, 0xaabbff, 0.12);
-          ghostGlow.setDepth(4);
-          ghostGlow.setStrokeStyle(2, 0xccddff, 0.5);
+          let ghostGlow;
+          if (scene.anims.exists('fx-aura-play')) {
+            ghostGlow = scene.add.sprite(spell.x, spell.y, 'fx-aura');
+            ghostGlow.setDepth(4);
+            ghostGlow.setScale((PLAYER.RADIUS + 6) / 12);
+            ghostGlow.setAlpha(0.2);
+            ghostGlow.setTint(0xaabbff);
+            ghostGlow.play({ key: 'fx-aura-play', repeat: -1 });
+          } else {
+            ghostGlow = scene.add.circle(spell.x, spell.y, PLAYER.RADIUS + 6, 0xaabbff, 0.12);
+            ghostGlow.setDepth(4);
+            ghostGlow.setStrokeStyle(2, 0xccddff, 0.5);
+          }
           visual.sprite = ghostGlow;
           const spriteKey = fx.sprite || 'fx-spirit';
           const animKey = fx.animKey || 'fx-spirit-play';
@@ -403,9 +492,19 @@ export class SpellVisualManager {
             visual.glow = ghostFx;
           }
         } else {
-          const flashGlow = scene.add.circle(spell.x, spell.y, PLAYER.RADIUS + 5, 0xffdd00, 0.2);
-          flashGlow.setDepth(4);
-          flashGlow.setStrokeStyle(2, 0xffee44, 0.6);
+          let flashGlow;
+          if (scene.anims.exists('fx-aura-play')) {
+            flashGlow = scene.add.sprite(spell.x, spell.y, 'fx-aura');
+            flashGlow.setDepth(4);
+            flashGlow.setScale((PLAYER.RADIUS + 5) / 12);
+            flashGlow.setAlpha(0.25);
+            flashGlow.setTint(0xffdd00);
+            flashGlow.play({ key: 'fx-aura-play', repeat: -1 });
+          } else {
+            flashGlow = scene.add.circle(spell.x, spell.y, PLAYER.RADIUS + 5, 0xffdd00, 0.2);
+            flashGlow.setDepth(4);
+            flashGlow.setStrokeStyle(2, 0xffee44, 0.6);
+          }
           visual.sprite = flashGlow;
           const spriteKey = fx.sprite || 'fx-boost';
           const animKey = fx.animKey || 'fx-boost-play';
@@ -442,8 +541,14 @@ export class SpellVisualManager {
           visual.sprite.setDepth(15);
         }
 
-        const swapGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 7) + 6, glowColor, 0.3);
+        const swapGlow = scene.add.sprite(spell.x, spell.y, 'fx-aura');
         swapGlow.setDepth(14);
+        swapGlow.setScale(1.0);
+        swapGlow.setAlpha(0.3);
+        swapGlow.setTint(glowColor);
+        if (scene.anims.exists('fx-aura-play')) {
+          swapGlow.play({ key: 'fx-aura-play', repeat: -1 });
+        }
         visual.glow = swapGlow;
         visual.glowColor = glowColor;
 
@@ -479,12 +584,29 @@ export class SpellVisualManager {
         const scale = fx.scale || 1.0;
         const recallColor = fx.color || 0x44ddff;
 
-        const departPoof = scene.add.circle(spell.targetX || spell.x, spell.targetY || spell.y, 20, recallColor, 0.5);
-        departPoof.setDepth(5);
-        visual.sprite = departPoof;
+        let departPoof, arrivalPoof;
+        if (scene.anims.exists('fx-smoke-circular-play')) {
+          departPoof = scene.add.sprite(spell.targetX || spell.x, spell.targetY || spell.y, 'fx-smoke-circular');
+          departPoof.setDepth(5);
+          departPoof.setScale(3);
+          departPoof.setTint(recallColor);
+          departPoof.setAlpha(0.7);
+          departPoof.play({ key: 'fx-smoke-circular-play', repeat: 0 });
 
-        const arrivalPoof = scene.add.circle(spell.x, spell.y, 20, recallColor, 0.5);
-        arrivalPoof.setDepth(5);
+          arrivalPoof = scene.add.sprite(spell.x, spell.y, 'fx-smoke-circular');
+          arrivalPoof.setDepth(5);
+          arrivalPoof.setScale(3);
+          arrivalPoof.setTint(recallColor);
+          arrivalPoof.setAlpha(0.7);
+          arrivalPoof.play({ key: 'fx-smoke-circular-play', repeat: 0 });
+        } else {
+          departPoof = scene.add.circle(spell.targetX || spell.x, spell.targetY || spell.y, 20, recallColor, 0.5);
+          departPoof.setDepth(5);
+
+          arrivalPoof = scene.add.circle(spell.x, spell.y, 20, recallColor, 0.5);
+          arrivalPoof.setDepth(5);
+        }
+        visual.sprite = departPoof;
         visual.arrival = arrivalPoof;
 
         if (scene.anims.exists(animKey)) {
@@ -520,8 +642,14 @@ export class SpellVisualManager {
           visual.sprite.setDepth(15);
         }
 
-        const homingGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 7) + 3, glowColor, 0.3);
+        const homingGlow = scene.add.sprite(spell.x, spell.y, 'fx-aura');
         homingGlow.setDepth(14);
+        homingGlow.setScale(0.8);
+        homingGlow.setAlpha(0.3);
+        homingGlow.setTint(glowColor);
+        if (scene.anims.exists('fx-aura-play')) {
+          homingGlow.play({ key: 'fx-aura-play', repeat: -1 });
+        }
         visual.glow = homingGlow;
         visual.glowColor = glowColor;
 
@@ -567,8 +695,14 @@ export class SpellVisualManager {
           visual.sprite.setDepth(15);
         }
 
-        const boomGlow = scene.add.circle(spell.x, spell.y, (spell.radius || 8) + 3, glowColor, 0.3);
+        const boomGlow = scene.add.sprite(spell.x, spell.y, 'fx-aura');
         boomGlow.setDepth(14);
+        boomGlow.setScale(0.9);
+        boomGlow.setAlpha(0.3);
+        boomGlow.setTint(glowColor);
+        if (scene.anims.exists('fx-aura-play')) {
+          boomGlow.play({ key: 'fx-aura-play', repeat: -1 });
+        }
         visual.glow = boomGlow;
         visual.glowColor = glowColor;
 

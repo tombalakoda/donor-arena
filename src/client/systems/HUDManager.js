@@ -432,18 +432,44 @@ export class HUDManager {
           scene.sound.play('sfx-ring-burn', { volume: vol, rate: 0.8 + intensity * 0.4 });
         }
 
-        // Particles: small red dots flying off player
+        // Particles: fire sprites flying off player
         if (Math.random() < 0.3 + intensity * 0.5) {
           const angle = Math.random() * Math.PI * 2;
           const speed = 1 + Math.random() * 2;
-          this._ringDamageParticles.push({
-            x: px, y: py,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed,
-            life: 400 + Math.random() * 300,
-            elapsed: 0,
-            size: 2 + Math.random() * 3,
-          });
+          const fireKey = 'fx-particle-fire';
+          const fireTex = scene.textures.exists(fireKey) ? scene.textures.get(fireKey) : null;
+          const fireFrames = fireTex ? Math.max(1, fireTex.frameTotal - 1) : 0;
+
+          if (fireFrames > 0) {
+            const frame = Math.floor(Math.random() * fireFrames);
+            const spark = scene.add.sprite(px, py, fireKey, frame);
+            spark.setScale(2 + Math.random() * 2);
+            spark.setDepth(50);
+            spark.setAlpha(0.8);
+            spark.setTint(0xff2222);
+            const life = 400 + Math.random() * 300;
+            scene.tweens.add({
+              targets: spark,
+              x: px + Math.cos(angle) * speed * (life / 16),
+              y: py + Math.sin(angle) * speed * (life / 16),
+              alpha: 0,
+              scaleX: 0.5,
+              scaleY: 0.5,
+              duration: life,
+              ease: 'Quad.easeOut',
+              onComplete: () => spark.destroy(),
+            });
+          } else {
+            // Fallback: old particle system
+            this._ringDamageParticles.push({
+              x: px, y: py,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              life: 400 + Math.random() * 300,
+              elapsed: 0,
+              size: 2 + Math.random() * 3,
+            });
+          }
         }
       } else {
         this.edgeVignette.setAlpha(0);
