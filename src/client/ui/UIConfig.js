@@ -3,7 +3,8 @@
  * Colors, typography, spacing, slot colors, and shared constants.
  */
 
-import { UI_FONT } from '../config.js';
+// Font defined here (NOT imported from config.js to avoid circular dependency)
+const UI_FONT = "'KiwiSoda', monospace";
 
 // ─── Color Palette ───────────────────────────────────────────
 export const COLOR = {

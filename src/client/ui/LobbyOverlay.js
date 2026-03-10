@@ -13,6 +13,7 @@ import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle } from './UIC
 import { createButton, createPanel, createDimmer, createSeparator, createText } from './UIHelpers.js';
 
 // ─── Constants ───────────────────────────────────────────
+const SLOT_COLOR_GOLD = 0xf0c040;
 const D = DEPTH.OVERLAY_DIM;
 const PW = 340;
 const PH = 290;
@@ -294,6 +295,3 @@ export class LobbyOverlay {
     }
   }
 }
-
-// Gold tint constant for focus highlight
-const SLOT_COLOR_GOLD = 0xf0c040;
