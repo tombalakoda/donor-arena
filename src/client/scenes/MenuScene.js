@@ -118,15 +118,18 @@ export class MenuScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════════════
 
   _createTitle() {
+    // Bigger title font for menu
+    const TITLE_FONT = { fontSize: '38px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+
     // Shadow
-    const shadow = this.add.text(CX + 2, TITLE_Y + 2, 'ÂŞIKLAR MEYDANE', textStyle(FONT.TITLE_LG, {
+    const shadow = this.add.text(CX + 2, TITLE_Y + 2, 'ÂŞIKLAR MEYDANE', textStyle(TITLE_FONT, {
       fill: '#000000',
     })).setDepth(16).setOrigin(0.5).setAlpha(0.3);
 
     // Main title
-    const title = createText(this, CX, TITLE_Y, 'ÂŞIKLAR MEYDANE', FONT.TITLE_LG, {
+    const title = createText(this, CX, TITLE_Y, 'ÂŞIKLAR MEYDANE', TITLE_FONT, {
       fill: COLOR.ACCENT_GOLD, depth: 17,
-      stroke: '#000000', strokeThickness: 4,
+      stroke: '#000000', strokeThickness: 5,
     });
 
     // Gentle float
@@ -148,20 +151,25 @@ export class MenuScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════════════
 
   _createCharInfo() {
-    this.charNameText = createText(this, CX, CHAR_NAME_Y, '', FONT.TITLE_SM, {
+    // Bigger fonts for character info
+    const NAME_FONT = { fontSize: '24px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const PASSIVE_FONT = { fontSize: '15px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const DESC_FONT = { fontSize: '13px', fontFamily: FONT.FAMILY };
+
+    this.charNameText = createText(this, CX, CHAR_NAME_Y, '', NAME_FONT, {
       fill: COLOR.ACCENT_GOLD, depth: 15,
-      stroke: '#000000', strokeThickness: 3,
+      stroke: '#000000', strokeThickness: 4,
     });
 
-    this.charPassiveText = createText(this, CX, CHAR_PASSIVE_Y, '', FONT.BODY, {
+    this.charPassiveText = createText(this, CX, CHAR_PASSIVE_Y, '', PASSIVE_FONT, {
       fill: COLOR.ACCENT_INFO, depth: 15,
       stroke: '#000000', strokeThickness: 2,
     });
 
-    this.charDescText = this.add.text(CX, CHAR_DESC_Y, '', textStyle(FONT.SMALL, {
+    this.charDescText = this.add.text(CX, CHAR_DESC_Y, '', textStyle(DESC_FONT, {
       fill: COLOR.TEXT_CREAM,
-      stroke: '#000000', strokeThickness: 1,
-      wordWrap: { width: 300 },
+      stroke: '#000000', strokeThickness: 2,
+      wordWrap: { width: 350 },
       align: 'center',
     })).setDepth(15).setOrigin(0.5, 0);
   }
@@ -332,15 +340,16 @@ export class MenuScene extends Phaser.Scene {
     const y = BOTTOM_Y;
 
     // Name input background (small panel)
-    const inputBg = createPanel(this, CX - 180, y, 220, 32, {
+    const inputBg = createPanel(this, CX - 185, y, 230, 36, {
       texture: 'ui-panel-2', depth: 15,
     });
     animateIn(this, inputBg, { from: 'slideUp', delay: 450, duration: 250 });
 
-    // "Mahlas:" label
-    const label = createText(this, CX - 275, y, 'Mahlas:', FONT.BODY_BOLD, {
-      fill: COLOR.TEXT_PRIMARY, depth: 16, originX: 0,
-      stroke: '#000000', strokeThickness: 1,
+    // "Mahlas:" label — light color with stroke for readability over scene
+    const LABEL_FONT = { fontSize: '14px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const label = createText(this, CX - 275, y, 'Mahlas:', LABEL_FONT, {
+      fill: COLOR.TEXT_CREAM, depth: 16, originX: 0,
+      stroke: '#000000', strokeThickness: 3,
     });
     animateIn(this, label, { from: 'slideUp', delay: 450, duration: 250 });
 
@@ -350,17 +359,18 @@ export class MenuScene extends Phaser.Scene {
     inputElement.value = 'Âşık';
     inputElement.maxLength = 16;
     inputElement.style.cssText = `
-      font-size: 14px; font-family: 'KiwiSoda', monospace;
+      font-size: 16px; font-family: 'KiwiSoda', monospace;
       padding: 4px 8px; width: 140px;
       background: transparent; color: ${COLOR.ACCENT_GOLD};
       border: none; outline: none; caret-color: ${COLOR.ACCENT_GOLD};
-      font-weight: bold;
+      font-weight: bold; text-shadow: 0 0 4px rgba(0,0,0,0.8);
     `;
     this.nameInput = this.add.dom(CX - 165, y, inputElement).setDepth(17);
 
-    // Action buttons — to the right of name input
-    const btnStartX = CX + 50;
-    const btnGap = 125;
+    // Action buttons — to the right of name input, bigger with larger text
+    const BTN_FONT = { fontSize: '15px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const btnStartX = CX + 55;
+    const btnGap = 140;
     const btns = [
       { label: 'MEYDANE', x: btnStartX, onClick: () => this._startGame('normal') },
       { label: 'ODALAR',  x: btnStartX + btnGap, onClick: () => this._showRoomList() },
@@ -369,7 +379,8 @@ export class MenuScene extends Phaser.Scene {
 
     btns.forEach((b, i) => {
       const { elements } = createButton(this, b.x, y, b.label, {
-        width: 110, height: 30, depth: 15,
+        width: 125, height: 36, depth: 15,
+        fontToken: BTN_FONT,
         onClick: b.onClick,
       });
       elements.forEach(el => animateIn(this, el, {
