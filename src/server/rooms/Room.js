@@ -283,7 +283,7 @@ export class Room {
     data.targetY = Math.max(-MAX_COORD, Math.min(MAX_COORD, data.targetY));
 
     const now = Date.now();
-    if (now - (player.lastSpellCast || 0) < 50) return;
+    if (now - (player.lastSpellCast || 0) < 150) return;
     player.lastSpellCast = now;
 
     const progression = this.progressions.get(playerId);
@@ -361,7 +361,7 @@ export class Room {
   handleShopChooseSpell(playerId, data) {
     if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
     const VALID_SLOTS = new Set(['Q', 'W', 'E', 'R']);
-    if (!data || !VALID_SLOTS.has(data.slot) || !data.spellId) return;
+    if (!data || !VALID_SLOTS.has(data.slot) || typeof data.spellId !== 'string') return;
     const progression = this.progressions.get(playerId);
     if (!progression) return;
 
@@ -605,7 +605,11 @@ export class Room {
           })),
         });
         console.log(`Room ${this.id}: Match ended`);
-        this.stop(); // Stop the game loop — no more physics/broadcasts needed
+        this.stop();
+        // Clean up game state while keeping sockets for match-end screen
+        this.spells.clearAll();
+        this.obstacleManager.destroy();
+        this.physics.destroy();
         break;
     }
   }

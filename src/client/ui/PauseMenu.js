@@ -1,11 +1,19 @@
-import { UI_FONT } from '../config.js';
-import { createNinesliceButton } from './UIHelpers.js';
-
 /**
- * PauseMenu — ESC key overlay during gameplay.
- * Shows Resume / Return to Menu buttons.
- * Blocks all game input while visible.
+ * PauseMenu.js — ESC key overlay during gameplay (redesigned).
+ *
+ * Tiny 220×140 panel with Resume / Exit buttons and confirmation dialog.
+ * All visuals use Ninja Adventure nineslice/sprite assets.
  */
+
+import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle } from './UIConfig.js';
+import { createButton, createPanel, createDimmer, createText } from './UIHelpers.js';
+
+// ─── Constants ───────────────────────────────────────────
+const D = DEPTH.OVERLAY_DIM + 100;   // higher than other overlays (400 range)
+const CX = SCREEN.CX;
+const CY = SCREEN.CY;
+
+// ─── PauseMenu Class ────────────────────────────────────
 export class PauseMenu {
   constructor(scene) {
     this.scene = scene;
@@ -14,13 +22,13 @@ export class PauseMenu {
     this.confirmActive = false;
   }
 
+  // ═══════════════════════════════════════════════════════
+  //  PUBLIC API
+  // ═══════════════════════════════════════════════════════
   toggle() {
-    if (this.confirmActive) return; // don't toggle while confirm dialog is showing
-    if (this.visible) {
-      this.hide();
-    } else {
-      this.show();
-    }
+    if (this.confirmActive) return;
+    if (this.visible) this.hide();
+    else this.show();
   }
 
   show() {
@@ -37,140 +45,112 @@ export class PauseMenu {
 
   destroy() {
     for (const el of this.elements) {
-      if (el && !el.destroyed) el.destroy();
+      if (el && !el.destroyed) {
+        if (el.removeAllListeners) el.removeAllListeners();
+        el.destroy();
+      }
     }
     this.elements = [];
   }
 
   playSfx(key) {
-    try {
-      this.scene.sound.play(key, { volume: 0.5 });
-    } catch (e) { /* audio not available */ }
+    try { this.scene.sound.play(key, { volume: 0.5 }); } catch (_) { /* */ }
   }
 
+  // ═══════════════════════════════════════════════════════
+  //  BUILD
+  // ═══════════════════════════════════════════════════════
   build() {
-    const scene = this.scene;
-    const camW = scene.cameras.main.width;
-    const camH = scene.cameras.main.height;
-    const DEPTH = 400;
+    const s = this.scene;
 
-    // Dark overlay
-    const bg = scene.add.nineslice(camW / 2, camH / 2, 'ui-bg-2', null, camW, camH, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH).setTint(0x000000).setAlpha(0.7).setInteractive();
-    this.elements.push(bg);
+    // Dimmer
+    const dimmer = createDimmer(s, { depth: D, alpha: 0.65 });
+    dimmer.setInteractive();
+    this.elements.push(dimmer);
 
-    // Panel — nineslice
-    const panelW = 280;
-    const panelH = 220;
-    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 1);
+    // Panel — small and compact
+    const pw = 220;
+    const ph = 150;
+    const panel = createPanel(s, CX, CY, pw, ph, { depth: D + 1, alpha: 0.92 });
     this.elements.push(panel);
 
     // Title
-    const title = scene.add.text(camW / 2, camH / 2 - 90, 'ARA', {
-      fontSize: '24px',
-      fontFamily: UI_FONT,
-      fill: '#ffdd44',
-      stroke: '#000000',
-      strokeThickness: 4,
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
+    const title = createText(s, CX, CY - ph / 2 + 24, 'ARA', FONT.TITLE_SM, {
+      fill: COLOR.ACCENT_GOLD, depth: D + 2,
+      stroke: '#000000', strokeThickness: 2,
+    });
     this.elements.push(title);
 
-    // Subtitle
-    const sub = scene.add.text(camW / 2, camH / 2 - 55, 'ÂŞIKLAR MEYDANE', {
-      fontSize: '13px',
-      fontFamily: UI_FONT,
-      fill: '#3a2218',
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
-    this.elements.push(sub);
-
     // Resume button
-    const { elements: resumeEls } = createNinesliceButton(scene, camW / 2, camH / 2, 'Devam', {
-      width: 200, height: 36, depth: DEPTH + 2, fontSize: '13px',
-      onClick: () => {
-        this.playSfx('sfx-accept');
-        this.hide();
-      },
-      sfx: true,
+    const { elements: resumeEls } = createButton(s, CX, CY + 4, 'Devam', {
+      width: 160, height: 28, depth: D + 2,
+      onClick: () => { this.playSfx('sfx-accept'); this.hide(); },
     });
     this.elements.push(...resumeEls);
 
-    // Return to Menu button
-    const { elements: menuEls } = createNinesliceButton(scene, camW / 2, camH / 2 + 60, 'Meydana Dön', {
-      width: 200, height: 36, depth: DEPTH + 2, fontSize: '13px',
-      onClick: () => {
-        this.playSfx('sfx-accept');
-        this.showConfirm();
-      },
-      sfx: true,
+    // Exit button
+    const { elements: exitEls } = createButton(s, CX, CY + 42, 'Çıkış', {
+      width: 160, height: 28, depth: D + 2,
+      onClick: () => { this.playSfx('sfx-accept'); this.showConfirm(); },
     });
-    this.elements.push(...menuEls);
+    this.elements.push(...exitEls);
   }
 
+  // ═══════════════════════════════════════════════════════
+  //  CONFIRM DIALOG
+  // ═══════════════════════════════════════════════════════
   showConfirm() {
     this.confirmActive = true;
-    const scene = this.scene;
-    const camW = scene.cameras.main.width;
-    const camH = scene.cameras.main.height;
-    const DEPTH = 410;
+    const s = this.scene;
+    const CD = D + 10;
 
-    // Darken more
-    const overlay = scene.add.nineslice(camW / 2, camH / 2, 'ui-bg-2', null, camW, camH, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH).setTint(0x000000).setAlpha(0.5).setInteractive();
+    // Extra dimmer
+    const overlay = createDimmer(s, { depth: CD, alpha: 0.45 });
+    overlay.setInteractive();
     this.elements.push(overlay);
 
-    // Confirm panel — nineslice (panel-2 variant)
-    const pw = 260;
-    const ph = 140;
-    const confirmPanel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel-2', null, pw, ph, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 1);
-    this.elements.push(confirmPanel);
+    // Confirm panel
+    const pw = 240;
+    const ph = 110;
+    const panel = createPanel(s, CX, CY, pw, ph, {
+      depth: CD + 1, alpha: 0.95, texture: 'ui-panel-2',
+    });
+    this.elements.push(panel);
 
-    const msg = scene.add.text(camW / 2, camH / 2 - 35, 'Atışmadan ayrılacak mısın?', {
-      fontSize: '13px',
-      fontFamily: UI_FONT,
-      fill: '#ffdd44',
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
+    // Message
+    const msg = createText(s, CX, CY - 22, 'Atışmadan ayrılacak mısın?', FONT.BODY_BOLD, {
+      fill: COLOR.ACCENT_GOLD, depth: CD + 2,
+    });
     this.elements.push(msg);
 
     // Yes button
-    const { elements: yesEls } = createNinesliceButton(scene, camW / 2 - 70, camH / 2 + 25, 'He', {
-      width: 100, height: 34, depth: DEPTH + 2, fontSize: '13px',
-      onClick: () => {
-        this.returnToMenu();
-      },
-      sfx: true,
+    const { elements: yesEls } = createButton(s, CX - 60, CY + 20, 'He', {
+      width: 90, height: 26, depth: CD + 2,
+      onClick: () => { this.returnToMenu(); },
     });
     this.elements.push(...yesEls);
 
     // No button
-    const { elements: noEls } = createNinesliceButton(scene, camW / 2 + 70, camH / 2 + 25, 'Yok', {
-      width: 100, height: 34, depth: DEPTH + 2, fontSize: '13px',
+    const { elements: noEls } = createButton(s, CX + 60, CY + 20, 'Yok', {
+      width: 90, height: 26, depth: CD + 2,
       onClick: () => {
         this.playSfx('sfx-cancel');
-        // Remove confirm elements (rebuild the pause menu)
         this.destroy();
         this.confirmActive = false;
         this.build();
       },
-      sfx: true,
     });
     this.elements.push(...noEls);
   }
 
+  // ═══════════════════════════════════════════════════════
+  //  NAVIGATION
+  // ═══════════════════════════════════════════════════════
   returnToMenu() {
     const scene = this.scene;
-
-    // Disconnect from server
-    if (scene.network) {
-      scene.network.disconnect();
-    }
+    if (scene.network) scene.network.disconnect();
     window.__networkConnected = false;
-
-    // Stop any game music
     scene.sound.stopAll();
-
-    // Fade to menu
     scene.cameras.main.fadeOut(400, 0, 0, 0);
     scene.cameras.main.once('camerafadeoutcomplete', () => {
       scene.scene.start('MenuScene');

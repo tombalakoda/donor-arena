@@ -1,10 +1,28 @@
-import { UI_FONT } from '../config.js';
-import { createNinesliceButton } from './UIHelpers.js';
-
 /**
- * MatchEndOverlay — Shown when all rounds are complete.
- * Displays scoreboard with portraits, rankings, jingle, and action buttons.
+ * MatchEndOverlay.js — Match results screen (redesigned).
+ *
+ * Compact panel with winner highlight, scoreboard table, and action buttons.
+ * All visuals use Ninja Adventure nineslice/sprite assets.
  */
+
+import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle } from './UIConfig.js';
+import { createButton, createPanel, createDimmer, createSeparator, createText } from './UIHelpers.js';
+
+// ─── Constants ───────────────────────────────────────────
+const D = DEPTH.OVERLAY_DIM;
+const PW = 400;
+const PH = 360;
+const CX = SCREEN.CX;
+const CY = SCREEN.CY;
+const PT = CY - PH / 2;
+const PB = CY + PH / 2;
+const PL = CX - PW / 2;
+const PR = CX + PW / 2;
+const PAD = SPACE.MD;
+
+const RANK_COLORS = [COLOR.ACCENT_GOLD, '#cccccc', '#cc8844'];
+
+// ─── MatchEndOverlay Class ───────────────────────────────
 export class MatchEndOverlay {
   constructor(scene) {
     this.scene = scene;
@@ -12,6 +30,9 @@ export class MatchEndOverlay {
     this.elements = [];
   }
 
+  // ═══════════════════════════════════════════════════════
+  //  PUBLIC API
+  // ═══════════════════════════════════════════════════════
   show(scores, localPlayerId) {
     if (this.visible) this.destroy();
     this.visible = true;
@@ -25,223 +46,198 @@ export class MatchEndOverlay {
 
   destroy() {
     for (const el of this.elements) {
-      if (el && !el.destroyed) el.destroy();
+      if (el && !el.destroyed) {
+        if (el.removeAllListeners) el.removeAllListeners();
+        el.destroy();
+      }
     }
     this.elements = [];
   }
 
   playSfx(key) {
-    try {
-      this.scene.sound.play(key, { volume: 0.6 });
-    } catch (e) { /* audio not available */ }
+    try { this.scene.sound.play(key, { volume: 0.6 }); } catch (_) { /* */ }
   }
 
+  // ═══════════════════════════════════════════════════════
+  //  BUILD
+  // ═══════════════════════════════════════════════════════
   build(scores, localPlayerId) {
-    const scene = this.scene;
-    const camW = scene.cameras.main.width;
-    const camH = scene.cameras.main.height;
-    const DEPTH = 350;
+    const s = this.scene;
 
     // Play jingle
     const isWinner = scores && scores.length > 0 && scores[0].id === localPlayerId;
-    if (isWinner) {
-      this.playSfx('jingle-success');
-    } else {
-      this.playSfx('jingle-gameover');
-    }
+    this.playSfx(isWinner ? 'jingle-success' : 'jingle-gameover');
 
-    // Dark overlay
-    const bg = scene.add.nineslice(camW / 2, camH / 2, 'ui-bg-2', null, camW, camH, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH).setTint(0x000000).setAlpha(0.8).setInteractive();
-    this.elements.push(bg);
+    // Dimmer
+    const dimmer = createDimmer(s, { depth: D, alpha: 0.7 });
+    dimmer.setInteractive();
+    this.elements.push(dimmer);
 
-    // Main panel — nineslice
-    const panelW = 440;
-    const panelH = 380;
-    const py = camH / 2 - panelH / 2;
-    const px = camW / 2 - panelW / 2;
-    const panel = scene.add.nineslice(camW / 2, camH / 2, 'ui-panel', null, panelW, panelH, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 1);
+    // Main panel
+    const panel = createPanel(s, CX, CY, PW, PH, { depth: D + 1, alpha: 0.92 });
     this.elements.push(panel);
 
-    // Title
-    const title = scene.add.text(camW / 2, py + 30, 'ATIŞMA BİTTİ', {
-      fontSize: '24px',
-      fontFamily: UI_FONT,
-      fill: '#ffdd44',
-      stroke: '#000000',
-      strokeThickness: 4,
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
+    // ── Title ──
+    let y = PT + 24;
+    const title = createText(s, CX, y, 'ATIŞMA BİTTİ', FONT.TITLE_SM, {
+      fill: COLOR.ACCENT_GOLD, depth: D + 2,
+      stroke: '#000000', strokeThickness: 2,
+    });
     this.elements.push(title);
 
-    const sub = scene.add.text(camW / 2, py + 60, 'ÂŞIKLAR MEYDANE', {
-      fontSize: '13px',
-      fontFamily: UI_FONT,
-      fill: '#3a2218',
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
-    this.elements.push(sub);
-
-    // --- Winner highlight ---
+    // ── Winner Section ──
     if (scores && scores.length > 0) {
       const winner = scores[0];
+      y += 30;
 
-      // Winner portrait (if available)
+      // Winner face
       const winnerCharId = winner.characterId || 'boy';
       const faceKey = `${winnerCharId}-face`;
-      if (scene.textures.exists(faceKey)) {
-        const face = scene.add.image(camW / 2, py + 105, faceKey)
-          .setScale(2.0)
-          .setScrollFactor(0).setDepth(DEPTH + 3);
+      if (s.textures.exists(faceKey)) {
+        const face = s.add.image(CX, y + 4, faceKey)
+          .setScale(1.8).setScrollFactor(0).setDepth(D + 3);
         this.elements.push(face);
-
-        // FX aura behind portrait
-        if (scene.textures.exists('fx-aura')) {
-          const aura = scene.add.sprite(camW / 2, py + 105, 'fx-aura', 0)
-            .setScale(3).setAlpha(0.4).setTint(0xffdd44)
-            .setScrollFactor(0).setDepth(DEPTH + 2);
-          if (scene.anims.exists('fx-aura-play')) {
-            aura.play({ key: 'fx-aura-play', repeat: -1 });
-          }
-          this.elements.push(aura);
-        }
       }
+      y += 30;
 
       // Winner name
       const winnerName = winner.name || winner.id.slice(-4);
-      const nameLabel = scene.add.text(camW / 2, py + 135, `${winnerName}`, {
-        fontSize: '13px',
-        fontFamily: UI_FONT,
-        fill: '#ffdd44',
-        stroke: '#000000',
-        strokeThickness: 2,
-      }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 3);
-      this.elements.push(nameLabel);
+      const name = createText(s, CX, y, winnerName, FONT.BODY_BOLD, {
+        fill: COLOR.ACCENT_GOLD, depth: D + 3,
+        stroke: '#000000', strokeThickness: 2,
+      });
+      this.elements.push(name);
+
+      y += 16;
+      const badge = createText(s, CX, y, 'KAZANAN', FONT.SMALL, {
+        fill: COLOR.ACCENT_GOLD, depth: D + 3,
+      });
+      this.elements.push(badge);
     }
 
-    // --- Scoreboard table ---
-    const tableY = py + 165;
-    const rowH = 22;
-    const cols = { rank: px + 25, face: px + 60, name: px + 100, pts: px + 300, elims: px + 370, wins: px + 440 };
+    // ── Separator ──
+    y += 16;
+    const sep = createSeparator(s, CX, y, PW - 30, { depth: D + 2 });
+    this.elements.push(sep);
 
-    // Header
-    const headerStyle = { fontSize: '12px', fontFamily: UI_FONT, fill: '#5a3a28' };
-    const headers = [
-      scene.add.text(cols.rank, tableY, '#', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
-      scene.add.text(cols.name, tableY, 'Âşık', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
-      scene.add.text(cols.pts, tableY, 'Puan', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
-      scene.add.text(cols.elims, tableY, 'Düşür', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
-      scene.add.text(cols.wins, tableY, 'Fasıl', headerStyle).setScrollFactor(0).setDepth(DEPTH + 2),
+    // ── Scoreboard Table ──
+    y += 12;
+
+    // Column positions
+    const rankX = PL + 24;
+    const faceX = PL + 50;
+    const nameX = PL + 80;
+    const ptsX  = PL + 260;
+    const elimX = PL + 310;
+    const winsX = PL + 360;
+
+    // Header row
+    const hdrStyle = textStyle(FONT.TINY, { fill: COLOR.TEXT_SECONDARY });
+    const hdrEls = [
+      s.add.text(rankX, y, '#', hdrStyle).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0.5),
+      s.add.text(nameX, y, 'Âşık', hdrStyle).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0.5),
+      s.add.text(ptsX, y, 'Puan', hdrStyle).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0.5),
+      s.add.text(elimX, y, 'Düş', hdrStyle).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0.5),
+      s.add.text(winsX, y, 'Fasıl', hdrStyle).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0.5),
     ];
-    this.elements.push(...headers);
+    this.elements.push(...hdrEls);
 
-    // Divider
-    const dividerY = tableY + 16;
-    const dividerWidth = panelW - 30;
-    const divG = scene.add.image(camW / 2, dividerY, 'ui-slider-progress').setDisplaySize(dividerWidth, 1).setTint(0x444466).setAlpha(0.5).setScrollFactor(0).setDepth(DEPTH + 2);
-    this.elements.push(divG);
+    // Header divider
+    y += 10;
+    const hdrDiv = createSeparator(s, CX, y, PW - 40, { depth: D + 2 });
+    this.elements.push(hdrDiv);
+    y += 6;
 
-    // Rank colors
-    const rankColors = ['#ffdd44', '#cccccc', '#cc8844'];
-
-    // Rows
+    // Data rows
+    const rowH = 18;
     const maxRows = Math.min(scores ? scores.length : 0, 8);
-    for (let i = 0; i < maxRows; i++) {
-      const s = scores[i];
-      const ry = tableY + 24 + i * rowH;
-      const isLocal = s.id === localPlayerId;
-      const rankColor = rankColors[i] || '#aaaaaa';
-      const nameColor = isLocal ? '#44ddff' : '#cccccc';
 
-      // Alternating row background for even rows
+    for (let i = 0; i < maxRows; i++) {
+      const p = scores[i];
+      const ry = y + i * rowH;
+      const isLocal = p.id === localPlayerId;
+      const rankColor = RANK_COLORS[i] || COLOR.TEXT_SECONDARY;
+      const nameColor = isLocal ? COLOR.ACCENT_INFO : COLOR.TEXT_PRIMARY;
+
+      // Alternating row bg
       if (i % 2 === 0) {
-        const rowBgAlt = scene.add.nineslice(camW / 2, ry + 6, 'ui-bg', null, panelW - 30, rowH - 2, 4, 4, 4, 4)
-          .setAlpha(0.15)
-          .setScrollFactor(0).setDepth(DEPTH + 1);
-        this.elements.push(rowBgAlt);
+        const rowBg = s.add.nineslice(CX, ry, 'ui-panel-interior', null, PW - 30, rowH, ...NINE.PANEL)
+          .setScrollFactor(0).setDepth(D + 1).setAlpha(0.2);
+        this.elements.push(rowBg);
       }
 
-      // Highlight row for local player — nineslice focus
+      // Local player highlight
       if (isLocal) {
-        const rowHighlight = scene.add.nineslice(camW / 2, ry + 6, 'ui-focus', null, panelW - 30, rowH - 2, 2, 2, 2, 2)
-          .setTint(0xffdd44).setAlpha(0.3)
-          .setScrollFactor(0).setDepth(DEPTH + 1);
-        this.elements.push(rowHighlight);
+        const highlight = s.add.nineslice(CX, ry, 'ui-focus', null, PW - 30, rowH, 2, 2, 2, 2)
+          .setTint(0xf0c040).setAlpha(0.2).setScrollFactor(0).setDepth(D + 1);
+        this.elements.push(highlight);
       }
 
       // Rank
-      const rankText = scene.add.text(cols.rank + 8, ry, `${i + 1}`, {
-        fontSize: '12px', fontFamily: UI_FONT, fill: rankColor, fontStyle: 'bold',
-      }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(DEPTH + 3);
-      this.elements.push(rankText);
+      s.add.text(rankX + 8, ry, `${i + 1}`, textStyle(FONT.SMALL, {
+        fill: rankColor, fontStyle: 'bold',
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0.5);
+      this.elements.push(s.children.list[s.children.list.length - 1]);
 
       // Face icon
-      const charId = s.characterId || 'boy';
+      const charId = p.characterId || 'boy';
       const faceKey = `${charId}-face`;
-      if (scene.textures.exists(faceKey)) {
-        const faceIcon = scene.add.image(cols.face, ry + 6, faceKey)
-          .setScale(0.55)
-          .setScrollFactor(0).setDepth(DEPTH + 3);
+      if (s.textures.exists(faceKey)) {
+        const faceIcon = s.add.image(faceX, ry, faceKey)
+          .setScale(0.5).setScrollFactor(0).setDepth(D + 3);
         this.elements.push(faceIcon);
       }
 
       // Name
-      const name = s.name || s.id.slice(-4);
-      const nameText = scene.add.text(cols.name, ry, name, {
-        fontSize: '12px', fontFamily: UI_FONT, fill: nameColor,
-      }).setScrollFactor(0).setDepth(DEPTH + 3);
-      this.elements.push(nameText);
+      const dispName = p.name || p.id.slice(-4);
+      const nt = s.add.text(nameX, ry, dispName, textStyle(FONT.SMALL, {
+        fill: nameColor, fontStyle: isLocal ? 'bold' : 'normal',
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0.5);
+      this.elements.push(nt);
 
       // Points
-      const ptsText = scene.add.text(cols.pts + 10, ry, `${s.points}`, {
-        fontSize: '12px', fontFamily: UI_FONT, fill: '#ffdd44',
-      }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(DEPTH + 3);
-      this.elements.push(ptsText);
+      const pt = s.add.text(ptsX, ry, `${p.points ?? 0}`, textStyle(FONT.SMALL, {
+        fill: COLOR.ACCENT_GOLD,
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0.5);
+      this.elements.push(pt);
 
       // Eliminations
-      const elimText = scene.add.text(cols.elims + 10, ry, `${s.eliminations}`, {
-        fontSize: '12px', fontFamily: UI_FONT, fill: '#ff6644',
-      }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(DEPTH + 3);
-      this.elements.push(elimText);
+      const el = s.add.text(elimX, ry, `${p.eliminations ?? 0}`, textStyle(FONT.SMALL, {
+        fill: COLOR.ACCENT_DANGER,
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0.5);
+      this.elements.push(el);
 
       // Rounds won
-      const winsText = scene.add.text(cols.wins + 10, ry, `${s.roundsWon}`, {
-        fontSize: '12px', fontFamily: UI_FONT, fill: '#44cc88',
-      }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(DEPTH + 3);
-      this.elements.push(winsText);
+      const rw = s.add.text(winsX, ry, `${p.roundsWon ?? 0}`, textStyle(FONT.SMALL, {
+        fill: COLOR.ACCENT_SUCCESS,
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0.5);
+      this.elements.push(rw);
     }
 
-    // --- Buttons ---
-    const btnY = py + panelH - 45;
+    // ── Buttons ──
+    const btnY = PB - 28;
 
-    const { elements: menuEls } = createNinesliceButton(scene, camW / 2 - 90, btnY, 'Meydan', {
-      width: 130, height: 34, depth: DEPTH + 3, fontSize: '13px',
-      onClick: () => {
-        this.playSfx('sfx-accept');
-        this.returnToMenu();
-      },
-      sfx: true,
+    const { elements: menuEls } = createButton(s, CX - 80, btnY, 'Meydan', {
+      width: 120, height: 26, depth: D + 3,
+      onClick: () => { this.playSfx('sfx-accept'); this.returnToMenu(); },
     });
     this.elements.push(...menuEls);
 
-    const { elements: playEls } = createNinesliceButton(scene, camW / 2 + 90, btnY, 'Bir Daha', {
-      width: 130, height: 34, depth: DEPTH + 3, fontSize: '13px',
-      onClick: () => {
-        this.playSfx('sfx-accept');
-        this.playAgain();
-      },
-      sfx: true,
+    const { elements: playEls } = createButton(s, CX + 80, btnY, 'Bir Daha', {
+      width: 120, height: 26, depth: D + 3,
+      onClick: () => { this.playSfx('sfx-accept'); this.playAgain(); },
     });
     this.elements.push(...playEls);
   }
 
+  // ═══════════════════════════════════════════════════════
+  //  NAVIGATION
+  // ═══════════════════════════════════════════════════════
   returnToMenu() {
     const scene = this.scene;
-    if (scene.network) {
-      scene.network.disconnect();
-    }
+    if (scene.network) scene.network.disconnect();
     window.__networkConnected = false;
     scene.sound.stopAll();
-
     scene.cameras.main.fadeOut(400, 0, 0, 0);
     scene.cameras.main.once('camerafadeoutcomplete', () => {
       scene.scene.start('MenuScene');
@@ -253,7 +249,6 @@ export class MatchEndOverlay {
     if (scene.network) scene.network.disconnect();
     window.__networkConnected = false;
     scene.sound.stopAll();
-
     scene.cameras.main.fadeOut(400, 0, 0, 0);
     scene.cameras.main.once('camerafadeoutcomplete', () => {
       scene.scene.start('GameScene', {

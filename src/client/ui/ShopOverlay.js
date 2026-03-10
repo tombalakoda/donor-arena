@@ -1,46 +1,97 @@
+/**
+ * ShopOverlay.js — Spell shop overlay (redesigned).
+ *
+ * Layout: 80% viewport panel, compact tabs, left spell list + right detail,
+ * bottom action bar. All visuals use Ninja Adventure nineslice/sprite assets.
+ */
+
 import { SKILL_TREES, computeSpellStats, getNextTierInfo, getMaxTier } from '../../shared/skillTreeData.js';
 import { SPELLS, SLOT_SPELLS } from '../../shared/spellData.js';
 import { SP } from '../../shared/constants.js';
-import { UI_FONT } from '../config.js';
-import { createNinesliceButton } from './UIHelpers.js';
+import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SLOT_COLOR, SCREEN, textStyle } from './UIConfig.js';
+import { createButton, createPanel, createDimmer, createSeparator, createText } from './UIHelpers.js';
 
-/**
- * Shop Overlay v3 — "Zenith" inspired layout.
- *
- * Left:  vertical spell list (cell + nameplate rows)
- * Right: detail card (portrait frame, title bar, stat bars, tier dots, upgrade box)
- * Top:   title bar + tab row
- * Bottom: action bar (currency + upgrade button)
- *
- * Zero Phaser Graphics — every visual element is a real Humble Gift asset.
- * Sole exception: dimmer rectangle for background darkening.
- */
-
-const DEPTH = 300;
+// ─── Constants ───────────────────────────────────────────
+const D = DEPTH.OVERLAY_DIM;
 const SLOTS = ['Q', 'W', 'E', 'R'];
 const SLOT_NAMES = { Q: 'SÖZ', W: 'EL', E: 'DİL', R: 'BEL' };
-const SLOT_COLORS = {
-  Q: { hex: '#ff6644', tint: 0xff6644 },
-  W: { hex: '#44bbff', tint: 0x44bbff },
-  E: { hex: '#44ddaa', tint: 0x44ddaa },
-  R: { hex: '#cc66ff', tint: 0xcc66ff },
-};
 
-// Stat display config — label, key, max value for bar, format function
+// Panel geometry — ~80% of viewport
+const PW = 1020;
+const PH = 540;
+const PL = SCREEN.CX - PW / 2;
+const PR = SCREEN.CX + PW / 2;
+const PT = SCREEN.CY - PH / 2;
+const PB = SCREEN.CY + PH / 2;
+const PAD = SPACE.MD;
+
+// Internal layout zones
+const TITLE_Y  = PT + 24;
+const TAB_Y    = PT + 56;
+const BODY_TOP = PT + 74;
+const BODY_BOT = PB - 42;
+const BOT_Y    = PB - 20;
+
+// Left/right column split
+const LEFT_W  = 250;
+const LEFT_L  = PL + PAD;
+const LEFT_R  = LEFT_L + LEFT_W;
+const LEFT_CX = LEFT_L + LEFT_W / 2;
+const RIGHT_L  = LEFT_R + SPACE.SM;
+const RIGHT_R  = PR - PAD;
+const RIGHT_W  = RIGHT_R - RIGHT_L;
+const RIGHT_CX = RIGHT_L + RIGHT_W / 2;
+
+// Stat display definitions
 const STAT_DEFS = [
-  { label: 'Hasar',       key: 'damage',         max: 10,   fmt: v => `${v}` },
-  { label: 'İtme',        key: 'knockbackForce',  max: 0.15, fmt: v => `${(v * 1000).toFixed(0)}` },
-  { label: 'Bekleme',     key: 'cooldown',        max: 15000, fmt: v => `${(v / 1000).toFixed(1)}s`, invert: true },
-  { label: 'Hız',         key: 'speed',           max: 15,   fmt: v => `${v}` },
-  { label: 'Menzil',      key: 'range',           max: 600,  fmt: v => `${v}` },
-  { label: 'Yavaşlatma',  key: 'slowAmount',      max: 1.0,  fmt: v => `${(v * 100).toFixed(0)}%` },
-  { label: 'Çekim',       key: 'pullForce',       max: 0.10, fmt: v => `${(v * 1000).toFixed(0)}` },
-  { label: 'Kalkan',      key: 'shieldHits',      max: 5,    fmt: v => `${v}` },
-  { label: 'Mermi',       key: 'missileCount',    max: 10,   fmt: v => `${v}` },
-  { label: 'Sekme',       key: 'maxBounces',      max: 10,   fmt: v => `${v}` },
-  { label: 'Süre',        key: 'buffDuration',    max: 10000, fmt: v => `${(v / 1000).toFixed(1)}s` },
+  { label: 'Hasar',      key: 'damage',        max: 10,    fmt: v => `${v}` },
+  { label: 'İtme',       key: 'knockbackForce', max: 0.15,  fmt: v => `${(v * 1000).toFixed(0)}` },
+  { label: 'Bekleme',    key: 'cooldown',       max: 15000, fmt: v => `${(v / 1000).toFixed(1)}s`, invert: true },
+  { label: 'Hız',        key: 'speed',          max: 15,    fmt: v => `${v}` },
+  { label: 'Menzil',     key: 'range',          max: 600,   fmt: v => `${v}` },
+  { label: 'Yavaşlatma', key: 'slowAmount',     max: 1.0,   fmt: v => `${(v * 100).toFixed(0)}%` },
+  { label: 'Çekim',      key: 'pullForce',      max: 0.10,  fmt: v => `${(v * 1000).toFixed(0)}` },
+  { label: 'Kalkan',     key: 'shieldHits',     max: 5,     fmt: v => `${v}` },
+  { label: 'Mermi',      key: 'missileCount',   max: 10,    fmt: v => `${v}` },
+  { label: 'Sekme',      key: 'maxBounces',     max: 10,    fmt: v => `${v}` },
+  { label: 'Süre',       key: 'buffDuration',   max: 10000, fmt: v => `${(v / 1000).toFixed(1)}s` },
 ];
 
+// Tier mod labels (Turkish)
+const MOD_LABELS = {
+  damage: 'hasar', knockbackForce: 'itme', cooldown: 'bekleme',
+  speed: 'hız', range: 'menzil', radius: 'alan',
+  buffDuration: 'süre', lifetime: 'ömür', piercing: 'delici',
+  explosionRadius: 'patlama', stunDuration: 'sersemletme',
+  slowAmount: 'yavaşlatma', slowDuration: 'yavaşlatma süresi',
+  rootDuration: 'köklenme', wallHp: 'duvar canı', wallDuration: 'duvar süresi',
+  maxBounces: 'sekme', shieldHits: 'kalkan', dashDamage: 'çarpma hasarı',
+  dashKnockback: 'çarpma itmesi', dashWidth: 'çarpma genişliği',
+  speedBoost: 'hız artışı', recallDuration: 'geri dönüş süresi',
+  missileCount: 'söz sayısı', turnRate: 'dönüş hızı',
+  trackingRange: 'takip menzili', pullSpeed: 'çekim hızı',
+  throwForce: 'fırlatma gücü', chainCount: 'zincirleme',
+  overshootRange: 'aşım menzili', maxKnockbackForce: 'maks itme',
+  zoneDuration: 'alan süresi', zoneRadius: 'alan genişliği',
+  zoneDamage: 'alan hasarı', impactDelay: 'çarpma gecikmesi',
+  impactRadius: 'çarpma alanı', wallRadius: 'duvar boyutu',
+  frictionReduction: 'sürtünme azaltma', intangible: 'dokunulmazlık',
+  leaveTrail: 'iz bırak', trailSlowAmount: 'iz yavaşlatma',
+  trailSlowDuration: 'iz süresi', exitPushForce: 'çıkış itmesi',
+  exitPushRadius: 'çıkış alanı', swapStunDuration: 'sersemletme',
+  departurePushForce: 'ayrılış itmesi', departurePushRadius: 'ayrılış alanı',
+  shatterSlowAmount: 'kırılma yavaşlatma', shatterSlowDuration: 'kırılma süresi',
+  shatterRadius: 'kırılma alanı', kbPerBounce: 'sekme başı itme',
+  reflectOnBreak: 'yansıtma', pullDuration: 'çekim süresi',
+  flightCollision: 'uçuş çarpması', flightDamage: 'uçuş hasarı',
+  flightKnockback: 'uçuş itmesi', chainKbFactor: 'zincirleme gücü',
+  hitsOnReturn: 'dönüşte vurur', cooldownOnCatch: 'yakalama indirimi',
+  burnZoneDuration: 'yanma süresi', burnSlowAmount: 'yanma yavaşlatma',
+  destroysSpells: 'söz kırar', launchSpeedBonus: 'fırlatma hızı',
+  flightDuration: 'uçuş süresi',
+};
+
+// ─── ShopOverlay Class ───────────────────────────────────
 export class ShopOverlay {
   constructor(scene) {
     this.scene = scene;
@@ -48,14 +99,13 @@ export class ShopOverlay {
     this.progression = null;
     this.shopTimer = 0;
     this.activeSlot = 'Q';
-    this.chrome = [];      // persistent: bg, title, tabs, bottom bar
-    this.content = [];     // rebuilt on tab switch
-    this._tooltip = null;
+    this.chrome = [];    // persistent: dimmer, panel, title, tabs, bottom bar
+    this.content = [];   // rebuilt on tab switch / progression update
   }
 
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
   //  PUBLIC API
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
   show(progression, shopDuration) {
     if (this.visible) this.destroy();
     this.visible = true;
@@ -82,99 +132,75 @@ export class ShopOverlay {
   updateTimer(remaining) {
     this.shopTimer = remaining;
     if (this._timerText && !this._timerText.destroyed) {
-      this._timerText.setText(`${Math.ceil(remaining)}s`);
+      const t = Math.ceil(remaining);
+      this._timerText.setText(`${t}s`);
+      this._timerText.setFill(t <= 5 ? COLOR.ACCENT_DANGER : COLOR.TEXT_SECONDARY);
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
   //  BUILD — full overlay
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
   _build() {
     const s = this.scene;
-    const W = s.cameras.main.width;
-    const H = s.cameras.main.height;
 
-    // Store layout metrics for content builders
-    this._W = W;
-    this._H = H;
-    this._margin = 14;
-    this._bodyTop = 112;   // below tab row
-    this._bodyBot = 660;   // above bottom bar
-    this._bodyCY = (this._bodyTop + this._bodyBot) / 2;
-    this._bodyH = this._bodyBot - this._bodyTop;
-
-    // Left/right panel split
-    this._leftW = Math.min(340, Math.round(W * 0.28));
-    this._leftCX = this._margin + this._leftW / 2;
-    this._rightCX = this._leftCX + this._leftW / 2 + (W - 2 * this._margin - this._leftW) / 2;
-    this._rightW = W - 2 * this._margin - this._leftW - 10; // 10px gap between panels
-
-    // ── Dimmer ──
-    const dimmer = s.add.nineslice(W / 2, H / 2, 'ui-bg-2', null, W, H, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH).setTint(0x000000).setAlpha(0.82).setInteractive();
+    // Dimmer
+    const dimmer = createDimmer(s, { depth: D, alpha: ALPHA.DIMMER });
+    dimmer.setInteractive();
     this.chrome.push(dimmer);
 
-    // ── Title Bar ──
-    this._buildTitleBar(W);
+    // Main panel
+    const panel = createPanel(s, SCREEN.CX, SCREEN.CY, PW, PH, {
+      depth: D + 1, alpha: 0.92,
+    });
+    this.chrome.push(panel);
 
-    // ── Tab Row ──
-    this._buildTabRow(W);
-
-    // ── Main Body Panel (outer) ──
-    const bodyW = W - 2 * this._margin;
-    const body = s.add.nineslice(W / 2, this._bodyCY, 'ui-panel', null, bodyW, this._bodyH, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 1);
-    this.chrome.push(body);
-
-    // ── Bottom Bar ──
-    this._buildBottomBar(W);
-
-    // ── Slot Content ──
+    this._buildTitleBar();
+    this._buildTabRow();
+    this._buildBottomBar();
     this._buildContent();
   }
 
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
   //  TITLE BAR
-  // ═══════════════════════════════════════════════════════════════════
-  _buildTitleBar(W) {
+  // ═══════════════════════════════════════════════════════
+  _buildTitleBar() {
     const s = this.scene;
 
-    const bar = s.add.nineslice(W / 2, 44, 'ui-title-bar', null, W - 40, 38, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 1);
+    // Title bar background
+    const bar = s.add.nineslice(SCREEN.CX, TITLE_Y, 'ui-panel-interior', null, PW - 24, 28, ...NINE.PANEL)
+      .setScrollFactor(0).setDepth(D + 2).setAlpha(0.6);
     this.chrome.push(bar);
 
-    const title = s.add.text(W / 2, 44, 'HÜNER DÜKKÂNI', {
-      fontSize: '24px', fontFamily: UI_FONT, fill: '#ffdd44', fontStyle: 'bold',
-      stroke: '#000000', strokeThickness: 3,
-    }).setScrollFactor(0).setDepth(DEPTH + 2).setOrigin(0.5);
+    // Title text
+    const title = createText(s, PL + PAD + 8, TITLE_Y, 'HÜNER DÜKKÂNI', FONT.TITLE_SM, {
+      fill: COLOR.ACCENT_GOLD, depth: D + 3, originX: 0,
+      stroke: '#000000', strokeThickness: 2,
+    });
     this.chrome.push(title);
 
+    // SP count
     const sp = this.progression ? this.progression.sp : 0;
-    this._spTextTitle = s.add.text(60, 44, `İlham: ${sp}`, {
-      fontSize: '13px', fontFamily: UI_FONT, fill: '#44ddff', fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(DEPTH + 2).setOrigin(0, 0.5);
+    this._spTextTitle = createText(s, PR - PAD - 80, TITLE_Y, `İlham: ${sp}`, FONT.BODY_BOLD, {
+      fill: COLOR.ACCENT_INFO, depth: D + 3, originX: 0.5,
+    });
     this.chrome.push(this._spTextTitle);
 
-    this._timerText = s.add.text(W - 60, 44, `${Math.ceil(this.shopTimer)}s`, {
-      fontSize: '13px', fontFamily: UI_FONT, fill: '#aaaaaa',
-    }).setScrollFactor(0).setDepth(DEPTH + 2).setOrigin(1, 0.5);
+    // Timer
+    this._timerText = createText(s, PR - PAD - 12, TITLE_Y, `${Math.ceil(this.shopTimer)}s`, FONT.BODY, {
+      fill: COLOR.TEXT_SECONDARY, depth: D + 3, originX: 1,
+    });
     this.chrome.push(this._timerText);
   }
 
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
   //  TAB ROW
-  // ═══════════════════════════════════════════════════════════════════
-  _buildTabRow(W) {
+  // ═══════════════════════════════════════════════════════
+  _buildTabRow() {
     const s = this.scene;
-
-    // Tab bar background
-    const tabBar = s.add.nineslice(W / 2, 90, 'ui-panel-interior', null, W - 40, 28, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 1);
-    this.chrome.push(tabBar);
-
-    const tabW = 130, tabH = 26, tabGap = 8;
+    const tabW = 110, tabH = 22, tabGap = 6;
     const totalW = SLOTS.length * tabW + (SLOTS.length - 1) * tabGap;
-    const startX = (W - totalW) / 2;
+    const startX = SCREEN.CX - totalW / 2;
 
     for (let i = 0; i < SLOTS.length; i++) {
       const slot = SLOTS[i];
@@ -182,25 +208,27 @@ export class ShopOverlay {
       const isActive = slot === this.activeSlot;
       const isLocked = this._isSlotLocked(slot);
 
-      const tabBg = s.add.nineslice(
-        cx, 90, isActive ? 'ui-tab' : 'ui-tab-unselected', null,
-        tabW, tabH, 4, 4, 3, 3
-      ).setScrollFactor(0).setDepth(DEPTH + 2);
-      if (isLocked) tabBg.setTint(0x777777);
-      else if (isActive) tabBg.setTint(SLOT_COLORS[slot].tint);
-      this.chrome.push(tabBg);
+      // Tab background
+      const tex = isActive ? 'ui-tab' : 'ui-tab-unselected';
+      const bg = s.add.nineslice(cx, TAB_Y, tex, null, tabW, tabH, ...NINE.TAB)
+        .setScrollFactor(0).setDepth(D + 2);
+      if (isLocked) bg.setTint(COLOR.TINT_DISABLED);
+      else if (isActive) bg.setTint(SLOT_COLOR[slot].tint);
+      this.chrome.push(bg);
 
-      const label = s.add.text(cx, 90, `[${slot}] ${SLOT_NAMES[slot]}`, {
-        fontSize: '13px', fontFamily: UI_FONT,
-        fill: isActive ? '#ffffff' : (isLocked ? '#666666' : '#cccccc'),
+      // Tab label
+      const label = s.add.text(cx, TAB_Y, `${slot} ${SLOT_NAMES[slot]}`, textStyle(FONT.SMALL, {
+        fill: isActive ? COLOR.TEXT_PRIMARY : (isLocked ? COLOR.TEXT_DISABLED : COLOR.TEXT_SECONDARY),
         fontStyle: 'bold',
         stroke: isActive ? '#000000' : undefined,
-        strokeThickness: isActive ? 2 : 0,
-      }).setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5);
+        strokeThickness: isActive ? 1 : 0,
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5);
       this.chrome.push(label);
 
-      const hit = s.add.nineslice(cx, 90, 'ui-tab-unselected', null, tabW, tabH, 4, 4, 3, 3)
-        .setScrollFactor(0).setDepth(DEPTH + 4).setAlpha(0.001).setInteractive({ useHandCursor: true });
+      // Hit area
+      const hit = s.add.nineslice(cx, TAB_Y, tex, null, tabW, tabH, ...NINE.TAB)
+        .setScrollFactor(0).setDepth(D + 4).setAlpha(0.001)
+        .setInteractive({ useHandCursor: !isLocked });
       hit.on('pointerdown', () => {
         if (this.activeSlot !== slot) {
           this.activeSlot = slot;
@@ -211,51 +239,46 @@ export class ShopOverlay {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
   //  BOTTOM BAR
-  // ═══════════════════════════════════════════════════════════════════
-  _buildBottomBar(W) {
+  // ═══════════════════════════════════════════════════════
+  _buildBottomBar() {
     const s = this.scene;
-    const barY = this._bodyBot + 30;
 
-    const bar = s.add.nineslice(W / 2, barY, 'ui-scroll', null, W - 2 * this._margin, 38, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 1);
+    const bar = s.add.nineslice(SCREEN.CX, BOT_Y, 'ui-panel-interior', null, PW - 24, 32, ...NINE.PANEL)
+      .setScrollFactor(0).setDepth(D + 2).setAlpha(0.6);
     this.chrome.push(bar);
 
     const sp = this.progression ? this.progression.sp : 0;
-    this._spTextBottom = s.add.text(this._margin + 100, barY, `İlham: ${sp}`, {
-      fontSize: '24px', fontFamily: UI_FONT, fill: '#44ddff', fontStyle: 'bold',
-      stroke: '#000000', strokeThickness: 2,
-    }).setScrollFactor(0).setDepth(DEPTH + 2).setOrigin(0.5);
+    this._spTextBottom = createText(s, PL + PAD + 60, BOT_Y, `${sp} İlham`, FONT.BODY_BOLD, {
+      fill: COLOR.ACCENT_INFO, depth: D + 3, originX: 0.5,
+    });
     this.chrome.push(this._spTextBottom);
   }
 
   _updateBottomBar() {
     const sp = this.progression ? this.progression.sp : 0;
     if (this._spTextTitle && !this._spTextTitle.destroyed) this._spTextTitle.setText(`İlham: ${sp}`);
-    if (this._spTextBottom && !this._spTextBottom.destroyed) this._spTextBottom.setText(`İlham: ${sp}`);
+    if (this._spTextBottom && !this._spTextBottom.destroyed) this._spTextBottom.setText(`${sp} İlham`);
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  //  CONTENT — rebuilt on tab switch
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
+  //  CONTENT — rebuilt on tab switch / progression update
+  // ═══════════════════════════════════════════════════════
   _buildContent() {
     const slot = this.activeSlot;
-    const isLocked = this._isSlotLocked(slot);
-
-    if (isLocked) {
+    if (this._isSlotLocked(slot)) {
       this._buildLockedContent();
       return;
     }
-
     this._buildLeftSpellList();
-    this._buildRightDetailCard();
+    this._buildRightDetail();
     this._buildActionButton();
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  //  LEFT SPELL LIST
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
+  //  LEFT — SPELL LIST
+  // ═══════════════════════════════════════════════════════
   _buildLeftSpellList() {
     const s = this.scene;
     const slot = this.activeSlot;
@@ -264,103 +287,90 @@ export class ShopOverlay {
     const chosenSpellId = spellState ? spellState.chosenSpell : null;
     const availableSpells = SLOT_SPELLS[slot] || [];
 
-    const LCX = this._leftCX;
-    const LW = this._leftW;
-    const panelTop = this._bodyTop + 8;
-    const panelBot = this._bodyBot - 8;
-    const panelH = panelBot - panelTop;
-    const panelCY = (panelTop + panelBot) / 2;
+    const bodyH = BODY_BOT - BODY_TOP;
+    const leftCY = BODY_TOP + bodyH / 2;
 
-    // Left panel background
-    const leftPanel = s.add.nineslice(LCX, panelCY, 'ui-panel-2', null, LW, panelH, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 2);
-    this.content.push(leftPanel);
+    // Panel background
+    const leftBg = s.add.nineslice(LEFT_CX, leftCY, 'ui-panel-2', null, LEFT_W, bodyH, ...NINE.PANEL)
+      .setScrollFactor(0).setDepth(D + 2).setAlpha(ALPHA.PANEL);
+    this.content.push(leftBg);
 
-    // Section header — inside panel, near top
-    const headerY = panelTop + 24;
-    const headerBg = s.add.nineslice(LCX, headerY, 'ui-nameplate', null, LW - 40, 30, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 3);
-    this.content.push(headerBg);
+    // Header
+    const headerY = BODY_TOP + 16;
+    const header = createText(s, LEFT_CX, headerY, `${SLOT_NAMES[slot]} Hünerleri`, FONT.SMALL, {
+      fill: COLOR.TEXT_SECONDARY, depth: D + 3,
+    });
+    this.content.push(header);
 
-    const headerText = s.add.text(LCX, headerY - 4, `${SLOT_NAMES[slot]} Hünerleri`, {
-      fontSize: '13px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
-    this.content.push(headerText);
+    const sep = createSeparator(s, LEFT_CX, headerY + 12, LEFT_W - 24, { depth: D + 3 });
+    this.content.push(sep);
 
-    // Spell rows — below header, centered vertically in remaining space
-    const listTop = headerY + 28;
-    const listBot = panelBot - 10;
-    const listH = listBot - listTop;
-    const spellCount = availableSpells.length;
-    const rowH = Math.min(66, Math.floor(listH / Math.max(spellCount, 1)));
-    const totalListH = spellCount * rowH;
-    const listStartY = listTop + (listH - totalListH) / 2 + rowH / 2;
+    // Spell rows
+    const listTop = headerY + 24;
+    const rowH = 36;
 
-    const cellX = LCX - LW / 2 + 44;       // icon cell position
-    const nameX = LCX + 20;                  // nameplate center
-    const nameW = LW - 100;                  // nameplate width
-
-    for (let i = 0; i < spellCount; i++) {
+    for (let i = 0; i < availableSpells.length; i++) {
       const spellId = availableSpells[i];
       const def = SPELLS[spellId];
       if (!def) continue;
 
-      const rowY = listStartY + i * rowH;
+      const rowY = listTop + i * rowH + rowH / 2;
       const isChosen = chosenSpellId === spellId;
       const isAutoEquipped = spellState ? spellState.autoEquipped : false;
       const isFirstChoice = chosenSpellId === null || isAutoEquipped;
       const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
 
-      // Cell background
-      const cellBg = s.add.nineslice(cellX, rowY, 'ui-inventory-cell', null, 44, 44, 4, 4, 4, 4)
-        .setScrollFactor(0).setDepth(DEPTH + 3);
-      this.content.push(cellBg);
-
-      // Chosen highlight
+      // Chosen row highlight
       if (isChosen) {
-        const focus = s.add.nineslice(cellX, rowY, 'ui-focus', null, 50, 50, 2, 2, 2, 2)
-          .setTint(0xffdd44).setScrollFactor(0).setDepth(DEPTH + 3);
-        this.content.push(focus);
+        const rowBg = s.add.nineslice(LEFT_CX, rowY, 'ui-focus', null, LEFT_W - 16, rowH - 4, 2, 2, 2, 2)
+          .setScrollFactor(0).setDepth(D + 2).setTint(SLOT_COLOR[slot].tint).setAlpha(ALPHA.SUBTLE);
+        this.content.push(rowBg);
       }
+
+      // Icon cell
+      const cellX = LEFT_L + 24;
+      const cell = s.add.nineslice(cellX, rowY, 'ui-inventory-cell', null, 30, 30, ...NINE.CELL)
+        .setScrollFactor(0).setDepth(D + 3).setAlpha(0.8);
+      this.content.push(cell);
 
       // Spell icon
       if (def.icon && s.textures.exists(def.icon)) {
-        const icon = s.add.image(cellX, rowY, def.icon).setScrollFactor(0).setDepth(DEPTH + 4);
-        const scale = 32 / Math.max(icon.width, icon.height);
-        icon.setScale(scale);
+        const icon = s.add.image(cellX, rowY, def.icon).setScrollFactor(0).setDepth(D + 4);
+        const sc = 22 / Math.max(icon.width, icon.height);
+        icon.setScale(sc);
         this.content.push(icon);
       }
 
-      // Spell name (nameplate)
-      const nameBg = s.add.nineslice(nameX, rowY, 'ui-nameplate', null, nameW, 28, 4, 4, 4, 4)
-        .setScrollFactor(0).setDepth(DEPTH + 3);
-      if (isChosen) nameBg.setTint(SLOT_COLORS[slot].tint);
-      this.content.push(nameBg);
-
-      const nameColor = isChosen ? '#ffffff' : '#3a2218';
-      const nameText = s.add.text(nameX, rowY - 4, def.name, {
-        fontSize: '13px', fontFamily: UI_FONT, fill: nameColor,
+      // Spell name
+      const nameX = cellX + 24;
+      const nameText = s.add.text(nameX, rowY, def.name, textStyle(FONT.BODY, {
+        fill: isChosen ? COLOR.TEXT_PRIMARY : COLOR.TEXT_SECONDARY,
         fontStyle: isChosen ? 'bold' : 'normal',
-      }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
+      })).setScrollFactor(0).setDepth(D + 4).setOrigin(0, 0.5);
       this.content.push(nameText);
 
-      // Hit area for the whole row
-      const hit = s.add.nineslice(LCX, rowY, 'ui-inventory-cell', null, LW - 10, rowH - 4, 4, 4, 4, 4)
-        .setScrollFactor(0).setDepth(DEPTH + 5).setAlpha(0.001)
-        .setInteractive({ useHandCursor: !isChosen && canAfford });
+      // Cost hint for unchosen first-choice spells
+      if (!isChosen && isFirstChoice) {
+        const costHint = s.add.text(LEFT_R - 12, rowY, `${SP.SPELL_CHOICE_COST}◆`, textStyle(FONT.TINY, {
+          fill: canAfford ? COLOR.ACCENT_INFO : COLOR.TEXT_DISABLED,
+        })).setScrollFactor(0).setDepth(D + 4).setOrigin(1, 0.5);
+        this.content.push(costHint);
+      }
+
+      // Hit area for row
+      const hit = s.add.nineslice(LEFT_CX, rowY, 'ui-inventory-cell', null, LEFT_W - 8, rowH - 2, ...NINE.CELL)
+        .setScrollFactor(0).setDepth(D + 5).setAlpha(0.001)
+        .setInteractive({ useHandCursor: canAfford || isChosen });
       this.content.push(hit);
 
-      const tooltipX = LCX + LW / 2 + 10;
       if (!isChosen && canAfford) {
         hit.on('pointerover', () => {
-          cellBg.setTint(0xddccaa);
-          nameBg.setTint(0xddccaa);
-          this._showTooltip(tooltipX, rowY, def, spellId, isFirstChoice);
+          cell.setTint(COLOR.TINT_HOVER);
+          nameText.setFill(COLOR.TEXT_PRIMARY);
         });
         hit.on('pointerout', () => {
-          cellBg.clearTint();
-          nameBg.clearTint();
-          this._hideTooltip();
+          cell.clearTint();
+          nameText.setFill(COLOR.TEXT_SECONDARY);
         });
         hit.on('pointerdown', () => {
           if (s.network && s.network.connected) {
@@ -368,20 +378,16 @@ export class ShopOverlay {
           }
         });
       } else if (isChosen) {
-        hit.on('pointerover', () => {
-          this._showTooltip(tooltipX, rowY, def, spellId, false);
-        });
-        hit.on('pointerout', () => {
-          this._hideTooltip();
-        });
+        hit.on('pointerover', () => { cell.setTint(COLOR.TINT_HOVER); });
+        hit.on('pointerout', () => { cell.clearTint(); });
       }
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  //  RIGHT DETAIL CARD
-  // ═══════════════════════════════════════════════════════════════════
-  _buildRightDetailCard() {
+  // ═══════════════════════════════════════════════════════
+  //  RIGHT — DETAIL CARD
+  // ═══════════════════════════════════════════════════════
+  _buildRightDetail() {
     const s = this.scene;
     const slot = this.activeSlot;
     const prog = this.progression;
@@ -389,25 +395,24 @@ export class ShopOverlay {
     const chosenSpellId = spellState ? spellState.chosenSpell : null;
     const currentTier = spellState ? spellState.tier : 0;
 
-    const RCX = this._rightCX;
-    const RW = this._rightW;
-    const panelTop = this._bodyTop + 8;
-    const panelBot = this._bodyBot - 8;
-    const panelH = panelBot - panelTop;
-    const panelCY = (panelTop + panelBot) / 2;
-    const RL = RCX - RW / 2;  // right panel left edge
-    const RR = RCX + RW / 2;  // right panel right edge
+    const bodyH = BODY_BOT - BODY_TOP;
+    const rightCY = BODY_TOP + bodyH / 2;
 
     // Right panel background
-    const rightPanel = s.add.nineslice(RCX, panelCY, 'ui-panel', null, RW, panelH, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 2);
-    this.content.push(rightPanel);
+    const rightBg = s.add.nineslice(RIGHT_CX, rightCY, 'ui-panel', null, RIGHT_W, bodyH, ...NINE.PANEL)
+      .setScrollFactor(0).setDepth(D + 2).setAlpha(ALPHA.PANEL);
+    this.content.push(rightBg);
 
+    // No spell chosen — prompt
     if (!chosenSpellId) {
-      const prompt = s.add.text(RCX, panelCY, `Soldan bir hüner seç\n(${SP.SPELL_CHOICE_COST} İlham)`, {
-        fontSize: '32px', fontFamily: UI_FONT, fill: '#5a3a28', align: 'center',
-      }).setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5);
+      const prompt = createText(s, RIGHT_CX, rightCY - 10, 'Soldan bir hüner seç', FONT.TITLE_SM, {
+        fill: COLOR.TEXT_DISABLED, depth: D + 3,
+      });
       this.content.push(prompt);
+      const costHint = createText(s, RIGHT_CX, rightCY + 16, `(${SP.SPELL_CHOICE_COST} İlham)`, FONT.BODY, {
+        fill: COLOR.TEXT_DISABLED, depth: D + 3,
+      });
+      this.content.push(costHint);
       return;
     }
 
@@ -418,252 +423,175 @@ export class ShopOverlay {
     const stats = computeSpellStats(chosenSpellId, currentTier);
     const maxTier = getMaxTier(chosenSpellId);
 
-    // ── Top: Spell Identity ──
-    const frameX = RL + 60;
-    const frameY = panelTop + 60;
+    // ── Spell Identity ──
+    let y = BODY_TOP + 20;
 
-    const frameBg = s.add.nineslice(frameX, frameY, 'ui-inventory-cell', null, 64, 64, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 3);
-    this.content.push(frameBg);
+    // Icon
+    const iconX = RIGHT_L + 32;
+    const iconCell = s.add.nineslice(iconX, y + 16, 'ui-inventory-cell', null, 44, 44, ...NINE.CELL)
+      .setScrollFactor(0).setDepth(D + 3);
+    this.content.push(iconCell);
 
     if (def.icon && s.textures.exists(def.icon)) {
-      const bigIcon = s.add.image(frameX, frameY, def.icon)
-        .setScrollFactor(0).setDepth(DEPTH + 4);
-      const iconScale = 44 / Math.max(bigIcon.width, bigIcon.height);
-      bigIcon.setScale(iconScale);
-      this.content.push(bigIcon);
+      const icon = s.add.image(iconX, y + 16, def.icon).setScrollFactor(0).setDepth(D + 4);
+      const sc = 32 / Math.max(icon.width, icon.height);
+      icon.setScale(sc);
+      this.content.push(icon);
     }
 
-    // Spell name title bar — to the right of the icon
-    const nameCX = frameX + 50 + (RR - frameX - 50) / 2;
-    const nameTitleW = Math.min(RR - frameX - 70, 400);
-    const nameBar = s.add.nineslice(nameCX, frameY - 15, 'ui-title-bar', null, nameTitleW, 36, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 3);
-    this.content.push(nameBar);
-
-    const nameText = s.add.text(nameCX, frameY - 15, def.name, {
-      fontSize: '24px', fontFamily: UI_FONT, fill: SLOT_COLORS[slot].hex, fontStyle: 'bold',
+    // Spell name
+    const nameX = iconX + 34;
+    const nameText = createText(s, nameX, y + 8, def.name, FONT.TITLE_SM, {
+      fill: SLOT_COLOR[slot].hex, depth: D + 3, originX: 0,
       stroke: '#000000', strokeThickness: 2,
-    }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
+    });
     this.content.push(nameText);
 
     // Description
-    const desc = s.add.text(nameCX, frameY + 10, def.description, {
-      fontSize: '13px', fontFamily: UI_FONT, fill: '#5a3a28',
-      wordWrap: { width: nameTitleW - 20 }, align: 'center',
-    }).setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5, 0);
-    this.content.push(desc);
+    if (def.description) {
+      const desc = s.add.text(nameX, y + 26, def.description, textStyle(FONT.SMALL, {
+        fill: COLOR.TEXT_SECONDARY,
+        wordWrap: { width: RIGHT_W - 90 },
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0);
+      this.content.push(desc);
+    }
 
-    // ── Middle: Stat Bars ──
-    const statsStartY = frameY + 64;
-    const statsHeaderBg = s.add.nineslice(RCX, statsStartY, 'ui-nameplate', null, Math.min(320, RW - 60), 30, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 3);
-    this.content.push(statsHeaderBg);
+    // ── Separator ──
+    y += 54;
+    const sep1 = createSeparator(s, RIGHT_CX, y, RIGHT_W - 24, { depth: D + 3 });
+    this.content.push(sep1);
 
-    const statsHeader = s.add.text(RCX, statsStartY - 4, 'Değerler', {
-      fontSize: '13px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
-    this.content.push(statsHeader);
-
-    let statY = statsStartY + 28;
+    // ── Stat Bars ──
+    y += 8;
     const visibleStats = STAT_DEFS.filter(sd => stats[sd.key] != null && stats[sd.key] !== 0);
+    const barW = Math.min(280, RIGHT_W - 180);
+    const labelX = RIGHT_L + 20;
+    const barStartX = labelX + 80;
+    const valX = barStartX + barW + 8;
 
     for (const sd of visibleStats) {
-      statY += 26;
-      this._buildStatBar(sd, stats[sd.key], statY, slot);
+      y += 18;
+      this._buildStatRow(sd, stats[sd.key], y, slot, barW, labelX, barStartX, valX);
     }
 
     // ── Tier Progress ──
-    const tierY = statY + 44;
-    const tierLeftX = RL + 30;
-    const tierCX = tierLeftX + 100;
+    y += 24;
+    const sep2 = createSeparator(s, RIGHT_CX, y, RIGHT_W - 24, { depth: D + 3 });
+    this.content.push(sep2);
+    y += 14;
 
-    // Tier header
-    const tierHeaderBg = s.add.nineslice(tierCX, tierY, 'ui-nameplate', null, 160, 30, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 3);
-    this.content.push(tierHeaderBg);
-
-    const tierHeader = s.add.text(tierCX, tierY - 4, `Pâye ${currentTier}/${maxTier}`, {
-      fontSize: '13px', fontFamily: UI_FONT, fill: '#3a2218', fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
-    this.content.push(tierHeader);
+    // Tier label
+    const tierLabel = createText(s, RIGHT_L + 20, y, `Pâye ${currentTier}/${maxTier}`, FONT.BODY_BOLD, {
+      fill: COLOR.ACCENT_GOLD, depth: D + 3, originX: 0,
+    });
+    this.content.push(tierLabel);
 
     // Tier dots
-    const dotSize = 22;
+    const dotSize = 16;
     const dotGap = 4;
-    const dotsW = maxTier * dotSize + (maxTier - 1) * dotGap;
-    const dotsStartX = tierCX - dotsW / 2 + dotSize / 2;
-
+    const dotsStartX = RIGHT_L + 120;
     for (let t = 0; t < maxTier; t++) {
       const filled = t < currentTier;
       const dx = dotsStartX + t * (dotSize + dotGap);
-      const dy = tierY + 34;
-
       const dot = s.add.nineslice(
-        dx, dy, filled ? 'ui-focus' : 'ui-inventory-cell', null,
-        dotSize, dotSize, filled ? 2 : 4, filled ? 2 : 4, filled ? 2 : 4, filled ? 2 : 4
-      ).setScrollFactor(0).setDepth(DEPTH + 3);
-      if (filled) dot.setTint(SLOT_COLORS[slot].tint);
+        dx, y, filled ? 'ui-focus' : 'ui-inventory-cell', null,
+        dotSize, dotSize, ...(filled ? [2, 2, 2, 2] : NINE.CELL)
+      ).setScrollFactor(0).setDepth(D + 3);
+      if (filled) dot.setTint(SLOT_COLOR[slot].tint);
       this.content.push(dot);
-
-      const num = s.add.text(dx, dy, `${t + 1}`, {
-        fontSize: '13px', fontFamily: UI_FONT,
-        fill: filled ? '#ffffff' : '#666666', fontStyle: 'bold',
-        stroke: filled ? '#000000' : undefined,
-        strokeThickness: filled ? 2 : 0,
-      }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
-      this.content.push(num);
     }
 
-    // Completed tier list
-    let completedY = tierY + 58;
-    for (let t = 0; t < currentTier && t < tree.tiers.length; t++) {
-      const tier = tree.tiers[t];
-      const check = s.add.text(tierLeftX, completedY, `✓ T${t + 1}: ${tier.name}`, {
-        fontSize: '13px', fontFamily: UI_FONT, fill: '#1a7733',
-      }).setScrollFactor(0).setDepth(DEPTH + 3);
-      this.content.push(check);
-      completedY += 22;
-    }
-
-    // ── Upgrade Box ──
+    // ── Next Tier Info ──
     const nextTier = getNextTierInfo(chosenSpellId, currentTier);
-    const upgradeX = RCX + RW / 4 + 20;
-    const upgBoxW = Math.min(340, RW / 2 - 20);
+    y += 24;
 
     if (nextTier) {
-      const upgradeY = tierY;
+      const nextLabel = createText(s, RIGHT_L + 20, y, `Sonraki: ${nextTier.name}`, FONT.BODY_BOLD, {
+        fill: COLOR.TEXT_PRIMARY, depth: D + 3, originX: 0,
+      });
+      this.content.push(nextLabel);
+      y += 16;
 
-      const upgBox = s.add.nineslice(upgradeX, upgradeY + 20, 'ui-panel-2', null, upgBoxW, 96, 4, 4, 4, 4)
-        .setScrollFactor(0).setDepth(DEPTH + 3);
-      this.content.push(upgBox);
+      if (nextTier.description) {
+        const nextDesc = s.add.text(RIGHT_L + 20, y, nextTier.description, textStyle(FONT.SMALL, {
+          fill: COLOR.TEXT_SECONDARY,
+          wordWrap: { width: RIGHT_W - 40 },
+        })).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0);
+        this.content.push(nextDesc);
+        y += nextDesc.height + 6;
+      }
 
-      const upgTitle = s.add.text(upgradeX, upgradeY - 2, `Sonraki: ${nextTier.name}`, {
-        fontSize: '13px', fontFamily: UI_FONT, fill: '#2a1a08', fontStyle: 'bold',
-      }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5, 0);
-      this.content.push(upgTitle);
-
-      const upgDesc = s.add.text(upgradeX, upgradeY + 18, nextTier.description, {
-        fontSize: '13px', fontFamily: UI_FONT, fill: '#5a3a28',
-        wordWrap: { width: upgBoxW - 30 }, align: 'center',
-      }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5, 0);
-      this.content.push(upgDesc);
-
-      const MOD_LABELS = {
-        damage: 'hasar', knockbackForce: 'itme', cooldown: 'bekleme',
-        speed: 'hız', range: 'menzil', radius: 'alan',
-        buffDuration: 'süre', lifetime: 'ömür', piercing: 'delici',
-        explosionRadius: 'patlama', stunDuration: 'sersemletme',
-        slowAmount: 'yavaşlatma', slowDuration: 'yavaşlatma süresi',
-        rootDuration: 'köklenme', wallHp: 'duvar canı', wallDuration: 'duvar süresi',
-        maxBounces: 'sekme', shieldHits: 'kalkan', dashDamage: 'çarpma hasarı',
-        dashKnockback: 'çarpma itmesi', dashWidth: 'çarpma genişliği',
-        speedBoost: 'hız artışı', recallDuration: 'geri dönüş süresi',
-        missileCount: 'söz sayısı', turnRate: 'dönüş hızı',
-        trackingRange: 'takip menzili', pullSpeed: 'çekim hızı',
-        throwForce: 'fırlatma gücü', chainCount: 'zincirleme',
-        overshootRange: 'aşım menzili', maxKnockbackForce: 'maks itme',
-        zoneDuration: 'alan süresi', zoneRadius: 'alan genişliği',
-        zoneDamage: 'alan hasarı', impactDelay: 'çarpma gecikmesi',
-        impactRadius: 'çarpma alanı', wallRadius: 'duvar boyutu',
-        frictionReduction: 'sürtünme azaltma', intangible: 'dokunulmazlık',
-        leaveTrail: 'iz bırak', trailSlowAmount: 'iz yavaşlatma',
-        trailSlowDuration: 'iz süresi', exitPushForce: 'çıkış itmesi',
-        exitPushRadius: 'çıkış alanı', swapStunDuration: 'sersemletme',
-        departurePushForce: 'ayrılış itmesi', departurePushRadius: 'ayrılış alanı',
-        shatterSlowAmount: 'kırılma yavaşlatma', shatterSlowDuration: 'kırılma süresi',
-        shatterRadius: 'kırılma alanı', kbPerBounce: 'sekme başı itme',
-        reflectOnBreak: 'yansıtma', pullDuration: 'çekim süresi',
-        flightCollision: 'uçuş çarpması', flightDamage: 'uçuş hasarı',
-        flightKnockback: 'uçuş itmesi', chainKbFactor: 'zincirleme gücü',
-        hitsOnReturn: 'dönüşte vurur', cooldownOnCatch: 'yakalama indirimi',
-        burnZoneDuration: 'yanma süresi', burnSlowAmount: 'yanma yavaşlatma',
-        destroysSpells: 'söz kırar', launchSpeedBonus: 'fırlatma hızı',
-        flightDuration: 'uçuş süresi',
-      };
+      // Mod changes
       const modText = Object.entries(nextTier.mods)
-        .map(([k, v]) => typeof v === 'boolean' ? `${MOD_LABELS[k] || k}: ${v ? 'evet' : 'hayır'}` : `${MOD_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v}`)
-        .join(', ');
-      const upgMods = s.add.text(upgradeX, upgradeY + 38, modText, {
-        fontSize: '13px', fontFamily: UI_FONT, fill: '#2a4466',
-        wordWrap: { width: upgBoxW - 30 }, align: 'center',
-      }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5, 0);
-      this.content.push(upgMods);
-
-      const boxBottom = upgMods.y + upgMods.height + 8;
-      const boxH = boxBottom - (upgradeY - 10);
-      upgBox.setSize(upgBoxW, boxH);
-      upgBox.setY(upgradeY - 10 + boxH / 2);
-
+        .map(([k, v]) => typeof v === 'boolean'
+          ? `${MOD_LABELS[k] || k}: ${v ? 'evet' : 'hayır'}`
+          : `${MOD_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v}`)
+        .join('  ');
+      if (modText) {
+        const mods = s.add.text(RIGHT_L + 20, y, modText, textStyle(FONT.TINY, {
+          fill: COLOR.ACCENT_INFO,
+          wordWrap: { width: RIGHT_W - 40 },
+        })).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0);
+        this.content.push(mods);
+      }
     } else {
-      const maxBadge = s.add.nineslice(upgradeX, tierY + 20, 'ui-panel-interior', null, 240, 48, 4, 4, 4, 4)
-        .setScrollFactor(0).setDepth(DEPTH + 3);
-      this.content.push(maxBadge);
-
-      const maxLabel = s.add.text(upgradeX, tierY + 20, '✦ EN ÜST PÂYE ✦', {
-        fontSize: '13px', fontFamily: UI_FONT, fill: '#ffdd44', fontStyle: 'bold',
+      // Max tier badge
+      const badge = createText(s, RIGHT_CX, y, 'EN ÜST PÂYE', FONT.BODY_BOLD, {
+        fill: COLOR.ACCENT_GOLD, depth: D + 3,
         stroke: '#000000', strokeThickness: 2,
-      }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0.5);
-      this.content.push(maxLabel);
+      });
+      this.content.push(badge);
+    }
+
+    // ── Completed tiers (compact) ──
+    if (currentTier > 0 && tree.tiers) {
+      y += 20;
+      for (let t = 0; t < currentTier && t < tree.tiers.length; t++) {
+        const tier = tree.tiers[t];
+        const check = s.add.text(RIGHT_L + 20, y, `T${t + 1}: ${tier.name}`, textStyle(FONT.TINY, {
+          fill: COLOR.ACCENT_SUCCESS,
+        })).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0);
+        this.content.push(check);
+        y += 14;
+      }
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  //  STAT BAR
-  // ═══════════════════════════════════════════════════════════════════
-  _buildStatBar(statDef, value, y, slot) {
+  // ═══════════════════════════════════════════════════════
+  //  STAT ROW — single stat bar
+  // ═══════════════════════════════════════════════════════
+  _buildStatRow(sd, value, y, slot, barW, labelX, barStartX, valX) {
     const s = this.scene;
-    const RCX = this._rightCX;
-    const RW = this._rightW;
-    const RL = RCX - RW / 2;
-    const RR = RCX + RW / 2;
 
-    const labelX = RL + 20;
-    const labelW = 80;
-    const barL = labelX + labelW + 8;
-    const barR = RR - 60;
-    const barW = barR - barL;
-    const barCX = barL + barW / 2;
-    const barH = 20;
-    const fillMaxW = barW - 20;
+    // Label
+    const lbl = s.add.text(labelX, y, sd.label, textStyle(FONT.SMALL, {
+      fill: COLOR.TEXT_SECONDARY,
+    })).setScrollFactor(0).setDepth(D + 4).setOrigin(0, 0.5);
+    this.content.push(lbl);
 
-    // Label — nudge up 4px so KiwiSoda descenders don't clip the bar
-    const label = s.add.text(labelX, y - 4, `${statDef.label}:`, {
-      fontSize: '13px', fontFamily: UI_FONT, fill: '#3a2218',
-    }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0, 0.5);
-    this.content.push(label);
-
-    // Bar container
-    const container = s.add.nineslice(barCX, y, 'ui-panel-interior', null, barW, barH, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(DEPTH + 3);
-    this.content.push(container);
+    // Bar background
+    const barBg = s.add.nineslice(barStartX + barW / 2, y, 'ui-panel-interior', null, barW, 6, ...NINE.PANEL)
+      .setScrollFactor(0).setDepth(D + 3).setAlpha(ALPHA.BAR_BG);
+    this.content.push(barBg);
 
     // Bar fill
-    let ratio = statDef.invert
-      ? 1 - (value / statDef.max)
-      : value / statDef.max;
+    let ratio = sd.invert ? 1 - (value / sd.max) : value / sd.max;
     ratio = Math.max(0, Math.min(1, ratio));
-    const fillW = Math.max(4, ratio * fillMaxW);
-    const fillLeftEdge = barCX - barW / 2 + 10;
-
-    const fill = s.add.nineslice(
-      fillLeftEdge + fillW / 2, y,
-      'ui-slider-progress', null,
-      fillW, 8, 2, 2, 1, 1
-    ).setScrollFactor(0).setDepth(DEPTH + 4).setTint(SLOT_COLORS[slot].tint);
+    const fillW = Math.max(2, ratio * barW);
+    const fill = s.add.nineslice(barStartX + fillW / 2, y, 'ui-slider-progress', null, fillW, 6, ...NINE.SLIDER)
+      .setScrollFactor(0).setDepth(D + 4).setTint(SLOT_COLOR[slot].tint);
     this.content.push(fill);
 
-    // Value text — nudge up 4px to match label
-    const displayVal = statDef.fmt(value);
-    const valText = s.add.text(barR + 6, y - 4, displayVal, {
-      fontSize: '13px', fontFamily: UI_FONT, fill: '#2a4466',
-    }).setScrollFactor(0).setDepth(DEPTH + 4).setOrigin(0, 0.5);
-    this.content.push(valText);
+    // Value text
+    const val = s.add.text(valX, y, sd.fmt(value), textStyle(FONT.SMALL, {
+      fill: COLOR.TEXT_PRIMARY,
+    })).setScrollFactor(0).setDepth(D + 4).setOrigin(0, 0.5);
+    this.content.push(val);
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  //  ACTION BUTTON (in bottom bar)
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
+  //  ACTION BUTTON — in bottom bar
+  // ═══════════════════════════════════════════════════════
   _buildActionButton() {
     const s = this.scene;
     const slot = this.activeSlot;
@@ -674,121 +602,64 @@ export class ShopOverlay {
     if (!chosenSpellId) return;
 
     const nextTier = getNextTierInfo(chosenSpellId, spellState.tier);
-    if (!nextTier) return; // max tier, no button needed
+    if (!nextTier) return;
 
     const cost = nextTier.cost;
     const canUpgrade = prog && prog.sp >= cost;
 
-    const barY = this._bodyBot + 30;
-    const btnX = this._W - this._margin - 140;
-    const { elements: btnEls } = createNinesliceButton(s, btnX, barY, `Pişir (${cost} İlham)`, {
-      width: 200, height: 34, depth: DEPTH + 3, fontSize: '13px',
-      enabled: canUpgrade,
+    const { elements } = createButton(s, PR - PAD - 80, BOT_Y, `Pişir (${cost})`, {
+      width: 140, height: 26, depth: D + 3, enabled: canUpgrade,
       onClick: () => {
         if (s.network && s.network.connected) {
           s.network.sendShopUpgradeTier(slot);
         }
       },
     });
-    this.content.push(...btnEls);
+    this.content.push(...elements);
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  //  LOCKED SLOT
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
+  //  LOCKED SLOT CONTENT
+  // ═══════════════════════════════════════════════════════
   _buildLockedContent() {
     const s = this.scene;
     const slot = this.activeSlot;
     const prog = this.progression;
 
-    // Use relative layout metrics
-    const cx = this._W / 2;
-    const cy = this._bodyCY;
+    const bodyH = BODY_BOT - BODY_TOP;
+    const cy = BODY_TOP + bodyH / 2;
 
-    const lockIcon = s.add.image(cx, cy - 46, 'spell-BookDarkness-off').setDisplaySize(36, 36).setDepth(DEPTH + 3)
-      .setScrollFactor(0).setOrigin(0.5);
+    // Lock icon
+    const lockIcon = s.add.image(SCREEN.CX, cy - 30, 'spell-BookDarkness-off')
+      .setDisplaySize(32, 32).setScrollFactor(0).setDepth(D + 3);
     this.content.push(lockIcon);
 
-    const label = s.add.text(cx, cy + 14, `[${slot}] ${SLOT_NAMES[slot]} — KİLİTLİ`, {
-      fontSize: '32px', fontFamily: UI_FONT, fill: '#5a3a28', fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5);
+    const label = createText(s, SCREEN.CX, cy + 10, `${SLOT_NAMES[slot]} — KİLİTLİ`, FONT.TITLE_SM, {
+      fill: COLOR.TEXT_DISABLED, depth: D + 3,
+    });
     this.content.push(label);
 
-    const costLabel = s.add.text(cx, cy + 54, `Açmak için ${SP.SLOT_UNLOCK_COST} İlham gerekir`, {
-      fontSize: '13px', fontFamily: UI_FONT, fill: '#8a7a6a',
-    }).setScrollFactor(0).setDepth(DEPTH + 3).setOrigin(0.5);
+    const costLabel = createText(s, SCREEN.CX, cy + 36, `Açmak için ${SP.SLOT_UNLOCK_COST} İlham gerekir`, FONT.BODY, {
+      fill: COLOR.TEXT_SECONDARY, depth: D + 3,
+    });
     this.content.push(costLabel);
 
     // Unlock button in bottom bar
     const canUnlock = prog && prog.sp >= SP.SLOT_UNLOCK_COST;
-    const barY = this._bodyBot + 30;
-    const btnX = this._W - this._margin - 140;
-    const { elements: btnEls } = createNinesliceButton(s, btnX, barY, `Kilidi Aç (${SP.SLOT_UNLOCK_COST} İlham)`, {
-      width: 260, height: 40, depth: DEPTH + 3, fontSize: '13px',
-      enabled: canUnlock,
+    const { elements } = createButton(s, PR - PAD - 100, BOT_Y, `Kilidi Aç (${SP.SLOT_UNLOCK_COST})`, {
+      width: 160, height: 26, depth: D + 3, enabled: canUnlock,
       onClick: () => {
         if (s.network && s.network.connected) {
           s.network.sendShopUnlockSlot(slot);
         }
       },
     });
-    this.content.push(...btnEls);
+    this.content.push(...elements);
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  //  TOOLTIP
-  // ═══════════════════════════════════════════════════════════════════
-  _showTooltip(x, y, def, spellId, isFirstChoice) {
-    this._hideTooltip();
-    const s = this.scene;
-    const stats = computeSpellStats(spellId, 0);
-
-    const lines = [def.name];
-    if (def.description) lines.push(def.description);
-    lines.push('');
-
-    // Inline stats
-    const statParts = [];
-    if (stats.damage) statParts.push(`HSR:${stats.damage}`);
-    if (stats.knockbackForce) statParts.push(`İTME:${(stats.knockbackForce * 1000).toFixed(0)}`);
-    if (stats.cooldown) statParts.push(`BKL:${(stats.cooldown / 1000).toFixed(1)}s`);
-    if (stats.speed) statParts.push(`HIZ:${stats.speed}`);
-    if (stats.range) statParts.push(`MNZ:${stats.range}`);
-    if (statParts.length) lines.push(statParts.join(' | '));
-
-    if (isFirstChoice) lines.push('', `Bedel: ${SP.SPELL_CHOICE_COST} İlham`);
-    else lines.push('', 'Bedel: Bedava');
-
-    const text = lines.join('\n');
-
-    const tipText = s.add.text(x, y, text, {
-      fontSize: '13px', fontFamily: UI_FONT, fill: '#2a1a08', lineSpacing: 4,
-      wordWrap: { width: 220 }, align: 'center',
-    }).setScrollFactor(0).setDepth(DEPTH + 11).setOrigin(0, 0.5);
-
-    const tipH = tipText.height + 16;
-    const tipW = 240;
-    const tipBg = s.add.nineslice(
-      x + tipW / 2, y, 'ui-panel-2', null, tipW, tipH, 4, 4, 4, 4
-    ).setScrollFactor(0).setDepth(DEPTH + 10);
-
-    tipText.setX(x + 10);
-
-    this._tooltip = [tipBg, tipText];
-  }
-
-  _hideTooltip() {
-    if (this._tooltip) {
-      for (const el of this._tooltip) {
-        if (el && !el.destroyed) el.destroy();
-      }
-      this._tooltip = null;
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
   //  HELPERS
-  // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
   _isSlotLocked(slot) {
     const prog = this.progression;
     if (!prog) return slot !== 'Q';
@@ -799,9 +670,7 @@ export class ShopOverlay {
     const prog = this.progression;
     if (!prog) return 'Q';
     for (const slot of SLOTS) {
-      if (prog.slots[slot] !== 'locked' && prog.spells[slot] && prog.spells[slot].chosenSpell) {
-        return slot;
-      }
+      if (prog.slots[slot] !== 'locked' && prog.spells[slot] && prog.spells[slot].chosenSpell) return slot;
     }
     for (const slot of SLOTS) {
       if (prog.slots[slot] !== 'locked') return slot;
@@ -815,23 +684,15 @@ export class ShopOverlay {
   }
 
   _destroyContent() {
-    this._hideTooltip();
     for (const el of this.content) {
-      if (el && !el.destroyed) {
-        el.removeAllListeners();
-        el.destroy();
-      }
+      if (el && !el.destroyed) { el.removeAllListeners(); el.destroy(); }
     }
     this.content = [];
   }
 
   destroy() {
-    this._hideTooltip();
     for (const el of [...this.chrome, ...this.content]) {
-      if (el && !el.destroyed) {
-        el.removeAllListeners();
-        el.destroy();
-      }
+      if (el && !el.destroyed) { el.removeAllListeners(); el.destroy(); }
     }
     this.chrome = [];
     this.content = [];

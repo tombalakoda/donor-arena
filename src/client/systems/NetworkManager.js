@@ -38,6 +38,10 @@ export class NetworkManager {
     }
     this.socket = io(serverUrl, {
       transports: ['websocket'],
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     this.socket.on('connect', () => {

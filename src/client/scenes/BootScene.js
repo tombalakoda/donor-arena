@@ -174,9 +174,9 @@ export class BootScene extends Phaser.Scene {
         this.scene.start('MenuScene');
         return;
       }
-      setTimeout(watchdog, 200);
+      this._watchdogId = setTimeout(watchdog, 200);
     };
-    setTimeout(watchdog, 500);
+    this._watchdogId = setTimeout(watchdog, 500);
 
     // --- Load Character Spritesheets ---
     for (const char of CHARACTERS) {
@@ -265,6 +265,13 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-tab-unselected',  'assets/ui/theme-wood/tab_unselected.png');
     this.load.image('ui-nameplate',       'assets/ui/theme-wood/nine_path_panel_2.png');
     this.load.image('ui-title-bar',       'assets/ui/theme-wood/nine_path_panel_interior.png');
+    this.load.image('ui-panel-disabled',  'assets/ui/theme-wood/nine_path_panel_disabled.png');
+
+    // --- Keyboard key sprites (for spell slot keybind hints) ---
+    this.load.image('key-Q', 'assets/ui/keys/KeyQ.png');
+    this.load.image('key-W', 'assets/ui/keys/KeyW.png');
+    this.load.image('key-E', 'assets/ui/keys/KeyE.png');
+    this.load.image('key-R', 'assets/ui/keys/KeyR.png');
 
     // --- Receptacle & Dialog assets ---
     this.load.image('ui-lifebar-fill',    'assets/ui/receptacle/LifeBarMiniProgress.png');
@@ -331,6 +338,7 @@ export class BootScene extends Phaser.Scene {
   create() {
     if (this._sceneStarted) return;
     this._sceneStarted = true;
+    if (this._watchdogId) { clearTimeout(this._watchdogId); this._watchdogId = null; }
 
     // Restore sound mute preference
     const muted = localStorage.getItem('soundMuted') === 'true';

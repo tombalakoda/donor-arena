@@ -18,68 +18,72 @@ export class GameLoop {
    * Main tick — called every PHYSICS.TICK_MS by Room's setInterval.
    */
   update() {
-    const room = this.room;
-    room.tick++;
+    try {
+      const room = this.room;
+      room.tick++;
 
-    // Count alive players
-    let alivePlayers = 0;
-    for (const [, player] of room.players) {
-      if (!player.eliminated) alivePlayers++;
-    }
+      // Count alive players
+      let alivePlayers = 0;
+      for (const [, player] of room.players) {
+        if (!player.eliminated) alivePlayers++;
+      }
 
-    // Update round manager
-    const event = room.rounds.update(PHYSICS.TICK_MS, alivePlayers, room.players.size);
-    if (event) {
-      room.handleRoundEvent(event);
-    }
+      // Update round manager
+      const event = room.rounds.update(PHYSICS.TICK_MS, alivePlayers, room.players.size);
+      if (event) {
+        room.handleRoundEvent(event);
+      }
 
-    // Only process gameplay during PLAYING phase
-    const isPlaying = room.rounds.phase === PHASE.PLAYING;
+      // Only process gameplay during PLAYING phase
+      const isPlaying = room.rounds.phase === PHASE.PLAYING;
 
-    // Apply player inputs (allow movement during countdown too for feel)
-    const canMove = isPlaying || room.rounds.phase === PHASE.COUNTDOWN;
-    for (const [playerId, player] of room.players) {
-      if (player.input && !player.eliminated && canMove) {
-        const effects = room.spells.getStatusEffects(playerId);
-        const reached = room.physics.applyInput(playerId, player.input, effects);
-        if (reached) {
-          player.input = null;
+      // Apply player inputs (allow movement during countdown too for feel)
+      const canMove = isPlaying || room.rounds.phase === PHASE.COUNTDOWN;
+      for (const [playerId, player] of room.players) {
+        if (player.input && !player.eliminated && canMove) {
+          const effects = room.spells.getStatusEffects(playerId);
+          const reached = room.physics.applyInput(playerId, player.input, effects);
+          if (reached) {
+            player.input = null;
+          }
         }
       }
-    }
 
-    if (isPlaying) {
-      // Update spells BEFORE physics step so forces (e.g. grappling pull)
-      // are resolved in the same tick they're applied
-      room.spells.update(PHYSICS.TICK_MS);
-    }
-
-    // Step physics — resolves all forces from applyInput + spells.update
-    room.physics.step(PHYSICS.TICK_MS);
-
-    if (isPlaying) {
-      // Process deferred spell hits
-      this.processSpellHits(room.spells.drainHits());
-
-      // Broadcast obstacle destruction events
-      const destroyed = room.obstacleManager.flushDestroyed();
-      if (destroyed.length > 0) {
-        room.broadcast(MSG.SERVER_OBSTACLE_EVENT, { destroyed });
+      if (isPlaying) {
+        // Update spells BEFORE physics step so forces (e.g. grappling pull)
+        // are resolved in the same tick they're applied
+        room.spells.update(PHYSICS.TICK_MS);
       }
 
-      // Check ring damage (skip in sandbox)
-      if (!room.sandbox) {
-        this.checkRingDamage();
+      // Step physics — resolves all forces from applyInput + spells.update
+      room.physics.step(PHYSICS.TICK_MS);
+
+      if (isPlaying) {
+        // Process deferred spell hits
+        this.processSpellHits(room.spells.drainHits());
+
+        // Broadcast obstacle destruction events
+        const destroyed = room.obstacleManager.flushDestroyed();
+        if (destroyed.length > 0) {
+          room.broadcast(MSG.SERVER_OBSTACLE_EVENT, { destroyed });
+        }
+
+        // Check ring damage (skip in sandbox)
+        if (!room.sandbox) {
+          this.checkRingDamage();
+        }
+
+        // Update dummies in sandbox
+        if (room.sandbox) {
+          this.updateDummies(PHYSICS.TICK_MS);
+        }
       }
 
-      // Update dummies in sandbox
-      if (room.sandbox) {
-        this.updateDummies(PHYSICS.TICK_MS);
-      }
+      // Build and send state snapshot
+      this.broadcastState();
+    } catch (err) {
+      console.error(`[Room ${this.room.id}] Tick error:`, err);
     }
-
-    // Build and send state snapshot
-    this.broadcastState();
   }
 
   processSpellHits(hits) {

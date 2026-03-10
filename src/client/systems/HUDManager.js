@@ -1,15 +1,18 @@
 import { PLAYER, ARENA } from '../../shared/constants.js';
 import { SPELLS } from '../../shared/spellData.js';
 import { computeSpellStats } from '../../shared/skillTreeData.js';
-import { UI_FONT } from '../config.js';
+import {
+  COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN,
+  getHpTint, textStyle,
+} from '../ui/UIConfig.js';
+import { createButton, createIconButton, createPanel, createBar, createSeparator, createText } from '../ui/UIHelpers.js';
 
 export class HUDManager {
   constructor(scene) {
     this.scene = scene;
 
     // HP bar
-    this.hpBarBg = null;
-    this.hpBarFill = null;
+    this._hpBar = null;       // { bg, fill, setValue, elements }
     this.hpText = null;
 
     // Info
@@ -31,7 +34,7 @@ export class HUDManager {
     this.spText = null;
     this.spBg = null;
 
-    // Ring
+    // Ring (world-space — uses Graphics, not UI sprites)
     this.ringGraphics = null;
     this.outerRingGraphics = null;
     this.lastDrawnRingRadius = -1;
@@ -40,7 +43,7 @@ export class HUDManager {
     this._lastRingBurnSoundTime = 0;
     this._ringDamageParticles = [];
 
-    // HUD text caches (avoid redundant setText calls)
+    // HUD text caches
     this._lastPing = null;
     this._lastPlayerCount = null;
     this._lastHpText = null;
@@ -51,10 +54,10 @@ export class HUDManager {
     this._lastPhaseText = '';
     this._lastSpText = '';
 
-    // Cooldown visuals state
-    this._totalCooldowns = {};    // { spellId: totalCooldownMs }
-    this._lastCdWasActive = {};   // { slotKey: boolean } for ready pulse
-    this._slotSpellIcon = {};     // { slotKey: normalTextureKey } to track icon swaps
+    // Cooldown visuals
+    this._totalCooldowns = {};
+    this._lastCdWasActive = {};
+    this._slotSpellIcon = {};
 
     // Leaderboard
     this._leaderboardElements = [];
@@ -67,225 +70,186 @@ export class HUDManager {
 
     // Misc
     this.announcementText = null;
+    this._soundIcon = null;
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // CREATE HUD
+  // ═══════════════════════════════════════════════════════════
 
   createHUD() {
     const scene = this.scene;
-    this.pingText = scene.add.text(8, 8, 'Ping: --', {
-      fontSize: '12px', fontFamily: UI_FONT,
-      fill: '#88ccff',
-    }).setScrollFactor(0).setDepth(100);
+    const camW = SCREEN.W;
 
-    this.playerCountText = scene.add.text(8, 22, 'Âşıklar: 0', {
-      fontSize: '12px', fontFamily: UI_FONT,
-      fill: '#88ccff',
-    }).setScrollFactor(0).setDepth(100);
+    // --- Top-left: Ping & player count ---
+    this.pingText = createText(scene, SPACE.SM, SPACE.SM, 'Ping: --', FONT.SMALL, {
+      fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD, originX: 0, originY: 0,
+    });
+    this.playerCountText = createText(scene, SPACE.SM, SPACE.SM + 14, 'Âşıklar: 0', FONT.SMALL, {
+      fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD, originX: 0, originY: 0,
+    });
 
-    const camW = scene.cameras.main.width;
-    const camH = scene.cameras.main.height;
+    // --- Center-top: HP bar ---
+    const barX = SCREEN.CX - 100; // left edge
+    const barY = 28;
+    this._hpBar = createBar(scene, barX, barY, 200, 6, {
+      depth: DEPTH.HUD, tint: COLOR.HP_FULL, showBg: true, value: 1,
+    });
+    this.hpText = createText(scene, SCREEN.CX + 108, barY, '100 Nefes', FONT.SMALL, {
+      fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0.5,
+    });
 
-    // HP bar: nineslice frame + sprite fill inside
-    this.hpBarBg = scene.add.nineslice(camW / 2, 16, 'ui-panel-2', null, 168, 14, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(100).setOrigin(0.5);
-    this.hpBarFill = scene.add.nineslice(camW / 2 - 80, 16, 'ui-slider-progress', null, 160, 8, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(101).setOrigin(0, 0.5).setTint(0x44dd44);
-    this.hpText = scene.add.text(camW / 2, 16, '100/100', {
-      fontSize: '13px', fontFamily: UI_FONT,
-      fill: '#ffffff',
-    }).setScrollFactor(0).setDepth(102).setOrigin(0.5);
+    // --- Top-right: Round & timer ---
+    this.roundText = createText(scene, camW - SPACE.MD, SPACE.SM, 'Fasıl 0/20', FONT.BODY_BOLD, {
+      fill: COLOR.ACCENT_GOLD, depth: DEPTH.HUD, originX: 1, originY: 0,
+    });
+    this.timerText = createText(scene, camW - SPACE.MD, SPACE.SM + 16, '60s', FONT.BODY, {
+      fill: COLOR.ACCENT_INFO, depth: DEPTH.HUD, originX: 1, originY: 0,
+    });
+    this.phaseText = createText(scene, SCREEN.CX, 40, '', FONT.SMALL, {
+      fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD, originX: 0.5, originY: 0,
+    });
 
-    this.roundText = scene.add.text(camW - 10, 8, 'Fasıl 0/20', {
-      fontSize: '13px', fontFamily: UI_FONT,
-      fill: '#ffdd44',
-      fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(100).setOrigin(1, 0);
+    // --- Countdown (center screen, hidden until needed) ---
+    this.countdownText = scene.add.text(SCREEN.CX, SCREEN.CY - 40, '', textStyle(FONT.NUMBER_LG, {
+      fill: '#ffffff', stroke: '#000000', strokeThickness: 3,
+    })).setScrollFactor(0).setDepth(DEPTH.OVERLAY_TOP).setOrigin(0.5).setVisible(false);
 
-    this.timerText = scene.add.text(camW - 10, 24, '60s', {
-      fontSize: '13px', fontFamily: UI_FONT,
-      fill: '#88ccff',
-    }).setScrollFactor(0).setDepth(100).setOrigin(1, 0);
-
-    this.phaseText = scene.add.text(camW / 2, 34, '', {
-      fontSize: '12px', fontFamily: UI_FONT,
-      fill: '#aaaaaa',
-    }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
-
-    this.countdownText = scene.add.text(camW / 2, camH / 2 - 40, '', {
-      fontSize: '48px', fontFamily: UI_FONT,
-      fill: '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 4,
-    }).setScrollFactor(0).setDepth(250).setOrigin(0.5).setVisible(false);
-
-    this.createSoundToggle(camW);
-    this.createScoreboardToggle(camW);
+    // --- Toggle buttons ---
+    this.createSoundToggle();
+    this.createScoreboardToggle();
   }
 
-  createSoundToggle(camW) {
+  createSoundToggle() {
     const scene = this.scene;
     const isMuted = scene.sound.mute;
-    const btnSize = 22;
-    const x = camW - 20;
+    const x = SCREEN.W - 20;
     const y = 46;
 
-    const bg = scene.add.nineslice(x, y, 'ui-inventory-cell', null, btnSize, btnSize, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(100);
-
-    const icon = scene.add.image(x, y, isMuted ? 'spell-BookThunder-off' : 'spell-BookThunder')
-      .setScrollFactor(0).setDepth(101).setDisplaySize(18, 18);
-
-    const hitArea = scene.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
-      .setScrollFactor(0).setDepth(102).setInteractive({ useHandCursor: true });
-
-    hitArea.on('pointerover', () => bg.setTint(0xddddaa));
-    hitArea.on('pointerout', () => bg.clearTint());
-    hitArea.on('pointerdown', () => {
-      scene.sound.mute = !scene.sound.mute;
-      localStorage.setItem('soundMuted', scene.sound.mute);
-      icon.setTexture(scene.sound.mute ? 'spell-BookThunder-off' : 'spell-BookThunder');
-    });
+    const { elements, icon, cell } = createIconButton(scene, x, y,
+      isMuted ? 'spell-BookThunder-off' : 'spell-BookThunder', {
+        size: 18, depth: DEPTH.HUD,
+        onClick: () => {
+          scene.sound.mute = !scene.sound.mute;
+          localStorage.setItem('soundMuted', scene.sound.mute);
+          icon.setTexture(scene.sound.mute ? 'spell-BookThunder-off' : 'spell-BookThunder');
+        },
+      });
+    this._soundIcon = icon;
+    this._soundElements = elements;
   }
 
-  createScoreboardToggle(camW) {
+  createScoreboardToggle() {
     const scene = this.scene;
-    const btnSize = 22;
-    const x = camW - 20;
-    const y = 46 + 28; // below the mute button
+    const x = SCREEN.W - 20;
+    const y = 74;
 
-    const bg = scene.add.nineslice(x, y, 'ui-inventory-cell', null, btnSize, btnSize, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(100);
-
-    scene.add.image(x, y, 'spell-Cut')
-      .setScrollFactor(0).setDepth(101).setDisplaySize(18, 18);
-
-    const hitArea = scene.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
-      .setScrollFactor(0).setDepth(102).setInteractive({ useHandCursor: true });
-
-    hitArea.on('pointerover', () => bg.setTint(0xddddaa));
-    hitArea.on('pointerout', () => {
-      if (!this._leaderboardVisible) bg.clearTint();
+    const { elements, icon, cell } = createIconButton(scene, x, y, 'spell-Cut', {
+      size: 18, depth: DEPTH.HUD,
+      onClick: () => {
+        this.toggleLeaderboard(!this._leaderboardVisible);
+        cell.setAlpha(this._leaderboardVisible ? ALPHA.SUBTLE + 0.2 : ALPHA.HINT);
+      },
     });
-    hitArea.on('pointerdown', () => {
-      this.toggleLeaderboard(!this._leaderboardVisible);
-      bg.setTint(this._leaderboardVisible ? 0xffdd44 : 0xddddaa);
-    });
-
-    this._scoreboardBtnBg = bg;
+    this._scoreboardBtnCell = cell;
+    this._scoreboardElements = elements;
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // SPELL HUD
+  // ═══════════════════════════════════════════════════════════
 
   createSpellHUD() {
     const scene = this.scene;
-    const camW = scene.cameras.main.width;
-    const camH = scene.cameras.main.height;
-    const slotSize = 40;
-    const slotGap = 6;
+    const slotSize = 36;
+    const slotGap = 4;
     const totalWidth = 4 * slotSize + 3 * slotGap;
-    const startX = (camW - totalWidth) / 2;
-    const slotY = camH - 50;
-
+    const startX = (SCREEN.W - totalWidth) / 2;
+    const slotY = SCREEN.H - 46;
     const slots = ['Q', 'W', 'E', 'R'];
 
     for (let i = 0; i < slots.length; i++) {
       const key = slots[i];
       const x = startX + i * (slotSize + slotGap) + slotSize / 2;
+      const [nl, nr, nt, nb] = NINE.CELL;
 
-      // Nineslice inventory cell
-      const bg = scene.add.nineslice(x, slotY, 'ui-inventory-cell', null, slotSize, slotSize, 4, 4, 4, 4)
-        .setScrollFactor(0).setDepth(100);
+      // Cell background
+      const bg = scene.add.nineslice(x, slotY, 'ui-inventory-cell', null, slotSize, slotSize, nl, nr, nt, nb)
+        .setScrollFactor(0).setDepth(DEPTH.HUD_BG).setAlpha(0.8);
 
       let icon = null;
 
+      // Cooldown overlay (uses Graphics for radial sweep — world-effect, acceptable)
       const cdOverlay = scene.add.graphics()
-        .setScrollFactor(0).setDepth(102);
+        .setScrollFactor(0).setDepth(DEPTH.HUD_OVERLAY);
       cdOverlay.setVisible(false);
       cdOverlay._slotX = x;
       cdOverlay._slotY = slotY;
       cdOverlay._slotSize = slotSize;
 
-      const cdText = scene.add.text(x, slotY, '', {
-        fontSize: '13px', fontFamily: UI_FONT,
-        fill: '#ffffff',
-        fontStyle: 'bold',
-      }).setScrollFactor(0).setDepth(103).setOrigin(0.5).setVisible(false);
+      const cdText = createText(scene, x, slotY, '', FONT.TINY, {
+        fill: '#ffffff', depth: DEPTH.HUD_OVERLAY + 1, originX: 0.5, originY: 0.5,
+      }).setVisible(false);
 
-      scene.add.text(x - slotSize / 2 + 3, slotY - slotSize / 2 + 2, key, {
-        fontSize: '11px', fontFamily: UI_FONT,
-        fill: '#aaccff',
-        fontStyle: 'bold',
-      }).setScrollFactor(0).setDepth(103);
+      // Key sprite hint (top-left corner)
+      const keySprite = scene.add.image(x - slotSize / 2 + 8, slotY - slotSize / 2 + 8, `key-${key}`)
+        .setScrollFactor(0).setDepth(DEPTH.HUD_OVERLAY)
+        .setDisplaySize(12, 12).setAlpha(0.7);
 
-      const lockOverlay = scene.add.nineslice(x, slotY, 'ui-bg-2', null, slotSize - 2, slotSize - 2, 4, 4, 4, 4)
-        .setScrollFactor(0).setDepth(104).setTint(0x111111).setAlpha(0.8).setVisible(false);
-      // Lock text removed — dark overlay is sufficient indicator
-      const lockText = null;
+      // Lock overlay
+      const lockOverlay = scene.add.nineslice(x, slotY, 'ui-bg', null, slotSize - 2, slotSize - 2, 4, 4, 4, 4)
+        .setScrollFactor(0).setDepth(DEPTH.HUD_OVERLAY + 2).setAlpha(ALPHA.LOCKED).setVisible(false);
 
+      // Empty slot indicator
       const emptyText = scene.add.image(x, slotY, 'spell-BookLight-off')
-        .setScrollFactor(0).setDepth(105).setDisplaySize(20, 20).setAlpha(0.5).setVisible(false);
+        .setScrollFactor(0).setDepth(DEPTH.HUD_OVERLAY + 3).setDisplaySize(18, 18).setAlpha(0.4).setVisible(false);
 
-      const chargeText = scene.add.text(x + slotSize / 2 - 3, slotY + slotSize / 2 - 3, '', {
-        fontSize: '12px', fontFamily: UI_FONT,
-        fill: '#ffdd44',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 2,
-      }).setScrollFactor(0).setDepth(106).setOrigin(1, 1).setVisible(false);
+      // Charge counter
+      const chargeText = createText(scene, x + slotSize / 2 - 3, slotY + slotSize / 2 - 3, '', FONT.TINY, {
+        fill: COLOR.ACCENT_GOLD, depth: DEPTH.HUD_OVERLAY + 4, originX: 1, originY: 1,
+        stroke: '#000000', strokeThickness: 2,
+      }).setVisible(false);
 
       this.spellSlots.push({
-        key,
-        spellId: null,
-        bg,
-        icon,
-        cdOverlay,
-        cdText,
-        lockOverlay,
-        lockText,
-        emptyText,
-        chargeText,
+        key, spellId: null,
+        bg, icon, cdOverlay, cdText, keySprite,
+        lockOverlay, lockText: null, emptyText, chargeText,
         x, y: slotY, size: slotSize,
       });
     }
 
-    // SP counter — mana sphere
-    const spY = slotY + slotSize / 2 + 10;
-    this.spBg = scene.add.image(camW / 2, spY, 'ui-sphere-bg')
-      .setScrollFactor(0).setDepth(99).setDisplaySize(28, 28);
-    this._spMana = scene.add.image(camW / 2, spY, 'ui-sphere-mana')
-      .setScrollFactor(0).setDepth(100).setDisplaySize(20, 20);
-    this._spOver = scene.add.image(camW / 2, spY, 'ui-sphere-over')
-      .setScrollFactor(0).setDepth(101).setDisplaySize(28, 28);
+    // --- SP Counter (mana sphere) ---
+    const spY = slotY + slotSize / 2 + 12;
+    this.spBg = scene.add.image(SCREEN.CX, spY, 'ui-sphere-bg')
+      .setScrollFactor(0).setDepth(DEPTH.HUD_BG).setDisplaySize(22, 22);
+    this._spMana = scene.add.image(SCREEN.CX, spY, 'ui-sphere-mana')
+      .setScrollFactor(0).setDepth(DEPTH.HUD).setDisplaySize(16, 16);
+    this._spOver = scene.add.image(SCREEN.CX, spY, 'ui-sphere-over')
+      .setScrollFactor(0).setDepth(DEPTH.HUD_TEXT).setDisplaySize(22, 22);
 
-    this.spText = scene.add.text(camW / 2, spY, '0', {
-      fontSize: '11px', fontFamily: UI_FONT,
-      fill: '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setScrollFactor(0).setDepth(102).setOrigin(0.5);
+    this.spText = createText(scene, SCREEN.CX, spY, '0', FONT.TINY, {
+      fill: '#ffffff', depth: DEPTH.HUD_OVERLAY, originX: 0.5, originY: 0.5,
+      stroke: '#000000', strokeThickness: 2,
+    });
 
     if (scene.gameMode === 'sandbox') {
-      scene.add.text(camW / 2, spY + 16, "Dükkânı açmak için B'ye bas", {
-        fontSize: '13px', fontFamily: UI_FONT,
-        fill: '#666688',
-      }).setScrollFactor(0).setDepth(100).setOrigin(0.5, 0);
+      createText(scene, SCREEN.CX, spY + 14, "Dükkânı açmak için B'ye bas", FONT.SMALL, {
+        fill: COLOR.TEXT_DISABLED, depth: DEPTH.HUD, originX: 0.5, originY: 0,
+      });
     }
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // ANNOUNCEMENTS & DAMAGE
+  // ═══════════════════════════════════════════════════════════
+
   showAnnouncement(text, duration = 2500) {
     const scene = this.scene;
-    if (this.announcementText) {
-      this.announcementText.destroy();
-    }
-    const camW = scene.cameras.main.width;
-    const camH = scene.cameras.main.height;
-    this.announcementText = scene.add.text(camW / 2, camH / 3, text, {
-      fontSize: '24px', fontFamily: UI_FONT,
-      fill: '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 3,
-      align: 'center',
-    }).setScrollFactor(0).setDepth(200).setOrigin(0.5).setAlpha(1);
+    if (this.announcementText) this.announcementText.destroy();
+
+    this.announcementText = scene.add.text(SCREEN.CX, SCREEN.H / 3, text, textStyle(FONT.TITLE_SM, {
+      fill: '#ffffff', stroke: '#000000', strokeThickness: 2, align: 'center',
+    })).setScrollFactor(0).setDepth(DEPTH.OVERLAY_TOP).setOrigin(0.5).setAlpha(1);
 
     scene.tweens.add({
       targets: this.announcementText,
@@ -303,85 +267,75 @@ export class HUDManager {
 
   showDamageNumber(x, y, amount) {
     const scene = this.scene;
-    const text = scene.add.text(x, y - 20, `-${Math.ceil(amount)}`, {
-      fontSize: '14px', fontFamily: UI_FONT,
-      color: '#ff4444',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setDepth(200).setOrigin(0.5);
+    const dmg = scene.add.text(x, y - 20, `-${Math.ceil(amount)}`, textStyle(FONT.DAMAGE, {
+      fill: COLOR.ACCENT_DANGER, stroke: '#000000', strokeThickness: 2,
+    })).setDepth(DEPTH.OVERLAY_TOP).setOrigin(0.5);
 
     scene.tweens.add({
-      targets: text,
-      y: y - 55,
+      targets: dmg,
+      y: y - 60,
       alpha: 0,
-      duration: 900,
-      onComplete: () => text.destroy(),
+      duration: 700,
+      onComplete: () => dmg.destroy(),
     });
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // KILL FEED
+  // ═══════════════════════════════════════════════════════════
+
   addKillFeed(text) {
     const scene = this.scene;
-    const camW = scene.cameras.main.width;
-    const y = 60 + this.killFeedTexts.length * 15;
-    const feedText = scene.add.text(camW - 10, y, text, {
-      fontSize: '12px', fontFamily: UI_FONT,
-      fill: '#ff8888',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setScrollFactor(0).setDepth(150).setOrigin(1, 0);
+    const y = 50 + this.killFeedTexts.length * 14;
+    const feedText = createText(scene, SCREEN.W - SPACE.MD, y, text, FONT.SMALL, {
+      fill: COLOR.ACCENT_DANGER, depth: DEPTH.HUD_OVERLAY, originX: 1, originY: 0,
+      stroke: '#000000', strokeThickness: 2,
+    }).setAlpha(0.7);
 
     this.killFeedTexts.push(feedText);
 
-    if (this.killFeedTexts.length > 5) {
+    if (this.killFeedTexts.length > 3) {
       const old = this.killFeedTexts.shift();
       old.destroy();
-      this.killFeedTexts.forEach((t, i) => {
-        t.setY(60 + i * 15);
-      });
+      this.killFeedTexts.forEach((t, i) => t.setY(50 + i * 14));
     }
 
     const timeoutId = setTimeout(() => {
       const tIdx = this.killFeedTimeouts.indexOf(timeoutId);
       if (tIdx !== -1) this.killFeedTimeouts.splice(tIdx, 1);
-
       const idx = this.killFeedTexts.indexOf(feedText);
       if (idx !== -1) {
         this.killFeedTexts.splice(idx, 1);
         feedText.destroy();
-        this.killFeedTexts.forEach((t, i) => {
-          t.setY(60 + i * 15);
-        });
+        this.killFeedTexts.forEach((t, i) => t.setY(50 + i * 14));
       }
-    }, 4000);
+    }, 3000);
     this.killFeedTimeouts.push(timeoutId);
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // RING GRAPHICS (world-space — Graphics primitives OK here)
+  // ═══════════════════════════════════════════════════════════
 
   updateRingGraphics() {
     const scene = this.scene;
     const r = Math.round(scene.ringRadius);
 
-    // Redraw ring circles only when radius changes
     if (r !== this.lastDrawnRingRadius) {
       const g = this.ringGraphics;
       if (g) {
         g.clear();
-
         g.lineStyle(2, 0xff6666, 0.13);
         g.strokeCircle(0, 0, r - 8);
-
         g.lineStyle(3, 0xff4444, 0.75);
         g.strokeCircle(0, 0, r);
-
-        const bandSteps = 5;
-        for (let i = 1; i <= bandSteps; i++) {
-          const t = i / bandSteps;
+        for (let i = 1; i <= 5; i++) {
+          const t = i / 5;
           const alpha = (0.35 - t * 0.3) * 0.85;
           g.lineStyle(4, 0xff2222, Math.max(0, alpha));
           g.strokeCircle(0, 0, r + i * 8);
         }
       }
-
       if (this.outerRingGraphics) {
         this.outerRingGraphics.clear();
         this.outerRingGraphics.lineStyle(1, 0xcc4444, 0.06);
@@ -389,11 +343,10 @@ export class HUDManager {
           this.outerRingGraphics.strokeCircle(0, 0, dr);
         }
       }
-
       this.lastDrawnRingRadius = r;
     }
 
-    // --- Per-frame: vignette + ring drama effects ---
+    // Per-frame: vignette + ring drama
     if (scene.playerBody) {
       const px = scene.playerBody.position.x;
       const py = scene.playerBody.position.y;
@@ -402,38 +355,26 @@ export class HUDManager {
 
       if (!this.edgeVignette) {
         this.edgeVignette = scene.add.rectangle(
-          scene.cameras.main.width / 2, scene.cameras.main.height / 2,
-          scene.cameras.main.width, scene.cameras.main.height,
-          0xff0000, 0
+          SCREEN.CX, SCREEN.CY, SCREEN.W, SCREEN.H, 0xff0000, 0
         ).setScrollFactor(0).setDepth(99).setOrigin(0.5);
       }
 
       if (distToEdge < 80 && distToEdge > 0) {
-        // Near edge warning: static danger vignette
         const danger = 1 - distToEdge / 80;
         this.edgeVignette.setAlpha(danger * 0.13);
       } else if (distToEdge <= 0) {
-        // RING DRAMA: player is outside the ring — pulsing vignette + shake + sound
         const overshoot = Math.abs(distToEdge);
-        const intensity = Math.min(overshoot / 100, 1); // 0→1 over 100px overshoot
-
-        // Pulsing vignette: oscillate alpha with sin(time)
+        const intensity = Math.min(overshoot / 100, 1);
         const pulse = 0.2 + 0.15 * Math.sin(scene.time.now * 0.008);
         this.edgeVignette.setAlpha(pulse + intensity * 0.1);
+        scene.cameras.main.shake(80, 0.001 + intensity * 0.002, false);
 
-        // Camera micro-shake: proportional to overshoot distance
-        const shakeIntensity = 0.001 + intensity * 0.002;
-        scene.cameras.main.shake(80, shakeIntensity, false);
-
-        // Sound: play ring-burn throttled to every 400ms
         const now = performance.now();
         if (now - this._lastRingBurnSoundTime > 400) {
           this._lastRingBurnSoundTime = now;
-          const vol = 0.15 + intensity * 0.35;
-          scene.sound.play('sfx-ring-burn', { volume: vol, rate: 0.8 + intensity * 0.4 });
+          scene.sound.play('sfx-ring-burn', { volume: 0.15 + intensity * 0.35, rate: 0.8 + intensity * 0.4 });
         }
 
-        // Particles: fire sprites flying off player
         if (Math.random() < 0.3 + intensity * 0.5) {
           const angle = Math.random() * Math.PI * 2;
           const speed = 1 + Math.random() * 2;
@@ -444,30 +385,21 @@ export class HUDManager {
           if (fireFrames > 0) {
             const frame = Math.floor(Math.random() * fireFrames);
             const spark = scene.add.sprite(px, py, fireKey, frame);
-            spark.setScale(2 + Math.random() * 2);
-            spark.setDepth(50);
-            spark.setAlpha(0.8);
-            spark.setTint(0xff2222);
+            spark.setScale(2 + Math.random() * 2).setDepth(50).setAlpha(0.8).setTint(0xff2222);
             const life = 400 + Math.random() * 300;
             scene.tweens.add({
               targets: spark,
               x: px + Math.cos(angle) * speed * (life / 16),
               y: py + Math.sin(angle) * speed * (life / 16),
-              alpha: 0,
-              scaleX: 0.5,
-              scaleY: 0.5,
-              duration: life,
-              ease: 'Quad.easeOut',
+              alpha: 0, scaleX: 0.5, scaleY: 0.5,
+              duration: life, ease: 'Quad.easeOut',
               onComplete: () => spark.destroy(),
             });
           } else {
-            // Fallback: old particle system
             this._ringDamageParticles.push({
               x: px, y: py,
-              vx: Math.cos(angle) * speed,
-              vy: Math.sin(angle) * speed,
-              life: 400 + Math.random() * 300,
-              elapsed: 0,
+              vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+              life: 400 + Math.random() * 300, elapsed: 0,
               size: 2 + Math.random() * 3,
             });
           }
@@ -476,7 +408,7 @@ export class HUDManager {
         this.edgeVignette.setAlpha(0);
       }
 
-      // Update & draw ring damage particles
+      // Ring damage particles (fallback)
       if (this._ringDamageParticles.length > 0) {
         if (!this._ringParticleGraphics) {
           this._ringParticleGraphics = scene.add.graphics().setDepth(50);
@@ -484,14 +416,11 @@ export class HUDManager {
         this._ringParticleGraphics.clear();
         for (let pi = this._ringDamageParticles.length - 1; pi >= 0; pi--) {
           const p = this._ringDamageParticles[pi];
-          p.elapsed += 16; // ~60fps
+          p.elapsed += 16;
           p.x += p.vx;
           p.y += p.vy;
           const lifeRatio = 1 - p.elapsed / p.life;
-          if (lifeRatio <= 0) {
-            this._ringDamageParticles.splice(pi, 1);
-            continue;
-          }
+          if (lifeRatio <= 0) { this._ringDamageParticles.splice(pi, 1); continue; }
           this._ringParticleGraphics.fillStyle(0xff2222, lifeRatio * 0.8);
           this._ringParticleGraphics.fillCircle(p.x, p.y, p.size * lifeRatio);
         }
@@ -501,8 +430,14 @@ export class HUDManager {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // UPDATE: HUD INFO
+  // ═══════════════════════════════════════════════════════════
+
   updateHUD() {
     const scene = this.scene;
+
+    // Ping & player count (dirty-flag)
     if (scene.network) {
       const ping = scene.network.ping;
       if (ping !== this._lastPing) {
@@ -516,35 +451,36 @@ export class HUDManager {
       }
     }
 
-    if (this.hpBarFill) {
+    // HP bar
+    if (this._hpBar) {
       const hpRatio = Math.max(0, scene.localHp / scene.localMaxHp);
 
-      // Only update bar width, color, and text when HP ratio changes
       if (hpRatio !== this._lastHpRatio) {
         this._lastHpRatio = hpRatio;
-        this.hpBarFill.displayWidth = 160 * hpRatio;
-        if (hpRatio > 0.75) {
-          this.hpBarFill.setTint(0x44bbff);
-        } else if (hpRatio > 0.5) {
-          this.hpBarFill.setTint(0xdddd44);
-        } else if (hpRatio > 0.25) {
-          this.hpBarFill.setTint(0xff8833);
-        } else {
-          this.hpBarFill.setTint(0xff3333);
-        }
+        const tint = getHpTint(hpRatio);
+        this._hpBar.setValue(hpRatio, tint, true);
+
         const vulnPercent = Math.round((1 - hpRatio) * 100);
-        this.hpText.setText(`${Math.ceil(scene.localHp)} Nefes  (${vulnPercent}% açık)`);
+        const hpStr = `${Math.ceil(scene.localHp)} Nefes (${vulnPercent}%)`;
+        if (hpStr !== this._lastHpText) {
+          this.hpText.setText(hpStr);
+          this._lastHpText = hpStr;
+        }
       }
 
-      // Pulse animation still runs every frame (only when low HP)
+      // Low HP pulse
       if (hpRatio <= 0.5 && hpRatio > 0) {
         const pulse = 0.7 + 0.3 * Math.sin(scene.time.now * (hpRatio <= 0.25 ? 0.012 : 0.006));
-        this.hpBarFill.setAlpha(pulse);
+        this._hpBar.fill.setAlpha(pulse);
       } else {
-        this.hpBarFill.setAlpha(1);
+        this._hpBar.fill.setAlpha(1);
       }
     }
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // UPDATE: ROUND HUD
+  // ═══════════════════════════════════════════════════════════
 
   updateRoundHUD() {
     const scene = this.scene;
@@ -561,15 +497,15 @@ export class HUDManager {
 
     if (this.timerText) {
       let timerStr = '';
-      let timerFill = '#88ccff';
+      let timerFill = COLOR.ACCENT_INFO;
       if (scene.phase === 'playing') {
         const seconds = Math.ceil(scene.timeRemaining);
         timerStr = `${seconds}s`;
-        timerFill = seconds <= 10 ? '#ff4444' : '#88ccff';
+        timerFill = seconds <= 10 ? COLOR.ACCENT_DANGER : COLOR.ACCENT_INFO;
       } else if (scene.phase === 'shop') {
         const seconds = Math.ceil(scene.shopTimeRemaining);
         timerStr = `Dükkân: ${seconds}s`;
-        timerFill = '#ffdd44';
+        timerFill = COLOR.ACCENT_GOLD;
       }
       if (timerStr !== this._lastTimerText) {
         this.timerText.setText(timerStr);
@@ -581,6 +517,7 @@ export class HUDManager {
       }
     }
 
+    // Shop overlay management
     if (scene.shopOverlay) {
       if (scene.phase === 'shop') {
         if (!scene.shopOverlay.visible && scene.progression) {
@@ -593,37 +530,33 @@ export class HUDManager {
       }
     }
 
+    // Lobby overlay management
     if (scene.lobbyOverlay) {
       if (scene.phase === 'waiting') {
-        if (!scene.lobbyOverlay.visible) {
-          scene.lobbyOverlay.show();
+        if (!scene.lobbyOverlay.visible) scene.lobbyOverlay.show();
+        const currentCount = 1 + scene.remotePlayers.size;
+        if (currentCount !== this._lastLobbyCount) {
+          this._lastLobbyCount = currentCount;
+          const playerList = [];
+          if (scene.localPlayerId) {
+            playerList.push({ id: scene.localPlayerId, name: scene.playerName, characterId: scene.characterId });
+          }
+          for (const [id, rp] of scene.remotePlayers) {
+            playerList.push({ id, name: rp.name || id.slice(-4), characterId: rp.characterId });
+          }
+          scene.lobbyOverlay.updatePlayers(playerList);
         }
-        const playerList = [];
-        if (scene.localPlayerId) {
-          playerList.push({
-            id: scene.localPlayerId,
-            name: scene.playerName,
-            characterId: scene.characterId,
-          });
-        }
-        for (const [id, rp] of scene.remotePlayers) {
-          playerList.push({
-            id,
-            name: rp.name || id.slice(-4),
-            characterId: rp.characterId,
-          });
-        }
-        scene.lobbyOverlay.updatePlayers(playerList);
       } else if (scene.lobbyOverlay.visible) {
         scene.lobbyOverlay.hide();
+        this._lastLobbyCount = -1;
       }
     }
 
+    // Phase label
     if (this.phaseText) {
       const phaseLabels = {
         waiting: 'Âşıklar bekleniyor...',
-        countdown: '',
-        playing: '',
+        countdown: '', playing: '',
         roundEnd: 'Fasıl Tamam',
         shop: 'Dükkân Vakti',
         matchEnd: 'Atışma Tamam',
@@ -635,24 +568,29 @@ export class HUDManager {
       }
     }
 
+    // Countdown
     if (this.countdownText) {
       if (scene.phase === 'countdown' && scene.countdownRemaining > 0) {
         const num = Math.ceil(scene.countdownRemaining);
         this.countdownText.setText(num.toString());
         this.countdownText.setVisible(true);
         const frac = scene.countdownRemaining % 1;
-        const scale = 1 + frac * 0.3;
-        this.countdownText.setScale(scale);
+        this.countdownText.setScale(1 + frac * 0.3);
         this.countdownText.setAlpha(0.5 + frac * 0.5);
       } else {
         this.countdownText.setVisible(false);
       }
     }
 
+    // Eliminated player dim
     if (scene.localEliminated && scene.playerSprite && scene.playerSprite.alpha > 0.3) {
       scene.playerSprite.setAlpha(0.3);
     }
   }
+
+  // ═══════════════════════════════════════════════════════════
+  // UPDATE: SPELL HUD
+  // ═══════════════════════════════════════════════════════════
 
   updateSpellHUD() {
     const scene = this.scene;
@@ -662,45 +600,42 @@ export class HUDManager {
       const spellState = scene.progression ? scene.progression.spells[slot.key] : null;
       const spellId = spellState ? spellState.chosenSpell : null;
       const hasSpell = spellId !== null;
-
       slot.spellId = spellId;
 
+      // Lock overlay
       if (slot.lockOverlay) {
         if (isLocked !== slot._lastLocked) {
           slot.lockOverlay.setVisible(isLocked);
-          if (slot.lockText) slot.lockText.setVisible(isLocked);
           slot._lastLocked = isLocked;
         }
       }
 
+      // Empty indicator
       if (slot.emptyText) {
         const showEmpty = !isLocked && !hasSpell;
-        if (showEmpty !== slot._lastHasSpell) {
+        if (showEmpty !== slot._lastShowEmpty) {
           slot.emptyText.setVisible(showEmpty);
-          slot._lastHasSpell = showEmpty;
+          slot._lastShowEmpty = showEmpty;
         }
       }
 
       if (isLocked) {
         slot.cdOverlay.setVisible(false);
         slot.cdText.setVisible(false);
-        if (slot.icon) { slot.icon.setVisible(false); }
+        if (slot.icon) slot.icon.setVisible(false);
         continue;
       }
 
+      // Spell icon management
       const def = hasSpell ? SPELLS[spellId] : null;
       if (def && def.icon) {
-        // Track the normal icon key for this slot
         if (slot._currentIconKey !== def.icon) {
           this._slotSpellIcon[slot.key] = def.icon;
-          // Invalidate cached total cooldown when spell changes
           if (spellId) this._totalCooldowns[spellId] = undefined;
         }
 
         const cd = hasSpell ? (scene.cooldowns[spellId] || 0) : 0;
         const isOnCooldown = cd > 0;
-
-        // Determine which texture to show (normal or disabled)
         const normalKey = def.icon;
         const offKey = normalKey + '-off';
         const targetKey = isOnCooldown && scene.textures.exists(offKey) ? offKey : normalKey;
@@ -709,7 +644,7 @@ export class HUDManager {
           if (slot.icon && !slot.icon.destroyed) slot.icon.destroy();
           if (scene.textures.exists(targetKey)) {
             slot.icon = scene.add.image(slot.x, slot.y, targetKey)
-              .setScrollFactor(0).setDepth(101);
+              .setScrollFactor(0).setDepth(DEPTH.HUD);
             const iconScale = (slot.size - 8) / Math.max(slot.icon.width, slot.icon.height);
             slot.icon.setScale(iconScale);
             slot.icon._baseScale = iconScale;
@@ -723,10 +658,10 @@ export class HUDManager {
         if (slot.icon && !slot.icon.destroyed) slot.icon.setVisible(false);
       }
 
+      // Cooldown
       if (hasSpell) {
         const cd = scene.cooldowns[spellId];
         if (cd && cd > 0) {
-          // Get total cooldown for progress calculation
           if (!this._totalCooldowns[spellId]) {
             const tierLevel = (scene.progression && scene.progression.spells[slot.key])
               ? (scene.progression.spells[slot.key].tier || 0) : 0;
@@ -734,15 +669,14 @@ export class HUDManager {
             this._totalCooldowns[spellId] = stats ? (stats.cooldown || 5000) : 5000;
           }
           const totalCd = this._totalCooldowns[spellId];
-          const progress = Math.min(1, cd / totalCd); // 1 = full cooldown, 0 = ready
+          const progress = Math.min(1, cd / totalCd);
 
-          // Draw radial sweep arc
           slot.cdOverlay.setVisible(true);
           slot.cdOverlay.clear();
           const cx = slot.cdOverlay._slotX;
           const cy = slot.cdOverlay._slotY;
           const radius = (slot.size - 4) / 2;
-          const startAngle = -Math.PI / 2; // 12 o'clock
+          const startAngle = -Math.PI / 2;
           const endAngle = startAngle + progress * Math.PI * 2;
 
           slot.cdOverlay.fillStyle(0x000000, 0.45);
@@ -752,14 +686,12 @@ export class HUDManager {
           slot.cdOverlay.closePath();
           slot.cdOverlay.fillPath();
 
-          // Cooldown text
           slot.cdText.setVisible(true);
           const cdStr = (cd / 1000).toFixed(1);
           if (cdStr !== slot._lastCdText) {
             slot.cdText.setText(cdStr);
             slot._lastCdText = cdStr;
           }
-
           this._lastCdWasActive[slot.key] = true;
         } else {
           slot.cdOverlay.setVisible(false);
@@ -767,30 +699,27 @@ export class HUDManager {
           slot.cdText.setVisible(false);
           slot._lastCdText = '';
 
-          // Ready pulse: cooldown just ended
+          // Ready pulse
           if (this._lastCdWasActive[slot.key]) {
             this._lastCdWasActive[slot.key] = false;
-            // Swap icon back to normal (will happen naturally on next frame via targetKey logic above)
-            // Pulse scale animation
             if (slot.icon && !slot.icon.destroyed && slot.icon._baseScale) {
               scene.tweens.add({
                 targets: slot.icon,
                 scaleX: slot.icon._baseScale * 1.3,
                 scaleY: slot.icon._baseScale * 1.3,
-                duration: 150,
-                yoyo: true,
-                ease: 'Quad.easeOut',
+                duration: 150, yoyo: true, ease: 'Quad.easeOut',
               });
             }
           }
         }
 
+        // Charges
         const charge = scene.charges[spellId];
         if (slot.chargeText) {
           if (charge && charge.max > 1) {
             slot.chargeText.setVisible(true);
             const chargeStr = `${charge.remaining}/${charge.max}`;
-            const chargeColor = charge.remaining > 0 ? '#ffdd44' : '#ff4444';
+            const chargeColor = charge.remaining > 0 ? COLOR.ACCENT_GOLD : COLOR.ACCENT_DANGER;
             if (chargeStr !== slot._lastChargeText) {
               slot.chargeText.setText(chargeStr);
               slot._lastChargeText = chargeStr;
@@ -811,6 +740,7 @@ export class HUDManager {
       }
     }
 
+    // SP counter
     if (this.spText && scene.progression) {
       const spStr = `${scene.progression.sp}`;
       if (spStr !== this._lastSpText) {
@@ -820,58 +750,40 @@ export class HUDManager {
     }
   }
 
-  // --- Leaderboard ---
+  // ═══════════════════════════════════════════════════════════
+  // LEADERBOARD
+  // ═══════════════════════════════════════════════════════════
 
   updateLeaderboard(scores, localPlayerId) {
     this._cachedScores = scores;
     this._cachedLocalPlayerId = localPlayerId;
-    if (this._leaderboardVisible) {
-      this._renderLeaderboard();
-    }
+    if (this._leaderboardVisible) this._renderLeaderboard();
   }
 
   toggleLeaderboard(show) {
     if (show === this._leaderboardVisible) return;
     this._leaderboardVisible = show;
     if (show) {
-      // Build initial scores from scene players if no round has ended yet
-      if (!this._cachedScores) {
-        this._buildInitialScores();
-      }
+      if (!this._cachedScores) this._buildInitialScores();
       this._renderLeaderboard();
     } else {
       this._hideLeaderboard();
     }
   }
 
-  /** Build placeholder scores from scene player data before first round end. */
   _buildInitialScores() {
     const scene = this.scene;
     const scores = [];
-    // Local player
     if (scene.localPlayerId) {
-      scores.push({
-        id: scene.localPlayerId,
-        name: scene.playerName || 'Sen',
-        points: 0,
-        eliminations: 0,
-      });
+      scores.push({ id: scene.localPlayerId, name: scene.playerName || 'Sen', points: 0, eliminations: 0 });
     }
     this._cachedLocalPlayerId = scene.localPlayerId;
-    // Remote players
     if (scene.remotePlayers) {
       for (const [id, rp] of scene.remotePlayers) {
-        scores.push({
-          id,
-          name: rp.name || id.slice(-4),
-          points: 0,
-          eliminations: 0,
-        });
+        scores.push({ id, name: rp.name || id.slice(-4), points: 0, eliminations: 0 });
       }
     }
-    if (scores.length > 0) {
-      this._cachedScores = scores;
-    }
+    if (scores.length > 0) this._cachedScores = scores;
   }
 
   _renderLeaderboard() {
@@ -879,39 +791,37 @@ export class HUDManager {
     if (!this._cachedScores || this._cachedScores.length === 0) return;
 
     const scene = this.scene;
-    const camW = scene.cameras.main.width;
     const sorted = [...this._cachedScores].sort((a, b) => b.points - a.points);
+    const rowH = 14;
+    const panelW = 170;
+    const panelH = 20 + sorted.length * rowH + SPACE.SM;
+    const panelX = SCREEN.W - SPACE.MD;
+    const panelY = 92;
 
-    const panelX = camW - 10;
-    const panelY = 90;
-    const rowH = 18;
-    const panelW = 180;
-    const panelH = 24 + sorted.length * rowH + 8;
-
-    // Background — nineslice panel instead of rectangle
-    const bg = scene.add.nineslice(panelX - panelW / 2, panelY + panelH / 2, 'ui-panel-2', null, panelW, panelH, 4, 4, 4, 4)
-      .setScrollFactor(0).setDepth(140).setOrigin(0.5).setAlpha(0.85);
+    // Background panel
+    const bg = createPanel(scene, panelX - panelW / 2, panelY + panelH / 2,
+      panelW, panelH, {
+        texture: 'ui-panel-interior', depth: DEPTH.HUD_BG, alpha: 0.6,
+      });
     this._leaderboardElements.push(bg);
 
     // Header
-    const header = scene.add.text(panelX - panelW + 8, panelY + 4, 'PUAN TABLOSU', {
-      fontSize: '12px', fontFamily: UI_FONT,
-      fill: '#ffdd44',
-      fontStyle: 'bold',
-    }).setScrollFactor(0).setDepth(141);
+    const header = createText(scene, panelX - panelW + SPACE.SM, panelY + SPACE.XS, 'PUAN', FONT.TINY, {
+      fill: COLOR.ACCENT_GOLD, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0,
+    });
     this._leaderboardElements.push(header);
 
     // Rows
+    const rankColors = [COLOR.ACCENT_GOLD, '#c0c0c0', '#cd7f32'];
     for (let i = 0; i < sorted.length; i++) {
       const s = sorted[i];
       const isLocal = s.id === this._cachedLocalPlayerId;
-      const color = isLocal ? '#44ddff' : '#cccccc';
-      const y = panelY + 22 + i * rowH;
-      const row = scene.add.text(panelX - panelW + 8, y,
-        `${i + 1}. ${s.name}  ${s.points}p  ${s.eliminations}k`, {
-        fontSize: '11px', fontFamily: UI_FONT,
-        fill: color,
-      }).setScrollFactor(0).setDepth(141);
+      const color = isLocal ? COLOR.ACCENT_INFO : (rankColors[i] || COLOR.TEXT_SECONDARY);
+      const y = panelY + 18 + i * rowH;
+      const row = createText(scene, panelX - panelW + SPACE.SM, y,
+        `${i + 1}. ${s.name}  ${s.points ?? 0}p  ${s.eliminations ?? 0}k`, FONT.SMALL, {
+          fill: color, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0,
+        });
       this._leaderboardElements.push(row);
     }
   }
@@ -923,29 +833,26 @@ export class HUDManager {
     this._leaderboardElements = [];
   }
 
-  // --- Spectator HUD ---
+  // ═══════════════════════════════════════════════════════════
+  // SPECTATOR HUD
+  // ═══════════════════════════════════════════════════════════
 
   updateSpectateHUD(playerName) {
     this._hideSpectateHUD();
     if (!playerName) return;
 
     const scene = this.scene;
-    const camW = scene.cameras.main.width;
-    const camH = scene.cameras.main.height;
-
-    const nameText = scene.add.text(camW / 2, camH - 110, `İzleniyor: ${playerName}`, {
-      fontSize: '16px', fontFamily: UI_FONT,
-      fill: '#ffffff',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setScrollFactor(0).setDepth(200).setOrigin(0.5);
+    const nameText = createText(scene, SCREEN.CX, SCREEN.H - 110,
+      `İzleniyor: ${playerName}`, FONT.BODY_BOLD, {
+        fill: '#ffffff', depth: DEPTH.OVERLAY_TOP, originX: 0.5, originY: 0.5,
+        stroke: '#000000', strokeThickness: 2,
+      });
     this._spectateElements.push(nameText);
 
-    const hint = scene.add.text(camW / 2, camH - 90, 'Tıkla veya ← → ile değiştir', {
-      fontSize: '12px', fontFamily: UI_FONT,
-      fill: '#888899',
-    }).setScrollFactor(0).setDepth(200).setOrigin(0.5);
+    const hint = createText(scene, SCREEN.CX, SCREEN.H - 92,
+      'Tıkla veya ← → ile değiştir', FONT.SMALL, {
+        fill: COLOR.TEXT_SECONDARY, depth: DEPTH.OVERLAY_TOP, originX: 0.5, originY: 0.5,
+      });
     this._spectateElements.push(hint);
   }
 
@@ -956,6 +863,10 @@ export class HUDManager {
     this._spectateElements = [];
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // MAIN UPDATE
+  // ═══════════════════════════════════════════════════════════
+
   update() {
     this.updateRingGraphics();
     this.updateHUD();
@@ -963,22 +874,37 @@ export class HUDManager {
     this.updateSpellHUD();
   }
 
+  // ═══════════════════════════════════════════════════════════
+  // DESTROY
+  // ═══════════════════════════════════════════════════════════
+
   destroy() {
     // HUD elements
     const hudElements = [
-      this.hpBarBg, this.hpBarFill, this.hpText,
+      this.hpText,
       this.pingText, this.playerCountText,
       this.roundText, this.timerText, this.phaseText,
       this.countdownText, this.spText, this.spBg,
+      this._spMana, this._spOver,
     ];
+    // HP bar elements
+    if (this._hpBar) {
+      hudElements.push(...this._hpBar.elements);
+    }
+    // Sound & scoreboard elements
+    if (this._soundElements) hudElements.push(...this._soundElements);
+    if (this._scoreboardElements) hudElements.push(...this._scoreboardElements);
+
     for (const el of hudElements) {
       if (el && !el.destroyed) el.destroy();
     }
 
-    // Spell HUD slots
+    // Spell slots
     for (const slot of this.spellSlots) {
-      const slotElements = [slot.bg, slot.icon, slot.cdOverlay, slot.cdText,
-                            slot.lockOverlay, slot.lockText, slot.chargeText, slot.emptyText];
+      const slotElements = [
+        slot.bg, slot.icon, slot.cdOverlay, slot.cdText, slot.keySprite,
+        slot.lockOverlay, slot.lockText, slot.chargeText, slot.emptyText,
+      ];
       for (const el of slotElements) {
         if (el && !el.destroyed) el.destroy();
       }
@@ -994,9 +920,7 @@ export class HUDManager {
 
     // Kill feed
     if (this.killFeedTimeouts) {
-      for (const id of this.killFeedTimeouts) {
-        clearTimeout(id);
-      }
+      for (const id of this.killFeedTimeouts) clearTimeout(id);
       this.killFeedTimeouts = [];
     }
     for (const t of this.killFeedTexts) {
@@ -1005,14 +929,10 @@ export class HUDManager {
     this.killFeedTexts = [];
 
     // Announcement
-    if (this.announcementText && !this.announcementText.destroyed) {
-      this.announcementText.destroy();
-    }
+    if (this.announcementText && !this.announcementText.destroyed) this.announcementText.destroy();
 
-    // Leaderboard
+    // Leaderboard & Spectator
     this._hideLeaderboard();
-
-    // Spectator HUD
     this._hideSpectateHUD();
   }
 }

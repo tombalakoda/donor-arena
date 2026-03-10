@@ -362,8 +362,9 @@ export class ServerSpell {
 
         const dx = s1.x - s2.x;
         const dy = s1.y - s2.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < (s1.radius || 7) + (s2.radius || 7)) {
+        const distSq = dx * dx + dy * dy;
+        const threshold = (s1.radius || 7) + (s2.radius || 7);
+        if (distSq < threshold * threshold) {
           toRemove.add(b); // Destroy the enemy spell
           // Bouncer survives (doesn't get destroyed)
         }
@@ -385,8 +386,9 @@ export class ServerSpell {
 
         const dx = s1.x - s2.x;
         const dy = s1.y - s2.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < (s1.radius || 7) + (s2.radius || 7)) {
+        const distSq = dx * dx + dy * dy;
+        const threshold = (s1.radius || 7) + (s2.radius || 7);
+        if (distSq < threshold * threshold) {
           toRemove.add(a);
           toRemove.add(b);
         }

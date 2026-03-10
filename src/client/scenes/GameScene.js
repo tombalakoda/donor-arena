@@ -416,12 +416,18 @@ export class GameScene extends Phaser.Scene {
     this.spectateMode = false;
     this.spectateTargetId = null;
     this.spectateTargetIndex = -1;
+    this._cleanupSpectatorListeners();
     this.hudManager._hideSpectateHUD();
     if (this.playerSprite) this.playerSprite.setAlpha(1);
 
     // Clear move target on new round
     this.moveTarget = null;
     if (this.moveTargetMarker) this.moveTargetMarker.setVisible(false);
+
+    // Clear all spell visuals from previous round
+    if (this.spellVisualManager) {
+      this.spellVisualManager.clearAllVisuals();
+    }
 
     // Swap obstacles for this round's map
     if (data.mapIndex !== undefined) {
@@ -534,6 +540,7 @@ export class GameScene extends Phaser.Scene {
 
   handleShopUpdate(data) {
     this.progression = data;
+    this._indicatorStatsCache = {};  // Invalidate cached spell stats on upgrade
     if (this.shopOverlay && this.shopOverlay.visible) {
       this.shopOverlay.updateProgression(data);
     }
@@ -866,13 +873,28 @@ export class GameScene extends Phaser.Scene {
 
   // --- Spectator Mode ---
 
+  _cleanupSpectatorListeners() {
+    if (this._spectateClickHandler) {
+      this.input.off('pointerdown', this._spectateClickHandler);
+      this._spectateClickHandler = null;
+    }
+    if (this._spectateLeftHandler) {
+      this.input.keyboard.off('keydown-LEFT', this._spectateLeftHandler);
+      this._spectateLeftHandler = null;
+    }
+    if (this._spectateRightHandler) {
+      this.input.keyboard.off('keydown-RIGHT', this._spectateRightHandler);
+      this._spectateRightHandler = null;
+    }
+  }
+
   enterSpectatorMode() {
     this.spectateMode = true;
     this.cycleSpectateTarget(1);
 
     // Listen for left-click and arrow keys to cycle target
-    this._spectateClickHandler = () => {
-      if (this.spectateMode) this.cycleSpectateTarget(1);
+    this._spectateClickHandler = (pointer) => {
+      if (this.spectateMode && pointer.button === 0) this.cycleSpectateTarget(1);
     };
     this._spectateLeftHandler = () => {
       if (this.spectateMode) this.cycleSpectateTarget(-1);
@@ -1990,6 +2012,20 @@ export class GameScene extends Phaser.Scene {
       this.obstacleSprites = [];
     }
 
+    // Cleanup local player physics body and sprites
+    if (this.playerBody) {
+      this.matter.world.remove(this.playerBody);
+      this.playerBody = null;
+    }
+    if (this.playerSprite && !this.playerSprite.destroyed) {
+      this.playerSprite.destroy();
+      this.playerSprite = null;
+    }
+    if (this.playerShadow && !this.playerShadow.destroyed) {
+      this.playerShadow.destroy();
+      this.playerShadow = null;
+    }
+
     // Cleanup spell visuals
     if (this.spellVisualManager) {
       this.spellVisualManager.destroy();
@@ -2027,18 +2063,7 @@ export class GameScene extends Phaser.Scene {
     this.speedTrail = [];
 
     // Cleanup spectator listeners
-    if (this._spectateClickHandler) {
-      this.input.off('pointerdown', this._spectateClickHandler);
-      this._spectateClickHandler = null;
-    }
-    if (this._spectateLeftHandler) {
-      this.input.keyboard.off('keydown-LEFT', this._spectateLeftHandler);
-      this._spectateLeftHandler = null;
-    }
-    if (this._spectateRightHandler) {
-      this.input.keyboard.off('keydown-RIGHT', this._spectateRightHandler);
-      this._spectateRightHandler = null;
-    }
+    this._cleanupSpectatorListeners();
 
     // Cleanup aim indicator graphics
     if (this.indicatorGraphics && !this.indicatorGraphics.destroyed) {

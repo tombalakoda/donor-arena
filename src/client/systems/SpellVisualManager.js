@@ -788,6 +788,8 @@ export class SpellVisualManager {
           targetY: spell.targetY,
           pullSelf: spell.pullSelf,
           buffType: spell.buffType || null,
+          isMeteor: spell.isMeteor || false,
+          impactDelay: spell.impactDelay,
         });
       }
     }
@@ -1164,6 +1166,13 @@ export class SpellVisualManager {
     if (visual.arrival && !visual.arrival.destroyed) visual.arrival.destroy();
     if (visual.zone && !visual.zone.destroyed) visual.zone.destroy();
     if (visual.shadow && !visual.shadow.destroyed) visual.shadow.destroy();
+  }
+
+  clearAllVisuals() {
+    for (const [id, visual] of this.spellVisuals) {
+      this.destroySpellVisual(visual);
+    }
+    this.spellVisuals.clear();
   }
 
   destroy() {

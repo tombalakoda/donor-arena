@@ -5,6 +5,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { RoomManager } from './rooms/RoomManager.js';
 import { MSG } from '../shared/messageTypes.js';
+import { CHARACTER_PASSIVES } from '../shared/characterPassives.js';
+
+const VALID_CHARACTERS = new Set(Object.keys(CHARACTER_PASSIVES));
+const MAX_ROOMS = 50;
+const JOIN_COOLDOWN_MS = 2000;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -12,9 +17,14 @@ const app = express();
 // Serve the built client files (from `npx vite build`)
 app.use(express.static(path.join(__dirname, '../../dist')));
 const httpServer = createServer(app);
+
+const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'];
+
 const io = new Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: ALLOWED_ORIGINS,
     methods: ['GET', 'POST'],
   },
 });
@@ -25,9 +35,15 @@ roomManager.loadMaps(path.join(__dirname, '../../public/assets/maps'));
 io.on('connection', (socket) => {
   console.log(`Player connected: ${socket.id}`);
   let currentRoom = null;
+  let lastJoinTime = 0;
 
   // Player joins a match
   socket.on(MSG.CLIENT_JOIN, (data) => {
+    // Rate limit: 1 join per 2 seconds per socket
+    const now = Date.now();
+    if (now - lastJoinTime < JOIN_COOLDOWN_MS) return;
+    lastJoinTime = now;
+
     // Clean up previous room if player re-joins
     if (currentRoom) {
       currentRoom.removePlayer(socket.id);
@@ -36,10 +52,32 @@ io.on('connection', (socket) => {
     }
 
     const { playerName, characterId, mode, roomId } = data || {};
+
+    // Sanitize playerName: type check, strip HTML/control chars, max 20 chars
+    let safeName = null;
+    if (typeof playerName === 'string') {
+      safeName = playerName
+        .replace(/<[^>]*>/g, '')       // strip HTML tags
+        .replace(/[\x00-\x1f]/g, '')   // strip control characters
+        .trim()
+        .slice(0, 20);
+      if (safeName.length === 0) safeName = null;
+    }
+
+    // Validate characterId against whitelist
+    const safeCharacterId = (typeof characterId === 'string' && VALID_CHARACTERS.has(characterId))
+      ? characterId : 'boy';
+
     if (mode === 'sandbox') {
+      // Global room cap
+      if (roomManager.rooms.size >= MAX_ROOMS) {
+        socket.emit(MSG.SERVER_LOBBY_ERROR, { error: 'SUNUCU DOLU' });
+        return;
+      }
       currentRoom = roomManager.createSandboxRoom();
     } else if (mode === 'join') {
       // Join an existing lobby by roomId
+      if (typeof roomId !== 'string') return;
       const room = roomManager.rooms.get(roomId);
       if (!room || !room.lobby) {
         socket.emit(MSG.SERVER_LOBBY_ERROR, { error: 'ODA BULUNAMADI' });
@@ -56,9 +94,13 @@ io.on('connection', (socket) => {
       currentRoom = room;
     } else {
       // Normal mode: create a new lobby room
+      if (roomManager.rooms.size >= MAX_ROOMS) {
+        socket.emit(MSG.SERVER_LOBBY_ERROR, { error: 'SUNUCU DOLU' });
+        return;
+      }
       currentRoom = roomManager.createLobbyRoom();
     }
-    currentRoom.addPlayer(socket, playerName, characterId);
+    currentRoom.addPlayer(socket, safeName, safeCharacterId);
     console.log(`${socket.id} joined ${currentRoom.id} (${currentRoom.playerCount} players) mode: ${mode || 'normal'}`);
   });
 
@@ -114,4 +156,12 @@ app.get('/{*splat}', (req, res) => {
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
   console.log(`Game server running on port ${PORT}`);
+});
+
+// Prevent silent crashes — log fatal errors
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled rejection:', reason);
 });
