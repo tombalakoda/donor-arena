@@ -119,6 +119,7 @@ export class HUDManager {
     }).setScrollFactor(0).setDepth(250).setOrigin(0.5).setVisible(false);
 
     this.createSoundToggle(camW);
+    this.createScoreboardToggle(camW);
   }
 
   createSoundToggle(camW) {
@@ -145,6 +146,34 @@ export class HUDManager {
       localStorage.setItem('soundMuted', scene.sound.mute);
       icon.setText(scene.sound.mute ? '🔇' : '🔊');
     });
+  }
+
+  createScoreboardToggle(camW) {
+    const scene = this.scene;
+    const btnSize = 28;
+    const x = camW - 24;
+    const y = 52 + 36; // below the mute button
+
+    const bg = scene.add.nineslice(x, y, 'ui-inventory-cell', null, btnSize, btnSize, 7, 7, 7, 7)
+      .setScrollFactor(0).setDepth(100);
+
+    const icon = scene.add.text(x, y, '🏆', {
+      fontSize: '16px',
+    }).setScrollFactor(0).setDepth(101).setOrigin(0.5);
+
+    const hitArea = scene.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
+      .setScrollFactor(0).setDepth(102).setInteractive({ useHandCursor: true });
+
+    hitArea.on('pointerover', () => bg.setTint(0xddddaa));
+    hitArea.on('pointerout', () => {
+      if (!this._leaderboardVisible) bg.clearTint();
+    });
+    hitArea.on('pointerdown', () => {
+      this.toggleLeaderboard(!this._leaderboardVisible);
+      bg.setTint(this._leaderboardVisible ? 0xffdd44 : 0xddddaa);
+    });
+
+    this._scoreboardBtnBg = bg;
   }
 
   createSpellHUD() {
@@ -779,10 +808,44 @@ export class HUDManager {
   toggleLeaderboard(show) {
     if (show === this._leaderboardVisible) return;
     this._leaderboardVisible = show;
-    if (show && this._cachedScores) {
+    if (show) {
+      // Build initial scores from scene players if no round has ended yet
+      if (!this._cachedScores) {
+        this._buildInitialScores();
+      }
       this._renderLeaderboard();
     } else {
       this._hideLeaderboard();
+    }
+  }
+
+  /** Build placeholder scores from scene player data before first round end. */
+  _buildInitialScores() {
+    const scene = this.scene;
+    const scores = [];
+    // Local player
+    if (scene.localPlayerId) {
+      scores.push({
+        id: scene.localPlayerId,
+        name: scene.playerName || 'Sen',
+        points: 0,
+        eliminations: 0,
+      });
+    }
+    this._cachedLocalPlayerId = scene.localPlayerId;
+    // Remote players
+    if (scene.remotePlayers) {
+      for (const [id, rp] of scene.remotePlayers) {
+        scores.push({
+          id,
+          name: rp.name || id.slice(-4),
+          points: 0,
+          eliminations: 0,
+        });
+      }
+    }
+    if (scores.length > 0) {
+      this._cachedScores = scores;
     }
   }
 
@@ -795,7 +858,7 @@ export class HUDManager {
     const sorted = [...this._cachedScores].sort((a, b) => b.points - a.points);
 
     const panelX = camW - 10;
-    const panelY = 80;
+    const panelY = 100;
     const rowH = 22;
     const panelW = 220;
     const panelH = 30 + sorted.length * rowH + 10;
