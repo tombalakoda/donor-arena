@@ -535,6 +535,12 @@ export class ServerSpell {
         delete charges[key];
       }
     }
+    // Reset all cooldowns so players start fresh each round
+    for (const [, cd] of this.cooldowns) {
+      for (const key of Object.keys(cd)) {
+        delete cd[key];
+      }
+    }
   }
 
   /**
