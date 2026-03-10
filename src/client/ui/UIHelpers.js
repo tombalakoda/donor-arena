@@ -8,7 +8,7 @@ import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, textStyle } from './UIConfig.js
 
 // ─── Text Button ─────────────────────────────────────────────
 /**
- * Create a nineslice text button with hover/pressed state changes.
+ * Create a nineslice text button with hover/pressed texture swaps.
  *
  * @param {Phaser.Scene} scene
  * @param {number} x - Center X
@@ -16,7 +16,7 @@ import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, textStyle } from './UIConfig.js
  * @param {string} label - Button text
  * @param {object} opts
  * @param {number} [opts.width=140]
- * @param {number} [opts.height=28]
+ * @param {number} [opts.height=32]
  * @param {number} [opts.depth=DEPTH.OVERLAY_UI]
  * @param {object} [opts.fontToken=FONT.BODY_BOLD]
  * @param {boolean} [opts.enabled=true]
@@ -27,7 +27,7 @@ import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, textStyle } from './UIConfig.js
  */
 export function createButton(scene, x, y, label, opts = {}) {
   const w       = opts.width  || 140;
-  const h       = opts.height || 28;
+  const h       = opts.height || 32;
   const depth   = opts.depth  ?? DEPTH.OVERLAY_UI;
   const token   = opts.fontToken || FONT.BODY_BOLD;
   const enabled = opts.enabled !== false;
@@ -37,47 +37,66 @@ export function createButton(scene, x, y, label, opts = {}) {
   const elements = [];
 
   const [nl, nr, nt, nb] = NINE.BUTTON;
-  const btn = scene.add.nineslice(x, y, 'ui-button', null, w, h, nl, nr, nt, nb)
-    .setScrollFactor(0).setDepth(depth).setAlpha(alpha);
 
   if (!enabled) {
-    btn.setTint(COLOR.TINT_DISABLED).setAlpha(0.6);
-    const text = scene.add.text(x, y - 1, label, textStyle(token, {
+    const btn = scene.add.nineslice(x, y, 'ui-button-disabled', null, w, h, nl, nr, nt, nb)
+      .setScrollFactor(0).setDepth(depth).setAlpha(0.7);
+    const text = scene.add.text(x, y, label, textStyle(token, {
       fill: COLOR.TEXT_DISABLED,
     })).setScrollFactor(0).setDepth(depth + 1).setOrigin(0.5);
     elements.push(btn, text);
     return { elements, btn, text };
   }
 
+  // Normal state
+  const btn = scene.add.nineslice(x, y, 'ui-button', null, w, h, nl, nr, nt, nb)
+    .setScrollFactor(0).setDepth(depth).setAlpha(alpha);
+
   const text = scene.add.text(x, y - 1, label, textStyle(token, {
     fill: COLOR.TEXT_LIGHT,
     stroke: '#000000', strokeThickness: 2,
   })).setScrollFactor(0).setDepth(depth + 1).setOrigin(0.5);
 
-  // Invisible hit area (nineslice interaction)
-  const hitArea = scene.add.nineslice(x, y, 'ui-button', null, w, h, nl, nr, nt, nb)
+  // Invisible hit area
+  const hitArea = scene.add.nineslice(x, y, 'ui-button', null, w + 2, h + 2, nl, nr, nt, nb)
     .setScrollFactor(0).setDepth(depth + 2).setAlpha(0.001)
     .setInteractive({ useHandCursor: true });
 
   let isOver = false;
+  let isDown = false;
+
   hitArea.on('pointerover', () => {
     isOver = true;
-    btn.setTint(COLOR.TINT_HOVER);
-    if (sfx) try { scene.sound.play('sfx-move', { volume: 0.5 }); } catch (_) { /* */ }
+    if (!isDown) {
+      btn.setTexture('ui-button-hover');
+      text.setY(y - 2);
+    }
+    if (sfx) try { scene.sound.play('sfx-move', { volume: 0.4 }); } catch (_) { /* */ }
   });
+
   hitArea.on('pointerout', () => {
     isOver = false;
-    btn.clearTint();
+    isDown = false;
+    btn.setTexture('ui-button');
     text.setY(y - 1);
   });
+
   hitArea.on('pointerdown', () => {
-    btn.setTint(COLOR.TINT_PRESS);
+    isDown = true;
+    btn.setTexture('ui-button-pressed');
     text.setY(y + 1);
   });
+
   hitArea.on('pointerup', () => {
-    btn.clearTint();
-    text.setY(y - 1);
-    if (isOver) onClick();
+    isDown = false;
+    if (isOver) {
+      btn.setTexture('ui-button-hover');
+      text.setY(y - 2);
+      onClick();
+    } else {
+      btn.setTexture('ui-button');
+      text.setY(y - 1);
+    }
   });
 
   elements.push(btn, text, hitArea);
@@ -120,7 +139,7 @@ export function createIconButton(scene, x, y, iconKey, opts = {}) {
   let isOver = false;
   cell.on('pointerover', () => {
     isOver = true;
-    icon.setScale(icon.scaleX * 1.05, icon.scaleY * 1.05);
+    icon.setScale(icon.scaleX * 1.1, icon.scaleY * 1.1);
     cell.setAlpha(ALPHA.SUBTLE);
     if (sfx) try { scene.sound.play('sfx-move', { volume: 0.3 }); } catch (_) { /* */ }
   });
@@ -304,6 +323,51 @@ export function createText(scene, x, y, content, token, opts = {}) {
 
   return scene.add.text(x, y, content, style)
     .setScrollFactor(0).setDepth(depth).setOrigin(originX, originY);
+}
+
+// ─── Animate In ──────────────────────────────────────────────
+/**
+ * Smoothly animate an element appearing (scale + fade).
+ * Preserves target's original alpha (important for hit areas at 0.001).
+ */
+export function animateIn(scene, target, opts = {}) {
+  const delay = opts.delay || 0;
+  const duration = opts.duration || 250;
+  const from = opts.from || 'scale'; // 'scale', 'slideUp', 'slideDown', 'fadeOnly'
+
+  // Capture original alpha BEFORE modifying
+  const origAlpha = target.alpha;
+
+  // Skip elements that are nearly invisible (hit areas at 0.001, etc.)
+  if (origAlpha < 0.01) return;
+
+  if (from === 'scale') {
+    const origSX = target.scaleX;
+    const origSY = target.scaleY;
+    target.setScale(origSX * 0.85, origSY * 0.85);
+    target.setAlpha(0);
+    scene.tweens.add({
+      targets: target, scaleX: origSX, scaleY: origSY,
+      alpha: origAlpha, duration, delay, ease: 'Back.easeOut',
+    });
+  } else if (from === 'slideUp') {
+    const origY = target.y;
+    target.setY(origY + 20);
+    target.setAlpha(0);
+    scene.tweens.add({
+      targets: target, y: origY, alpha: origAlpha, duration, delay, ease: 'Power2',
+    });
+  } else if (from === 'slideDown') {
+    const origY = target.y;
+    target.setY(origY - 15);
+    target.setAlpha(0);
+    scene.tweens.add({
+      targets: target, y: origY, alpha: origAlpha, duration, delay, ease: 'Power2',
+    });
+  } else {
+    target.setAlpha(0);
+    scene.tweens.add({ targets: target, alpha: origAlpha, duration, delay, ease: 'Linear' });
+  }
 }
 
 // ─── Legacy Compat ───────────────────────────────────────────

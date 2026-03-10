@@ -1,15 +1,16 @@
 /**
- * PauseMenu.js — ESC key overlay during gameplay (redesigned).
+ * PauseMenu.js — ESC key overlay during gameplay.
  *
- * Tiny 220×140 panel with Resume / Exit buttons and confirmation dialog.
+ * Compact panel with Resume / Exit buttons and confirmation dialog.
+ * Smooth entrance animations.
  * All visuals use Ninja Adventure nineslice/sprite assets.
  */
 
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle } from './UIConfig.js';
-import { createButton, createPanel, createDimmer, createText } from './UIHelpers.js';
+import { createButton, createPanel, createDimmer, createText, animateIn } from './UIHelpers.js';
 
 // ─── Constants ───────────────────────────────────────────
-const D = DEPTH.OVERLAY_DIM + 100;   // higher than other overlays (400 range)
+const D = DEPTH.OVERLAY_DIM + 100;   // higher than other overlays
 const CX = SCREEN.CX;
 const CY = SCREEN.CY;
 
@@ -64,36 +65,40 @@ export class PauseMenu {
     const s = this.scene;
 
     // Dimmer
-    const dimmer = createDimmer(s, { depth: D, alpha: 0.65 });
+    const dimmer = createDimmer(s, { depth: D, alpha: 0.6 });
     dimmer.setInteractive();
     this.elements.push(dimmer);
 
-    // Panel — small and compact
-    const pw = 220;
-    const ph = 150;
-    const panel = createPanel(s, CX, CY, pw, ph, { depth: D + 1, alpha: 0.92 });
+    // Panel
+    const pw = 240;
+    const ph = 160;
+    const panel = createPanel(s, CX, CY, pw, ph, { depth: D + 1 });
     this.elements.push(panel);
+    animateIn(s, panel, { from: 'scale', duration: 200 });
 
     // Title
-    const title = createText(s, CX, CY - ph / 2 + 24, 'ARA', FONT.TITLE_SM, {
+    const title = createText(s, CX, CY - ph / 2 + 28, 'ARA', FONT.TITLE_SM, {
       fill: COLOR.ACCENT_GOLD, depth: D + 2,
       stroke: '#000000', strokeThickness: 2,
     });
     this.elements.push(title);
+    animateIn(s, title, { from: 'slideDown', delay: 80, duration: 200 });
 
     // Resume button
     const { elements: resumeEls } = createButton(s, CX, CY + 4, 'Devam', {
-      width: 160, height: 28, depth: D + 2,
+      width: 170, height: 32, depth: D + 2,
       onClick: () => { this.playSfx('sfx-accept'); this.hide(); },
     });
     this.elements.push(...resumeEls);
+    resumeEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 120, duration: 200 }));
 
     // Exit button
-    const { elements: exitEls } = createButton(s, CX, CY + 42, 'Çıkış', {
-      width: 160, height: 28, depth: D + 2,
+    const { elements: exitEls } = createButton(s, CX, CY + 46, 'Çıkış', {
+      width: 170, height: 32, depth: D + 2,
       onClick: () => { this.playSfx('sfx-accept'); this.showConfirm(); },
     });
     this.elements.push(...exitEls);
+    exitEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 170, duration: 200 }));
   }
 
   // ═══════════════════════════════════════════════════════
@@ -105,34 +110,37 @@ export class PauseMenu {
     const CD = D + 10;
 
     // Extra dimmer
-    const overlay = createDimmer(s, { depth: CD, alpha: 0.45 });
+    const overlay = createDimmer(s, { depth: CD, alpha: 0.4 });
     overlay.setInteractive();
     this.elements.push(overlay);
 
     // Confirm panel
-    const pw = 240;
-    const ph = 110;
+    const pw = 260;
+    const ph = 120;
     const panel = createPanel(s, CX, CY, pw, ph, {
       depth: CD + 1, texture: 'ui-panel-2',
     });
     this.elements.push(panel);
+    animateIn(s, panel, { from: 'scale', duration: 200 });
 
     // Message
     const msg = createText(s, CX, CY - 22, 'Atışmadan ayrılacak mısın?', FONT.BODY_BOLD, {
       fill: COLOR.ACCENT_GOLD, depth: CD + 2,
+      stroke: '#000000', strokeThickness: 1,
     });
     this.elements.push(msg);
+    animateIn(s, msg, { from: 'slideDown', delay: 80, duration: 200 });
 
     // Yes button
-    const { elements: yesEls } = createButton(s, CX - 60, CY + 20, 'He', {
-      width: 90, height: 26, depth: CD + 2,
+    const { elements: yesEls } = createButton(s, CX - 65, CY + 22, 'He', {
+      width: 100, height: 30, depth: CD + 2,
       onClick: () => { this.returnToMenu(); },
     });
     this.elements.push(...yesEls);
 
     // No button
-    const { elements: noEls } = createButton(s, CX + 60, CY + 20, 'Yok', {
-      width: 90, height: 26, depth: CD + 2,
+    const { elements: noEls } = createButton(s, CX + 65, CY + 22, 'Yok', {
+      width: 100, height: 30, depth: CD + 2,
       onClick: () => {
         this.playSfx('sfx-cancel');
         this.destroy();

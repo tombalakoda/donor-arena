@@ -9,7 +9,7 @@ import { SKILL_TREES, computeSpellStats, getNextTierInfo, getMaxTier } from '../
 import { SPELLS, SLOT_SPELLS } from '../../shared/spellData.js';
 import { SP } from '../../shared/constants.js';
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SLOT_COLOR, SCREEN, textStyle } from './UIConfig.js';
-import { createButton, createPanel, createDimmer, createSeparator, createText } from './UIHelpers.js';
+import { createButton, createPanel, createDimmer, createSeparator, createText, animateIn } from './UIHelpers.js';
 
 // ─── Constants ───────────────────────────────────────────
 const D = DEPTH.OVERLAY_DIM;
@@ -149,11 +149,12 @@ export class ShopOverlay {
     dimmer.setInteractive();
     this.chrome.push(dimmer);
 
-    // Main panel
+    // Main panel — with entrance animation
     const panel = createPanel(s, SCREEN.CX, SCREEN.CY, PW, PH, {
-      depth: D + 1, alpha: 0.92,
+      depth: D + 1, alpha: 0.95,
     });
     this.chrome.push(panel);
+    animateIn(s, panel, { from: 'scale', duration: 250 });
 
     this._buildTitleBar();
     this._buildTabRow();

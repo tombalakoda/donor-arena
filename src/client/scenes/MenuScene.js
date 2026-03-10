@@ -7,14 +7,26 @@ import { TIPS } from '../config.js';
 import {
   COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle,
 } from '../ui/UIConfig.js';
-import { createButton, createIconButton, createPanel, createDimmer, createSeparator, createText } from '../ui/UIHelpers.js';
+import { createButton, createIconButton, createPanel, createDimmer, createSeparator, createText, animateIn } from '../ui/UIHelpers.js';
+
+// ─── Layout Constants ─────────────────────────────────────────
+const CX = SCREEN.CX;
+const CY = SCREEN.CY;
+
+// Character grid — 4 cols × 2 rows, big face icons
+const GRID_COLS = 4;
+const GRID_ROWS = 2;
+const CELL_SIZE = 64;
+const CELL_GAP = 10;
+const GRID_W = GRID_COLS * CELL_SIZE + (GRID_COLS - 1) * CELL_GAP;
+const GRID_H = GRID_ROWS * (CELL_SIZE + 22) + (GRID_ROWS - 1) * CELL_GAP;
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MenuScene' });
     this.selectedCharIndex = 0;
     this.playerName = 'Âşık';
-    this.charRows = [];
+    this.charCells = [];
     this.previewSprite = null;
     this.nameInput = null;
     this.transitioning = false;
@@ -27,7 +39,8 @@ export class MenuScene extends Phaser.Scene {
 
     this.createBackground();
     this.createTitle();
-    this.createCharacterList();
+    this.createMainPanel();
+    this.createCharacterGrid();
     this.createPreview();
     this.createNameInput();
     this.createButtons();
@@ -45,171 +58,229 @@ export class MenuScene extends Phaser.Scene {
 
   createBackground() {
     if (this.textures.exists('menu-bg')) {
-      const bg = this.add.image(SCREEN.CX, SCREEN.CY, 'menu-bg').setDepth(0);
+      const bg = this.add.image(CX, CY, 'menu-bg').setDepth(0);
       const scale = Math.max(SCREEN.W / bg.width, SCREEN.H / bg.height);
       bg.setScale(scale);
     } else {
       this.cameras.main.setBackgroundColor('#0a0a1e');
     }
 
-    // Dark overlay for readability
-    this.add.nineslice(SCREEN.CX, SCREEN.CY, 'ui-bg-2', null, SCREEN.W, SCREEN.H, 4, 4, 4, 4)
-      .setDepth(1).setTint(0x000000).setAlpha(0.35);
+    // Subtle dark overlay
+    this.add.nineslice(CX, CY, 'ui-bg-2', null, SCREEN.W, SCREEN.H, 4, 4, 4, 4)
+      .setDepth(1).setTint(0x000000).setAlpha(0.3);
   }
 
   // ═══════════════════════════════════════════════════════════
-  // TITLE
+  // TITLE — big, centered, with gentle float animation
   // ═══════════════════════════════════════════════════════════
 
   createTitle() {
-    // Simple title — no glow, no pulsing, just clean text
-    createText(this, SCREEN.CX, 38, 'ÂŞIKLAR MEYDANE', FONT.TITLE_LG, {
-      fill: COLOR.ACCENT_GOLD, depth: 17, originX: 0.5, originY: 0.5,
-      stroke: '#000000', strokeThickness: 3,
+    const titleY = 50;
+
+    // Shadow/glow duplicate (subtle)
+    const shadow = this.add.text(CX + 2, titleY + 2, 'ÂŞIKLAR MEYDANE', textStyle(FONT.TITLE_LG, {
+      fill: '#000000',
+    })).setDepth(16).setOrigin(0.5).setAlpha(0.3);
+
+    // Main title
+    const title = createText(this, CX, titleY, 'ÂŞIKLAR MEYDANE', FONT.TITLE_LG, {
+      fill: COLOR.ACCENT_GOLD, depth: 17,
+      stroke: '#000000', strokeThickness: 4,
     });
 
-    createText(this, SCREEN.CX, 64, 'Aşığını seç', FONT.SMALL, {
-      fill: COLOR.TEXT_SECONDARY, depth: 17, originX: 0.5, originY: 0.5,
+    // Gentle floating animation
+    this.tweens.add({
+      targets: [title, shadow],
+      y: titleY + 3,
+      duration: 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
     });
+
+    // Entrance
+    animateIn(this, title, { from: 'slideDown', delay: 100, duration: 400 });
+    animateIn(this, shadow, { from: 'slideDown', delay: 100, duration: 400 });
   }
 
   // ═══════════════════════════════════════════════════════════
-  // CHARACTER LIST (left side — vertical, 1 column × 8 rows)
+  // MAIN PANEL — warm wood container
   // ═══════════════════════════════════════════════════════════
 
-  createCharacterList() {
-    const listX = 30;
-    const listY = 92;
-    const rowW = 160;
-    const rowH = 28;
-    const gap = 4;
+  createMainPanel() {
+    const panelW = 820;
+    const panelH = 265;
+    const panelY = CY + 18;
 
-    // List panel background
-    createPanel(this, listX + rowW / 2, listY + (CHARACTERS.length * (rowH + gap)) / 2 - gap / 2,
-      rowW + SPACE.LG, CHARACTERS.length * (rowH + gap) + SPACE.SM, {
-        texture: 'ui-panel', depth: 9, alpha: 0.7,
+    // Store panel position for other methods
+    this._panelY = panelY;
+    this._panelH = panelH;
+
+    // Outer panel
+    this._mainPanel = createPanel(this, CX, panelY, panelW, panelH, {
+      texture: 'ui-panel', depth: 5,
+    });
+    animateIn(this, this._mainPanel, { from: 'scale', delay: 50, duration: 350 });
+
+    // Inner content area
+    const inner = createPanel(this, CX, panelY, panelW - 16, panelH - 16, {
+      texture: 'ui-panel-interior', depth: 6, alpha: 0.5,
+    });
+    animateIn(this, inner, { from: 'fadeOnly', delay: 200, duration: 300 });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // CHARACTER GRID — 4×2 big face icons with names below
+  // ═══════════════════════════════════════════════════════════
+
+  createCharacterGrid() {
+    const panelY = this._panelY || CY + 20;
+    const gridLeftEdge = CX - 420 / 2 - 40;
+    const gridTop = panelY - this._panelH / 2 + 30;
+
+    // Section label
+    const label = createText(this, gridLeftEdge + GRID_W / 2, gridTop - 18,
+      'ÂŞIĞINI SEÇ', FONT.SMALL, {
+        fill: COLOR.TEXT_SECONDARY, depth: 12,
+        stroke: '#000000', strokeThickness: 1,
       });
+    animateIn(this, label, { from: 'fadeOnly', delay: 300, duration: 300 });
 
-    this.charRows = [];
+    this.charCells = [];
+    let idx = 0;
 
-    for (let i = 0; i < CHARACTERS.length; i++) {
-      const char = CHARACTERS[i];
-      const y = listY + i * (rowH + gap) + rowH / 2;
-      const x = listX + rowW / 2;
+    for (let row = 0; row < GRID_ROWS; row++) {
+      for (let col = 0; col < GRID_COLS; col++) {
+        if (idx >= CHARACTERS.length) break;
+        const char = CHARACTERS[idx];
+        const cellIdx = idx;
 
-      // Row background (inventory cell)
-      const bg = this.add.nineslice(x, y, 'ui-inventory-cell', null, rowW, rowH, ...NINE.CELL)
-        .setDepth(10).setAlpha(0.6);
+        const cx = gridLeftEdge + col * (CELL_SIZE + CELL_GAP) + CELL_SIZE / 2;
+        const cy = gridTop + row * (CELL_SIZE + 22 + CELL_GAP) + CELL_SIZE / 2;
 
-      // Face (small, left side)
-      const faceX = listX + 18;
-      let face;
-      if (this.textures.exists(`${char.id}-face`)) {
-        face = this.add.image(faceX, y, `${char.id}-face`)
-          .setDisplaySize(20, 20).setDepth(11);
-      } else {
-        face = this.add.sprite(faceX, y, `${char.id}-idle`, 0)
-          .setDisplaySize(20, 20).setDepth(11);
+        // Selection highlight (gold border, behind, hidden by default)
+        const highlight = this.add.nineslice(cx, cy, 'ui-focus', null,
+          CELL_SIZE + 6, CELL_SIZE + 6, 2, 2, 2, 2)
+          .setTint(COLOR.TINT_GOLD).setDepth(9).setVisible(false);
+
+        // Cell background
+        const cell = this.add.nineslice(cx, cy, 'ui-inventory-cell', null,
+          CELL_SIZE, CELL_SIZE, ...NINE.CELL)
+          .setDepth(10);
+
+        // Face portrait (big, fills the cell)
+        let face;
+        const faceKey = `${char.id}-face`;
+        if (this.textures.exists(faceKey)) {
+          face = this.add.image(cx, cy - 2, faceKey)
+            .setDisplaySize(CELL_SIZE - 8, CELL_SIZE - 8).setDepth(11);
+        } else {
+          face = this.add.sprite(cx, cy - 2, `${char.id}-idle`, 0)
+            .setDisplaySize(CELL_SIZE - 8, CELL_SIZE - 8).setDepth(11);
+        }
+
+        // Name below cell
+        const nameText = this.add.text(cx, cy + CELL_SIZE / 2 + 8, char.name, textStyle(FONT.SMALL, {
+          fill: COLOR.TEXT_SECONDARY,
+        })).setDepth(12).setOrigin(0.5, 0);
+
+        // Hit area
+        const hitArea = this.add.nineslice(cx, cy, 'ui-button', null,
+          CELL_SIZE + 2, CELL_SIZE + 2, ...NINE.BUTTON)
+          .setDepth(14).setAlpha(0.001)
+          .setInteractive({ useHandCursor: true });
+
+        hitArea.on('pointerover', () => {
+          if (this.selectedCharIndex !== cellIdx) {
+            cell.setTint(COLOR.TINT_HOVER);
+            face.setScale(face.scaleX * 1.05, face.scaleY * 1.05);
+          }
+          this.playSfx('sfx-move');
+        });
+        hitArea.on('pointerout', () => {
+          if (this.selectedCharIndex !== cellIdx) {
+            cell.clearTint();
+            const s = (CELL_SIZE - 8) / Math.max(face.width, face.height);
+            face.setScale(s, s);
+          }
+        });
+        hitArea.on('pointerdown', () => {
+          this.playSfx('sfx-accept');
+          this.selectCharacter(cellIdx);
+        });
+
+        // Entrance animation — staggered
+        const delay = 200 + idx * 50;
+        animateIn(this, cell, { from: 'scale', delay, duration: 250 });
+        animateIn(this, face, { from: 'scale', delay: delay + 30, duration: 250 });
+        animateIn(this, nameText, { from: 'fadeOnly', delay: delay + 80, duration: 200 });
+
+        this.charCells.push({ cell, face, nameText, highlight, hitArea, origFaceScale: null });
+        idx++;
       }
-
-      // Name text (right of face)
-      const nameText = createText(this, listX + 36, y, char.name, FONT.BODY, {
-        fill: COLOR.TEXT_SECONDARY, depth: 12, originX: 0, originY: 0.5,
-      });
-
-      // Selection highlight (gold left border accent via focus)
-      const highlight = this.add.nineslice(x, y, 'ui-focus', null, rowW + 2, rowH + 2, 2, 2, 2, 2)
-        .setTint(COLOR.TINT_GOLD).setDepth(13).setVisible(false);
-
-      // Hit area
-      const hitArea = this.add.nineslice(x, y, 'ui-button', null, rowW, rowH, ...NINE.BUTTON)
-        .setDepth(14).setAlpha(0.001).setInteractive({ useHandCursor: true });
-
-      hitArea.on('pointerdown', () => { this.playSfx('sfx-accept'); this.selectCharacter(i); });
-      hitArea.on('pointerover', () => {
-        this.playSfx('sfx-move');
-        if (this.selectedCharIndex !== i) bg.setAlpha(0.85);
-      });
-      hitArea.on('pointerout', () => {
-        if (this.selectedCharIndex !== i) bg.setAlpha(0.6);
-      });
-
-      this.charRows.push({ bg, face, nameText, highlight, hitArea });
     }
   }
 
   // ═══════════════════════════════════════════════════════════
-  // PREVIEW PANEL (center-right)
+  // PREVIEW — walking sprite + character info on right side
   // ═══════════════════════════════════════════════════════════
 
   createPreview() {
-    const panelCX = 720;
-    const panelCY = 280;
-    const panelW = 540;
-    const panelH = 300;
+    const panelY = this._panelY || CY + 20;
+    const panelH = this._panelH || 340;
 
-    // Outer panel
-    createPanel(this, panelCX, panelCY, panelW, panelH, {
-      texture: 'ui-panel', depth: 10, alpha: 0.8,
+    // Right side of main panel
+    const previewX = CX + 130;
+    const previewY = panelY - 20;
+
+    // Compact dark inset for sprite display
+    const insetH = 120;
+    const inset = createPanel(this, previewX, previewY, 110, insetH, {
+      texture: 'ui-bg', depth: 8, alpha: 0.25,
     });
+    animateIn(this, inset, { from: 'fadeOnly', delay: 300, duration: 300 });
 
-    // Inner content area
-    createPanel(this, panelCX, panelCY, panelW - 16, panelH - 16, {
-      texture: 'ui-panel-interior', depth: 11, alpha: 0.5,
+    // Walking sprite — properly sized and playing animation
+    this.previewSprite = this.add.sprite(previewX, previewY + 6, 'boy-walk', 0)
+      .setScale(4.5).setDepth(9);
+
+    // Start the animation immediately
+    if (this.anims.exists('boy-walk-down')) {
+      this.previewSprite.play('boy-walk-down');
+    }
+    animateIn(this, this.previewSprite, { from: 'scale', delay: 350, duration: 300 });
+
+    // Character info — right of preview
+    const infoX = previewX + 80;
+    const infoTop = previewY - 40;
+
+    // Name (big, gold, with stroke for readability)
+    this.previewName = createText(this, infoX, infoTop, 'Cevheri', FONT.TITLE_SM, {
+      fill: COLOR.ACCENT_GOLD, depth: 12, originX: 0,
+      stroke: '#000000', strokeThickness: 3,
     });
+    animateIn(this, this.previewName, { from: 'slideUp', delay: 400, duration: 250 });
 
-    // ── Left: walking sprite ──
-    const spriteAreaX = panelCX - panelW / 2 + 100;
-    const spriteAreaY = panelCY - 10;
-
-    // Dark backdrop
-    createPanel(this, spriteAreaX, panelCY, 140, panelH - 40, {
-      texture: 'ui-bg', depth: 12, alpha: 0.3,
-    });
-
-    // Walking sprite
-    this.previewSprite = this.add.sprite(spriteAreaX, spriteAreaY, 'boy-walk', 0)
-      .setScale(5).setDepth(13);
-
-    // ── Right: character info ──
-    const rightX = panelCX - panelW / 2 + 200;
-
-    // Name
-    this.previewName = createText(this, rightX, panelCY - 110, 'Cevheri', FONT.TITLE_SM, {
-      fill: COLOR.ACCENT_GOLD, depth: 14, originX: 0, originY: 0.5,
-    });
-
-    // Separator
-    createSeparator(this, panelCX + 40, panelCY - 92, 310, { depth: 14, alpha: 0.25 });
+    // Separator below name
+    createSeparator(this, infoX + 75, infoTop + 16, 150, { depth: 12 });
 
     // Passive label
-    createText(this, rightX, panelCY - 72, 'HÜNER:', FONT.SMALL, {
-      fill: COLOR.TEXT_SECONDARY, depth: 14, originX: 0, originY: 0.5,
+    createText(this, infoX, infoTop + 30, 'HÜNER:', FONT.SMALL, {
+      fill: COLOR.TEXT_SECONDARY, depth: 12, originX: 0,
+      stroke: '#000000', strokeThickness: 1,
     });
 
     // Passive name
-    this.passiveName = createText(this, rightX, panelCY - 52, '', FONT.BODY_BOLD, {
-      fill: COLOR.ACCENT_INFO, depth: 14, originX: 0, originY: 0.5,
+    this.passiveName = createText(this, infoX, infoTop + 46, '', FONT.BODY_BOLD, {
+      fill: COLOR.ACCENT_INFO, depth: 12, originX: 0,
+      stroke: '#000000', strokeThickness: 1,
     });
 
-    // Passive description
-    this.passiveDesc = this.add.text(rightX, panelCY - 30, '', textStyle(FONT.BODY, {
-      fill: COLOR.TEXT_SECONDARY, wordWrap: { width: 280 },
-    })).setScrollFactor(0).setDepth(14).setOrigin(0, 0.5);
-
-    // ── Face portrait (right side) ──
-    const faceX = panelCX + panelW / 2 - 80;
-    const faceY = panelCY + 40;
-
-    // Frame
-    this.add.nineslice(faceX, faceY, 'ui-inventory-cell', null, 100, 100, ...NINE.CELL)
-      .setDepth(12);
-
-    this.previewFace = null;
-    if (this.textures.exists('boy-face')) {
-      this.previewFace = this.add.image(faceX, faceY, 'boy-face')
-        .setScale(2.2).setDepth(13);
-    }
+    // Passive description (with word wrap)
+    this.passiveDesc = this.add.text(infoX, infoTop + 64, '', textStyle(FONT.SMALL, {
+      fill: COLOR.TEXT_SECONDARY, wordWrap: { width: 180 },
+      stroke: '#000000', strokeThickness: 1,
+    })).setDepth(12).setOrigin(0, 0);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -217,15 +288,19 @@ export class MenuScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════════
 
   createNameInput() {
-    const nameY = 490;
+    const panelY = this._panelY || CY + 20;
+    const panelH = this._panelH || 340;
+    const nameY = panelY + panelH / 2 + 28;
 
-    // Simple underline-style input
-    createPanel(this, SCREEN.CX, nameY, 300, 30, {
-      texture: 'ui-panel-interior', depth: 10, alpha: 0.6,
+    // Panel behind input
+    const bg = createPanel(this, CX, nameY, 320, 34, {
+      texture: 'ui-panel-2', depth: 10,
     });
+    animateIn(this, bg, { from: 'slideUp', delay: 500, duration: 250 });
 
-    createText(this, SCREEN.CX - 130, nameY, 'Mahlas:', FONT.SMALL, {
-      fill: COLOR.TEXT_SECONDARY, depth: 12, originX: 0, originY: 0.5,
+    // Label
+    createText(this, CX - 135, nameY, 'Mahlas:', FONT.BODY_BOLD, {
+      fill: COLOR.TEXT_PRIMARY, depth: 12, originX: 0,
     });
 
     const inputElement = document.createElement('input');
@@ -233,40 +308,48 @@ export class MenuScene extends Phaser.Scene {
     inputElement.value = 'Âşık';
     inputElement.maxLength = 16;
     inputElement.style.cssText = `
-      font-size: 12px; font-family: 'KiwiSoda', monospace;
-      padding: 3px 8px; width: 180px;
+      font-size: 14px; font-family: 'KiwiSoda', monospace;
+      padding: 4px 10px; width: 180px;
       background: transparent; color: ${COLOR.ACCENT_GOLD};
       border: none; outline: none; caret-color: ${COLOR.ACCENT_GOLD};
+      font-weight: bold;
     `;
 
-    this.nameInput = this.add.dom(SCREEN.CX + 30, nameY, inputElement).setDepth(12);
+    this.nameInput = this.add.dom(CX + 40, nameY, inputElement).setDepth(12);
   }
 
   // ═══════════════════════════════════════════════════════════
-  // BUTTONS
+  // BUTTONS — properly sized, with staggered entrance
   // ═══════════════════════════════════════════════════════════
 
   createButtons() {
-    const btnY = 540;
+    const panelY = this._panelY || CY + 20;
+    const panelH = this._panelH || 340;
+    const btnY = panelY + panelH / 2 + 68;
 
-    createButton(this, SCREEN.CX - 160, btnY, 'MEYDANE', {
-      width: 140, height: 28, depth: 10,
-      onClick: () => this.startGame('normal'),
+    const btns = [
+      { label: 'MEYDANE', x: CX - 155, onClick: () => this.startGame('normal') },
+      { label: 'ODALAR',  x: CX,       onClick: () => this.showRoomList() },
+      { label: 'SERBEST', x: CX + 155, onClick: () => this.startGame('sandbox') },
+    ];
+
+    btns.forEach((b, i) => {
+      const { elements } = createButton(this, b.x, btnY, b.label, {
+        width: 130, height: 34, depth: 10,
+        onClick: b.onClick,
+      });
+      // Staggered entrance
+      elements.forEach(el => animateIn(this, el, {
+        from: 'slideUp', delay: 550 + i * 80, duration: 250,
+      }));
     });
 
-    createButton(this, SCREEN.CX, btnY, 'ODALAR', {
-      width: 140, height: 28, depth: 10,
-      onClick: () => this.showRoomList(),
-    });
-
-    createButton(this, SCREEN.CX + 160, btnY, 'SERBEST', {
-      width: 140, height: 28, depth: 10,
-      onClick: () => this.startGame('sandbox'),
-    });
-
-    createText(this, SCREEN.CX, btnY + 24, 'Serbest: Sınırsız ilham, talim kuklaları, meydan daralmasız', FONT.SMALL, {
-      fill: COLOR.TEXT_DISABLED, depth: 12, originX: 0.5, originY: 0.5,
-    });
+    // Subtle hint text
+    const hint = createText(this, CX, btnY + 26,
+      'Serbest: Sınırsız ilham, talim kuklaları', FONT.SMALL, {
+        fill: COLOR.TEXT_DISABLED, depth: 12,
+      });
+    animateIn(this, hint, { from: 'fadeOnly', delay: 800, duration: 300 });
 
     // Room list state
     this.roomListElements = [];
@@ -279,13 +362,14 @@ export class MenuScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════════
 
   createBottomTip() {
-    const tipText = createText(this, SCREEN.CX, SCREEN.H - 16, TIPS[0], FONT.SMALL, {
-      fill: COLOR.TEXT_DISABLED, depth: 12, originX: 0.5, originY: 0.5,
+    const tipText = createText(this, CX, SCREEN.H - 18, TIPS[0], FONT.SMALL, {
+      fill: COLOR.TEXT_DISABLED, depth: 12,
     });
+    animateIn(this, tipText, { from: 'fadeOnly', delay: 900, duration: 400 });
 
     let tipIndex = 0;
     this._tipTimer = this.time.addEvent({
-      delay: 3000, loop: true,
+      delay: 3500, loop: true,
       callback: () => {
         tipIndex = (tipIndex + 1) % TIPS.length;
         this.tweens.add({
@@ -301,13 +385,12 @@ export class MenuScene extends Phaser.Scene {
 
   createSoundToggle() {
     const isMuted = this.sound.mute;
-    createIconButton(this, SCREEN.W - 24, 24,
+    createIconButton(this, SCREEN.W - 28, 28,
       isMuted ? 'spell-BookThunder-off' : 'spell-BookThunder', {
-        size: 18, depth: 20,
+        size: 22, depth: 20,
         onClick: () => {
           this.sound.mute = !this.sound.mute;
           localStorage.setItem('soundMuted', this.sound.mute);
-          // Icon will update on scene rebuild
         },
       });
   }
@@ -318,48 +401,56 @@ export class MenuScene extends Phaser.Scene {
 
   selectCharacter(index) {
     // Deselect previous
-    const prev = this.charRows[this.selectedCharIndex];
+    const prev = this.charCells[this.selectedCharIndex];
     if (prev) {
       prev.highlight.setVisible(false);
+      prev.cell.clearTint();
       prev.nameText.setFill(COLOR.TEXT_SECONDARY);
-      prev.bg.setAlpha(0.6);
+      // Reset face scale
+      const sz = (CELL_SIZE - 8);
+      const w = prev.face.width;
+      const h = prev.face.height;
+      prev.face.setScale(sz / w, sz / h);
     }
 
     this.selectedCharIndex = index;
-    const row = this.charRows[index];
+    const row = this.charCells[index];
     const char = CHARACTERS[index];
 
     // Select new
     row.highlight.setVisible(true);
+    row.cell.setTint(COLOR.TINT_GOLD);
     row.nameText.setFill(COLOR.ACCENT_GOLD);
-    row.bg.setAlpha(0.9);
 
-    // Update preview
+    // Subtle pulse on the selected highlight
+    this.tweens.add({
+      targets: row.highlight,
+      alpha: { from: 0.8, to: 1 },
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Update walking sprite
     if (this.previewSprite) {
       this.tweens.add({
         targets: this.previewSprite,
-        alpha: 0, duration: 60,
+        scaleX: 4, scaleY: 4, alpha: 0.5, duration: 80,
         onComplete: () => {
           this.previewSprite.play(`${char.id}-walk-down`);
-          this.tweens.add({ targets: this.previewSprite, alpha: 1, duration: 100 });
+          this.tweens.add({
+            targets: this.previewSprite,
+            scaleX: 4.5, scaleY: 4.5, alpha: 1, duration: 120, ease: 'Back.easeOut',
+          });
         },
       });
     }
 
-    // Update face
-    if (this.previewFace && this.textures.exists(`${char.id}-face`)) {
-      this.tweens.add({
-        targets: this.previewFace,
-        alpha: 0, duration: 50,
-        onComplete: () => {
-          this.previewFace.setTexture(`${char.id}-face`);
-          this.tweens.add({ targets: this.previewFace, alpha: 1, duration: 100 });
-        },
-      });
-    }
-
+    // Update name
     if (this.previewName) this.previewName.setText(char.name);
 
+    // Update passive info
     const passive = getPassive(char.id);
     if (this.passiveName) {
       const icon = this.getPassiveIcon(passive);
@@ -386,41 +477,43 @@ export class MenuScene extends Phaser.Scene {
     this.roomListElements.push(dimmer);
 
     // Panel
-    const panelW = 380;
-    const panelH = 320;
-    const panel = createPanel(this, SCREEN.CX, SCREEN.CY, panelW, panelH, {
-      texture: 'ui-panel', depth: DPT + 1, alpha: 0.95,
+    const panelW = 400;
+    const panelH = 340;
+    const panel = createPanel(this, CX, CY, panelW, panelH, {
+      texture: 'ui-panel', depth: DPT + 1,
     });
     this.roomListElements.push(panel);
+    animateIn(this, panel, { from: 'scale', duration: 250 });
 
     // Title
-    const py = SCREEN.CY - panelH / 2;
-    const title = createText(this, SCREEN.CX, py + 24, 'AÇIK ODALAR', FONT.TITLE_SM, {
-      fill: COLOR.ACCENT_GOLD, depth: DPT + 2, originX: 0.5, originY: 0.5,
+    const py = CY - panelH / 2;
+    const title = createText(this, CX, py + 26, 'AÇIK ODALAR', FONT.TITLE_SM, {
+      fill: COLOR.ACCENT_GOLD, depth: DPT + 2,
       stroke: '#000000', strokeThickness: 2,
     });
     this.roomListElements.push(title);
+    animateIn(this, title, { from: 'slideDown', delay: 100, duration: 200 });
 
     // Separator
-    const sep = createSeparator(this, SCREEN.CX, py + 42, panelW - 32, { depth: DPT + 2 });
+    const sep = createSeparator(this, CX, py + 46, panelW - 32, { depth: DPT + 2 });
     this.roomListElements.push(sep);
 
     // Loading text
-    this.roomListLoading = createText(this, SCREEN.CX, SCREEN.CY, 'Yükleniyor...', FONT.BODY, {
-      fill: COLOR.TEXT_SECONDARY, depth: DPT + 3, originX: 0.5, originY: 0.5,
+    this.roomListLoading = createText(this, CX, CY, 'Yükleniyor...', FONT.BODY, {
+      fill: COLOR.TEXT_SECONDARY, depth: DPT + 3,
     });
     this.roomListElements.push(this.roomListLoading);
 
     // YENİLE button
-    const { elements: refreshEls } = createButton(this, SCREEN.CX - 70, py + panelH - 30, 'YENİLE', {
-      width: 110, height: 26, depth: DPT + 2,
+    const { elements: refreshEls } = createButton(this, CX - 75, py + panelH - 32, 'YENİLE', {
+      width: 120, height: 30, depth: DPT + 2,
       onClick: () => this.refreshRoomList(),
     });
     this.roomListElements.push(...refreshEls);
 
     // KAPAT button
-    const { elements: closeEls } = createButton(this, SCREEN.CX + 70, py + panelH - 30, 'KAPAT', {
-      width: 110, height: 26, depth: DPT + 2,
+    const { elements: closeEls } = createButton(this, CX + 75, py + panelH - 32, 'KAPAT', {
+      width: 120, height: 30, depth: DPT + 2,
       onClick: () => this.destroyRoomList(),
     });
     this.roomListElements.push(...closeEls);
@@ -459,54 +552,54 @@ export class MenuScene extends Phaser.Scene {
     }
 
     const DPT = DEPTH.OVERLAY_DIM;
-    const panelH = 320;
-    const py = SCREEN.CY - panelH / 2;
+    const panelH = 340;
+    const py = CY - panelH / 2;
 
     if (rooms.length === 0) {
-      const emptyText = createText(this, SCREEN.CX, SCREEN.CY - 10, 'Açık oda yok', FONT.BODY, {
-        fill: COLOR.TEXT_SECONDARY, depth: DPT + 3, originX: 0.5, originY: 0.5,
+      const emptyText = createText(this, CX, CY - 10, 'Açık oda yok', FONT.BODY, {
+        fill: COLOR.TEXT_SECONDARY, depth: DPT + 3,
       });
       this.roomRowElements.push(emptyText);
       this.roomListElements.push(emptyText);
 
-      const hintText = createText(this, SCREEN.CX, SCREEN.CY + 12, "MEYDANE'ye basıp oda kur!", FONT.SMALL, {
-        fill: COLOR.ACCENT_SUCCESS, depth: DPT + 3, originX: 0.5, originY: 0.5,
+      const hintText = createText(this, CX, CY + 14, "MEYDANE'ye basıp oda kur!", FONT.SMALL, {
+        fill: COLOR.ACCENT_SUCCESS, depth: DPT + 3,
       });
       this.roomRowElements.push(hintText);
       this.roomListElements.push(hintText);
       return;
     }
 
-    const rowH = 30;
-    const rowW = 340;
-    const startY = py + 60;
+    const rowH = 34;
+    const rowW = 360;
+    const startY = py + 64;
     const maxVisible = Math.min(rooms.length, 6);
 
     for (let i = 0; i < maxVisible; i++) {
       const room = rooms[i];
       const rowY = startY + i * (rowH + 4);
 
-      const rowBg = this.add.nineslice(SCREEN.CX, rowY, 'ui-inventory-cell', null, rowW, rowH, ...NINE.CELL)
+      const rowBg = this.add.nineslice(CX, rowY, 'ui-inventory-cell', null, rowW, rowH, ...NINE.CELL)
         .setDepth(DPT + 2).setAlpha(0.7);
       this.roomRowElements.push(rowBg);
       this.roomListElements.push(rowBg);
 
-      const hostText = createText(this, SCREEN.CX - rowW / 2 + 12, rowY, room.hostName, FONT.BODY_BOLD, {
-        fill: COLOR.ACCENT_GOLD, depth: DPT + 3, originX: 0, originY: 0.5,
+      const hostText = createText(this, CX - rowW / 2 + 14, rowY, room.hostName, FONT.BODY_BOLD, {
+        fill: COLOR.ACCENT_GOLD, depth: DPT + 3, originX: 0,
       });
       this.roomRowElements.push(hostText);
       this.roomListElements.push(hostText);
 
-      const countText = createText(this, SCREEN.CX + 50, rowY, `${room.playerCount}/${room.maxPlayers}`, FONT.BODY, {
-        fill: COLOR.TEXT_SECONDARY, depth: DPT + 3, originX: 0.5, originY: 0.5,
+      const countText = createText(this, CX + 50, rowY, `${room.playerCount}/${room.maxPlayers}`, FONT.BODY, {
+        fill: COLOR.TEXT_SECONDARY, depth: DPT + 3,
       });
       this.roomRowElements.push(countText);
       this.roomListElements.push(countText);
 
       // KATIL button
-      const btnX = SCREEN.CX + rowW / 2 - 44;
-      const { elements: joinEls, btn: joinBtn } = createButton(this, btnX, rowY, 'KATIL', {
-        width: 60, height: 24, depth: DPT + 3,
+      const btnX = CX + rowW / 2 - 48;
+      const { elements: joinEls } = createButton(this, btnX, rowY, 'KATIL', {
+        width: 70, height: 26, depth: DPT + 3,
         onClick: () => {
           this.playSfx('sfx-accept');
           this.selectedRoomId = room.roomId;
