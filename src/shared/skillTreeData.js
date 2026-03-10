@@ -11,7 +11,7 @@ export const SKILL_TREES = {
     base: {
       type: 'projectile',
       damage: 3,
-      knockbackForce: 0.07,      // sniper: high KB
+      knockbackForce: 0.14,      // sniper: high KB
       cooldown: 3500,             // sniper: slow fire rate
       speed: 8,
       range: 450,                 // sniper: long range
@@ -31,7 +31,7 @@ export const SKILL_TREES = {
     base: {
       type: 'projectile',
       damage: 3,
-      knockbackForce: 0.03,      // machinegun: weak per-shot KB
+      knockbackForce: 0.10,      // machinegun: weak per-shot KB
       cooldown: 1800,             // machinegun: fast fire rate
       speed: 8,
       range: 250,                 // machinegun: short range
@@ -51,7 +51,7 @@ export const SKILL_TREES = {
     base: {
       type: 'projectile',
       damage: 3,
-      knockbackForce: 0.08,      // power: heavy KB
+      knockbackForce: 0.16,      // power: heavy KB
       cooldown: 3200,             // power: slow fire rate
       speed: 8,
       range: 280,                 // power: short range (close combat)
