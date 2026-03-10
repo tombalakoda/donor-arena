@@ -1701,7 +1701,7 @@ export class GameScene extends Phaser.Scene {
         break;
       }
 
-      // ── Wall: aim line + wall preview perpendicular line ──
+      // ── Wall: aim line + circle preview at placement point ──
       case SPELL_TYPES.WALL: {
         // Range circle to show max placement distance
         g.lineStyle(1.5, color, 0.15);
@@ -1714,16 +1714,12 @@ export class GameScene extends Phaser.Scene {
         g.moveTo(px, py);
         g.lineTo(wallX, wallY);
         g.strokePath();
-        // Wall preview line
-        const wallWidth = stats.wallWidth || stats.width || 80;
-        const angle = Math.atan2(ny, nx);
-        const perpX = -Math.sin(angle);
-        const perpY = Math.cos(angle);
+        // Wall preview circle (matches obstacle radius)
+        const wallRadius = stats.wallRadius || 22;
         g.lineStyle(2, color, 0.3);
-        g.beginPath();
-        g.moveTo(wallX - perpX * wallWidth / 2, wallY - perpY * wallWidth / 2);
-        g.lineTo(wallX + perpX * wallWidth / 2, wallY + perpY * wallWidth / 2);
-        g.strokePath();
+        g.strokeCircle(wallX, wallY, wallRadius);
+        g.fillStyle(color, 0.1);
+        g.fillCircle(wallX, wallY, wallRadius);
         break;
       }
 

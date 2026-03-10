@@ -204,8 +204,7 @@ export const SKILL_TREES = {
       range: 200,
       wallDuration: 4000,
       wallHp: 30,
-      wallWidth: 80,            // width of the wall segment
-      wallThickness: 16,        // thickness
+      wallRadius: 22,           // circular obstacle radius
     },
     tiers: [
       { cost: 3, name: 'Sağlam Duvar', description: 'Daha dayanıklı, daha uzun ömür', mods: { wallHp: 20, wallDuration: 2000 } },

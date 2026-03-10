@@ -565,7 +565,7 @@ export class ShopOverlay {
         overshootRange: 'aşım menzili', maxKnockbackForce: 'maks itme',
         zoneDuration: 'alan süresi', zoneRadius: 'alan genişliği',
         zoneDamage: 'alan hasarı', impactDelay: 'çarpma gecikmesi',
-        impactRadius: 'çarpma alanı', wallWidth: 'duvar genişliği',
+        impactRadius: 'çarpma alanı', wallRadius: 'duvar boyutu',
         frictionReduction: 'sürtünme azaltma', intangible: 'dokunulmazlık',
         leaveTrail: 'iz bırak', trailSlowAmount: 'iz yavaşlatma',
         trailSlowDuration: 'iz süresi', exitPushForce: 'çıkış itmesi',

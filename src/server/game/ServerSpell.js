@@ -30,8 +30,6 @@ export class ServerSpell {
     // Recall (Time Shift): position history ring buffers
     // Map: playerId -> Array of { x, y, tick }
     this.positionHistory = new Map();
-    // Active walls for wall collision checks
-    this.activeWalls = [];
   }
 
   // ═══════════════════════════════════════════════════════
@@ -45,28 +43,6 @@ export class ServerSpell {
       const dy = y - obs.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist < spellRadius + obs.radius) return obs;
-    }
-    return null;
-  }
-
-  /**
-   * Check wall collision for a spell at position (x, y).
-   * Returns the wall if hit, null otherwise.
-   */
-  checkWallHit(x, y, spellRadius, ownerId) {
-    for (const wall of this.activeWalls) {
-      if (wall.ownerId === ownerId) continue; // don't block own spells
-      const dx = x - wall.x;
-      const dy = y - wall.y;
-      // Approximate wall as rect: check if point is within wall bounds
-      const hw = (wall.wallWidth || 80) / 2 + spellRadius;
-      const ht = (wall.wallThickness || 16) / 2 + spellRadius;
-      // Rotate point into wall's local space
-      const cos = Math.cos(-wall.angle);
-      const sin = Math.sin(-wall.angle);
-      const lx = dx * cos - dy * sin;
-      const ly = dx * sin + dy * cos;
-      if (Math.abs(lx) < hw && Math.abs(ly) < ht) return wall;
     }
     return null;
   }
@@ -119,7 +95,6 @@ export class ServerSpell {
       obstacleManager: this.obstacleManager,
       statusEffects: this.statusEffects,
       activeSpells: this.activeSpells,
-      activeWalls: this.activeWalls,
       pendingHits: this.pendingHits,
       cooldowns: this.cooldowns,
       chargeTracking: this.chargeTracking,
@@ -129,7 +104,6 @@ export class ServerSpell {
       getDamageTaken: this.getDamageTaken,
       getCharacterId: this.getCharacterId,
       checkObstacleHit: this.checkObstacleHit.bind(this),
-      checkWallHit: this.checkWallHit.bind(this),
       applyStatusEffect: this.applyStatusEffect.bind(this),
       handleExplosion: this.handleExplosion.bind(this),
       getKnockbackMultiplier: this._getKnockbackMultiplier.bind(this),
@@ -441,10 +415,10 @@ export class ServerSpell {
   // ═══════════════════════════════════════════════════════
 
   _cleanupSpell(spell) {
-    // Remove wall from activeWalls list
-    if (spell.spellType === SPELL_TYPES.WALL) {
-      const idx = this.activeWalls.indexOf(spell);
-      if (idx !== -1) this.activeWalls.splice(idx, 1);
+    // Remove temporary obstacle when wall spell expires or is destroyed
+    if (spell.spellType === SPELL_TYPES.WALL && spell.obstacle) {
+      this.obstacleManager.removeTemporary(spell.obstacle);
+      spell.obstacle = null;
     }
   }
 
@@ -549,7 +523,8 @@ export class ServerSpell {
       this._cleanupSpell(this.activeSpells[i]);
       this.removeSpell(i);
     }
-    this.activeWalls = [];
+    // Clean up any remaining temporary obstacles (walls)
+    if (this.obstacleManager) this.obstacleManager.clearTemporary();
     for (const [, effects] of this.statusEffects) {
       for (const key of Object.keys(effects)) {
         delete effects[key];
@@ -605,10 +580,9 @@ export class ServerSpell {
       impactDelay: s.impactDelay || 0,
       impactTriggered: s.impactTriggered || false,
       buffType: s.buffType || null,
-      wallWidth: s.wallWidth || 0,
-      wallThickness: s.wallThickness || 0,
-      wallHp: s.wallHp || 0,
-      maxWallHp: s.maxWallHp || 0,
+      wallRadius: s.wallRadius || 0,
+      wallHp: s.obstacle ? s.obstacle.hp : 0,
+      maxWallHp: s.obstacle ? s.obstacle.maxHp : 0,
     };
   }
 

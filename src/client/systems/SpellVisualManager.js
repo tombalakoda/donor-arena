@@ -253,16 +253,22 @@ export class SpellVisualManager {
       }
 
       case SPELL_TYPES.WALL: {
-        const wall = scene.add.rectangle(
-          spell.x, spell.y,
-          spell.width || 80,
-          spell.height || 20,
-          0x886644, 0.9
+        // Shadow underneath
+        const wallShadow = scene.add.ellipse(
+          spell.x + 3, spell.y + 4,
+          (spell.wallRadius || 22) * 2.6,
+          (spell.wallRadius || 22) * 1.6,
+          0x000000, 0.3
         );
-        wall.setDepth(10);
-        wall.setRotation(spell.angle || 0);
-        wall.setStrokeStyle(2, 0xaa8866, 1);
-        visual.sprite = wall;
+        wallShadow.setDepth(4);
+        visual.shadow = wallShadow;
+
+        // Pillar sprite (same as arena obstacles)
+        const wallSprite = scene.add.sprite(spell.x, spell.y, 'tile-dungeon', 29);
+        wallSprite.setScale(2.75);
+        wallSprite.setOrigin(0.5, 0.5);
+        wallSprite.setDepth(5);
+        visual.sprite = wallSprite;
         break;
       }
 
@@ -947,6 +953,7 @@ export class SpellVisualManager {
     if (visual.trail && !visual.trail.destroyed) visual.trail.destroy();
     if (visual.arrival && !visual.arrival.destroyed) visual.arrival.destroy();
     if (visual.zone && !visual.zone.destroyed) visual.zone.destroy();
+    if (visual.shadow && !visual.shadow.destroyed) visual.shadow.destroy();
   }
 
   destroy() {

@@ -68,11 +68,16 @@ export const projectileHandler = {
     spell.x += spell.vx;
     spell.y += spell.vy;
 
-    // Bouncer: bounce off obstacles instead of being destroyed
+    // Obstacle collision (includes temporary wall obstacles)
     const hitObs = ctx.checkObstacleHit(spell.x, spell.y, spell.radius);
     if (hitObs) {
+      // Damage destructible obstacles (wall spells)
+      if (hitObs.hp !== undefined) {
+        hitObs.hp -= (spell.damage || 1);
+      }
+
       if (spell.maxBounces > 0 && spell.bounceCount < spell.maxBounces) {
-        // Reflect velocity off obstacle surface
+        // Bouncer: reflect velocity off obstacle surface
         const dx = spell.x - hitObs.x;
         const dy = spell.y - hitObs.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -94,16 +99,6 @@ export const projectileHandler = {
         ctx.removeSpell(i);
         return 'continue';
       }
-    }
-
-    // Check wall collision
-    const hitWall = ctx.checkWallHit(spell.x, spell.y, spell.radius, spell.ownerId);
-    if (hitWall) {
-      // Damage the wall
-      hitWall.wallHp -= (spell.damage || 1);
-      spell.active = false;
-      ctx.removeSpell(i);
-      return 'continue';
     }
 
     // Check collision with players

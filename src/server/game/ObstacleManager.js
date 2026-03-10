@@ -45,6 +45,45 @@ export class ObstacleManager {
     }
   }
 
+  /**
+   * Add a temporary obstacle (e.g. wall spell).
+   * Returns the obstacle object with extra fields for tracking.
+   */
+  addTemporary(x, y, radius, extra = {}) {
+    const body = Bodies.circle(x, y, radius, {
+      isStatic: true,
+      label: 'obstacle',
+      restitution: 0.9,
+      friction: 0,
+    });
+
+    World.add(this.world, body);
+
+    const obs = { x, y, radius, body, isTemporary: true, ...extra };
+    this.obstacles.push(obs);
+    return obs;
+  }
+
+  /** Remove a single temporary obstacle from the world. */
+  removeTemporary(obstacle) {
+    if (!obstacle) return;
+    const idx = this.obstacles.indexOf(obstacle);
+    if (idx !== -1) {
+      World.remove(this.world, obstacle.body);
+      this.obstacles.splice(idx, 1);
+    }
+  }
+
+  /** Remove all temporary obstacles (called between rounds). */
+  clearTemporary() {
+    for (let i = this.obstacles.length - 1; i >= 0; i--) {
+      if (this.obstacles[i].isTemporary) {
+        World.remove(this.world, this.obstacles[i].body);
+        this.obstacles.splice(i, 1);
+      }
+    }
+  }
+
   /** Get all obstacles for spell collision checks. */
   getObstacles() {
     return this.obstacles;
