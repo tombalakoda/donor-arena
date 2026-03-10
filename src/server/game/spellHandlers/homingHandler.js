@@ -1,6 +1,10 @@
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
 
+// Diminishing returns: each subsequent swarm hit on the same target
+// applies this multiplier to KB (0.7 = 30% less per hit)
+const SWARM_KB_DECAY = 0.7;
+
 export const homingHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY) {
     const dx = targetX - originX;
@@ -11,6 +15,9 @@ export const homingHandler = {
     const missileCount = Math.min(10, Math.max(1, stats.missileCount || 1));
     const isSwarm = stats.isSwarm || missileCount > 1;
     const clampedSpeed = ctx.clampSpeed(stats.speed);
+
+    // Shared state for swarm KB diminishing returns
+    const swarmState = isSwarm ? { hitCounts: {} } : null;
 
     const spells = [];
     for (let i = 0; i < missileCount; i++) {
@@ -45,6 +52,8 @@ export const homingHandler = {
         speed: clampedSpeed,
         // Warhead T2: explosion on impact
         explosionRadius: stats.explosionRadius || 0,
+        // Swarm diminishing returns (shared among all missiles in one cast)
+        swarmState,
       };
 
       ctx.activeSpells.push(spell);
@@ -131,9 +140,18 @@ export const homingHandler = {
         const nx = dist > 0 ? dx / dist : 0;
         const ny = dist > 0 ? dy / dist : 1;
         const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
+
+        // Swarm diminishing returns: each subsequent hit on same target decays KB
+        let effectiveKB = spell.knockbackForce;
+        if (spell.swarmState) {
+          const hitIndex = spell.swarmState.hitCounts[playerId] || 0;
+          effectiveKB *= Math.pow(SWARM_KB_DECAY, hitIndex);
+          spell.swarmState.hitCounts[playerId] = hitIndex + 1;
+        }
+
         ctx.physics.applyKnockback(playerId,
-          nx * spell.knockbackForce * kbMult,
-          ny * spell.knockbackForce * kbMult,
+          nx * effectiveKB * kbMult,
+          ny * effectiveKB * kbMult,
           ctx.getDamageTaken(playerId),
           spell.ownerId,
         );

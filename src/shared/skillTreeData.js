@@ -254,7 +254,7 @@ export const SKILL_TREES = {
       type: 'hook',
       damage: 3,
       knockbackForce: 0,
-      cooldown: 9000,
+      cooldown: 12000,
       speed: 12,
       range: 300,
       radius: 10,
