@@ -253,21 +253,22 @@ export class SpellVisualManager {
       }
 
       case SPELL_TYPES.WALL: {
-        // Shadow underneath
+        // Shadow underneath (tinted blue)
         const wallShadow = scene.add.ellipse(
           spell.x + 3, spell.y + 4,
           (spell.wallRadius || 22) * 2.6,
           (spell.wallRadius || 22) * 1.6,
-          0x000000, 0.3
+          0x224466, 0.35
         );
         wallShadow.setDepth(4);
         visual.shadow = wallShadow;
 
-        // Pillar sprite (same as arena obstacles)
+        // Pillar sprite with ice blue tint
         const wallSprite = scene.add.sprite(spell.x, spell.y, 'tile-dungeon', 29);
         wallSprite.setScale(2.75);
         wallSprite.setOrigin(0.5, 0.5);
         wallSprite.setDepth(5);
+        wallSprite.setTint(0x88ccee);
         visual.sprite = wallSprite;
         break;
       }
