@@ -169,7 +169,7 @@ export class ShopOverlay {
 
     // Title bar background
     const bar = s.add.nineslice(SCREEN.CX, TITLE_Y, 'ui-panel-interior', null, PW - 24, 28, ...NINE.PANEL)
-      .setScrollFactor(0).setDepth(D + 2).setAlpha(0.6);
+      .setScrollFactor(0).setDepth(D + 2);
     this.chrome.push(bar);
 
     // Title text
@@ -182,7 +182,7 @@ export class ShopOverlay {
     // SP count
     const sp = this.progression ? this.progression.sp : 0;
     this._spTextTitle = createText(s, PR - PAD - 80, TITLE_Y, `İlham: ${sp}`, FONT.BODY_BOLD, {
-      fill: COLOR.ACCENT_INFO, depth: D + 3, originX: 0.5,
+      fill: '#1a5588', depth: D + 3, originX: 0.5,
     });
     this.chrome.push(this._spTextTitle);
 
@@ -218,7 +218,7 @@ export class ShopOverlay {
 
       // Tab label
       const label = s.add.text(cx, TAB_Y, `${slot} ${SLOT_NAMES[slot]}`, textStyle(FONT.SMALL, {
-        fill: isActive ? COLOR.TEXT_PRIMARY : (isLocked ? COLOR.TEXT_DISABLED : COLOR.TEXT_SECONDARY),
+        fill: isActive ? COLOR.TEXT_LIGHT : (isLocked ? COLOR.TEXT_DISABLED : COLOR.TEXT_SECONDARY),
         fontStyle: 'bold',
         stroke: isActive ? '#000000' : undefined,
         strokeThickness: isActive ? 1 : 0,
@@ -246,12 +246,12 @@ export class ShopOverlay {
     const s = this.scene;
 
     const bar = s.add.nineslice(SCREEN.CX, BOT_Y, 'ui-panel-interior', null, PW - 24, 32, ...NINE.PANEL)
-      .setScrollFactor(0).setDepth(D + 2).setAlpha(0.6);
+      .setScrollFactor(0).setDepth(D + 2);
     this.chrome.push(bar);
 
     const sp = this.progression ? this.progression.sp : 0;
     this._spTextBottom = createText(s, PL + PAD + 60, BOT_Y, `${sp} İlham`, FONT.BODY_BOLD, {
-      fill: COLOR.ACCENT_INFO, depth: D + 3, originX: 0.5,
+      fill: '#1a5588', depth: D + 3, originX: 0.5,
     });
     this.chrome.push(this._spTextBottom);
   }
@@ -344,7 +344,7 @@ export class ShopOverlay {
       // Spell name
       const nameX = cellX + 24;
       const nameText = s.add.text(nameX, rowY, def.name, textStyle(FONT.BODY, {
-        fill: isChosen ? COLOR.TEXT_PRIMARY : COLOR.TEXT_SECONDARY,
+        fill: isChosen ? COLOR.TEXT_LIGHT : COLOR.TEXT_SECONDARY,
         fontStyle: isChosen ? 'bold' : 'normal',
       })).setScrollFactor(0).setDepth(D + 4).setOrigin(0, 0.5);
       this.content.push(nameText);

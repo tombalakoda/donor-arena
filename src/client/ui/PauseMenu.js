@@ -113,7 +113,7 @@ export class PauseMenu {
     const pw = 240;
     const ph = 110;
     const panel = createPanel(s, CX, CY, pw, ph, {
-      depth: CD + 1, alpha: 0.95, texture: 'ui-panel-2',
+      depth: CD + 1, texture: 'ui-panel-2',
     });
     this.elements.push(panel);
 

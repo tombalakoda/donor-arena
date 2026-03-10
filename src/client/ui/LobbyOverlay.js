@@ -125,7 +125,7 @@ export class LobbyOverlay {
     // ── Title bar ──
     const titleY = PT + 22;
     const titleBar = s.add.nineslice(CX, titleY, 'ui-panel-interior', null, PW - 20, 26, ...NINE.PANEL)
-      .setScrollFactor(0).setDepth(D + 2).setAlpha(0.6);
+      .setScrollFactor(0).setDepth(D + 2);
     this.elements.push(titleBar);
 
     const titleLabel = this.lobbyMode ? 'BEKLEME ODASI' : 'ÂŞIKLAR BEKLENİYOR';
@@ -263,7 +263,7 @@ export class LobbyOverlay {
         const isHostPlayer = this.lobbyMode && player.id === this.hostId;
 
         slot.nameText.setText(isHostPlayer ? `_${displayName}_` : displayName);
-        slot.nameText.setFill(isHostPlayer ? COLOR.ACCENT_GOLD : COLOR.TEXT_SECONDARY);
+        slot.nameText.setFill(isHostPlayer ? COLOR.ACCENT_GOLD : COLOR.TEXT_PRIMARY);
         slot.bg.setTint(0xbbbbaa);
         slot.focusHighlight.setVisible(true);
 

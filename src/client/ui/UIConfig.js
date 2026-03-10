@@ -1,6 +1,8 @@
 /**
  * UIConfig.js — Single source of truth for ALL UI design tokens.
  * Colors, typography, spacing, slot colors, and shared constants.
+ *
+ * Warm wood palette — matches the Theme-Wood Ninja Adventure kit.
  */
 
 // Font defined here (NOT imported from config.js to avoid circular dependency)
@@ -8,31 +10,32 @@ const UI_FONT = "'KiwiSoda', monospace";
 
 // ─── Color Palette ───────────────────────────────────────────
 export const COLOR = {
-  // Tint values (hex numbers for Phaser tint)
-  BG_DARK:        0x0d0b09,
-  BG_PANEL:       0x1a1510,
-  BG_OVERLAY:     0x000000,
-  DIMMER_TINT:    0x000000,
+  // Text on wood panels (dark brown — panels are warm/light)
+  TEXT_PRIMARY:   '#3a2218',
+  TEXT_SECONDARY: '#5a3a28',
+  TEXT_DISABLED:  '#8a7e6c',
 
-  // Text colors (CSS strings for Phaser text)
-  TEXT_PRIMARY:   '#f0e6d2',
-  TEXT_SECONDARY: '#8a7e6c',
-  TEXT_DISABLED:  '#4a4438',
+  // Text on dark/colored backgrounds (buttons, tinted tabs, dimmer)
+  TEXT_LIGHT:     '#ffffff',
+  TEXT_CREAM:     '#f0e6d2',
 
   // Accent colors (CSS strings)
-  ACCENT_GOLD:    '#f0c040',
-  ACCENT_INFO:    '#5cb8d6',
-  ACCENT_DANGER:  '#e84040',
-  ACCENT_SUCCESS: '#48c878',
+  ACCENT_GOLD:    '#ffdd44',
+  ACCENT_INFO:    '#44ddff',
+  ACCENT_DANGER:  '#ff6644',
+  ACCENT_SUCCESS: '#1a7733',
 
-  // Accent tints (hex numbers)
-  TINT_GOLD:      0xf0c040,
-  TINT_INFO:      0x5cb8d6,
-  TINT_DANGER:    0xe84040,
-  TINT_SUCCESS:   0x48c878,
-  TINT_HOVER:     0xffe8cc,
-  TINT_PRESS:     0xccaa88,
-  TINT_DISABLED:  0x888888,
+  // Tint values (hex numbers for Phaser tint)
+  TINT_GOLD:      0xffdd44,
+  TINT_INFO:      0x44ddff,
+  TINT_DANGER:    0xff6644,
+  TINT_SUCCESS:   0x1a7733,
+  TINT_HOVER:     0xddccaa,
+  TINT_PRESS:     0xbbaa88,
+  TINT_DISABLED:  0x777777,
+
+  // Dimmer only
+  DIMMER_TINT:    0x000000,
 
   // HP bar gradient tints
   HP_FULL:        0x40c090,
@@ -42,10 +45,10 @@ export const COLOR = {
 
 // ─── Slot Colors ─────────────────────────────────────────────
 export const SLOT_COLOR = {
-  Q: { hex: '#e85840', tint: 0xe85840 },
-  W: { hex: '#40a8e0', tint: 0x40a8e0 },
-  E: { hex: '#40c890', tint: 0x40c890 },
-  R: { hex: '#b060e0', tint: 0xb060e0 },
+  Q: { hex: '#ff6644', tint: 0xff6644 },
+  W: { hex: '#44bbff', tint: 0x44bbff },
+  E: { hex: '#44ddaa', tint: 0x44ddaa },
+  R: { hex: '#cc66ff', tint: 0xcc66ff },
 };
 
 // ─── Typography ──────────────────────────────────────────────
@@ -104,13 +107,13 @@ export const DEPTH = {
 
 // ─── Alpha Presets ───────────────────────────────────────────
 export const ALPHA = {
-  PANEL:    0.85,
-  DIMMER:   0.75,
-  BAR_BG:   0.5,
+  PANEL:    1.0,
+  DIMMER:   0.65,
+  BAR_BG:   0.6,
   LOCKED:   0.8,
   COOLDOWN: 0.7,
-  SUBTLE:   0.3,
-  HINT:     0.2,
+  SUBTLE:   0.4,
+  HINT:     0.3,
 };
 
 /**
@@ -124,8 +127,7 @@ export function getHpTint(ratio) {
 
 /**
  * Utility: build a Phaser text style from a FONT token + overrides.
- * @param {object} token - One of FONT.TITLE_LG, FONT.BODY, etc.
- * @param {object} overrides - e.g. { fill: COLOR.ACCENT_GOLD, stroke: '#000', strokeThickness: 2 }
+ * Default fill is TEXT_PRIMARY (dark brown — for text on wood panels).
  */
 export function textStyle(token, overrides = {}) {
   return { ...token, fill: COLOR.TEXT_PRIMARY, ...overrides };

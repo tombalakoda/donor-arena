@@ -54,7 +54,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Dark overlay for readability
     this.add.nineslice(SCREEN.CX, SCREEN.CY, 'ui-bg-2', null, SCREEN.W, SCREEN.H, 4, 4, 4, 4)
-      .setDepth(1).setTint(COLOR.BG_DARK).setAlpha(0.35);
+      .setDepth(1).setTint(0x000000).setAlpha(0.35);
   }
 
   // ═══════════════════════════════════════════════════════════

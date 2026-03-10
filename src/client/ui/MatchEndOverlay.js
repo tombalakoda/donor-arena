@@ -69,12 +69,12 @@ export class MatchEndOverlay {
     this.playSfx(isWinner ? 'jingle-success' : 'jingle-gameover');
 
     // Dimmer
-    const dimmer = createDimmer(s, { depth: D, alpha: 0.7 });
+    const dimmer = createDimmer(s, { depth: D, alpha: ALPHA.DIMMER });
     dimmer.setInteractive();
     this.elements.push(dimmer);
 
     // Main panel
-    const panel = createPanel(s, CX, CY, PW, PH, { depth: D + 1, alpha: 0.92 });
+    const panel = createPanel(s, CX, CY, PW, PH, { depth: D + 1, alpha: ALPHA.PANEL });
     this.elements.push(panel);
 
     // ── Title ──
@@ -162,14 +162,14 @@ export class MatchEndOverlay {
       // Alternating row bg
       if (i % 2 === 0) {
         const rowBg = s.add.nineslice(CX, ry, 'ui-panel-interior', null, PW - 30, rowH, ...NINE.PANEL)
-          .setScrollFactor(0).setDepth(D + 1).setAlpha(0.2);
+          .setScrollFactor(0).setDepth(D + 1).setAlpha(ALPHA.HINT);
         this.elements.push(rowBg);
       }
 
       // Local player highlight
       if (isLocal) {
         const highlight = s.add.nineslice(CX, ry, 'ui-focus', null, PW - 30, rowH, 2, 2, 2, 2)
-          .setTint(0xf0c040).setAlpha(0.2).setScrollFactor(0).setDepth(D + 1);
+          .setTint(COLOR.TINT_GOLD).setAlpha(ALPHA.HINT).setScrollFactor(0).setDepth(D + 1);
         this.elements.push(highlight);
       }
 
