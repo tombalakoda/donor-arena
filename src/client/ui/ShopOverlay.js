@@ -308,7 +308,8 @@ export class ShopOverlay {
 
       const rowY = listStartY + i * rowH;
       const isChosen = chosenSpellId === spellId;
-      const isFirstChoice = chosenSpellId === null;
+      const isAutoEquipped = spellState ? spellState.autoEquipped : false;
+      const isFirstChoice = chosenSpellId === null || isAutoEquipped;
       const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
 
       // Cell background

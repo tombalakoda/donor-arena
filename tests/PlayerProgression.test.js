@@ -26,7 +26,7 @@ describe('PlayerProgression', () => {
 
     it('should have Q auto-equipped with fireball-focus at tier 0', () => {
       const prog = new PlayerProgression('p1');
-      expect(prog.spells.Q).toEqual({ chosenSpell: 'fireball-focus', tier: 0 });
+      expect(prog.spells.Q).toEqual({ chosenSpell: 'fireball-focus', tier: 0, autoEquipped: true });
     });
 
     it('should have null spell state for locked slots', () => {
@@ -137,13 +137,32 @@ describe('PlayerProgression', () => {
   // ═══════════════════════════════════════════════════════
 
   describe('spell choice', () => {
-    it('should allow switching Q spell to a different route (free)', () => {
+    it('should charge SPELL_CHOICE_COST on first active Q choice (auto-equipped)', () => {
       const prog = new PlayerProgression('p1');
-      // Q starts with fireball-focus, switching to fireball-speed is free
+      prog.awardSP(SP.SPELL_CHOICE_COST);
+      // Q starts auto-equipped — first active choice costs SP
       expect(prog.canChooseSpell('Q', 'fireball-speed')).toBe(true);
       expect(prog.chooseSpell('Q', 'fireball-speed')).toBe(true);
       expect(prog.spells.Q.chosenSpell).toBe('fireball-speed');
-      expect(prog.sp).toBe(0); // no cost for switching
+      expect(prog.sp).toBe(0); // 3 SP deducted
+      expect(prog.spells.Q.autoEquipped).toBe(false);
+    });
+
+    it('should reject Q spell change with 0 SP when auto-equipped', () => {
+      const prog = new PlayerProgression('p1');
+      // 0 SP, cannot afford first active choice
+      expect(prog.canChooseSpell('Q', 'fireball-speed')).toBe(false);
+    });
+
+    it('should allow free Q switch after first active choice', () => {
+      const prog = new PlayerProgression('p1');
+      prog.awardSP(SP.SPELL_CHOICE_COST);
+      prog.chooseSpell('Q', 'fireball-speed'); // costs 3 SP, clears autoEquipped
+      expect(prog.sp).toBe(0);
+      // Now switch again — this should be free
+      expect(prog.canChooseSpell('Q', 'fireball-power')).toBe(true);
+      expect(prog.chooseSpell('Q', 'fireball-power')).toBe(true);
+      expect(prog.sp).toBe(0); // still 0, free switch
     });
 
     it('should deduct SPELL_CHOICE_COST on first choice for W slot', () => {
@@ -173,7 +192,7 @@ describe('PlayerProgression', () => {
       prog.upgradeTier('Q'); // tier 2
       expect(prog.spells.Q.tier).toBe(2);
 
-      prog.chooseSpell('Q', 'fireball-speed'); // switch
+      prog.chooseSpell('Q', 'fireball-speed'); // first active choice (costs 3 SP), resets tier
       expect(prog.spells.Q.tier).toBe(0);
       expect(prog.spells.Q.chosenSpell).toBe('fireball-speed');
     });
@@ -313,7 +332,7 @@ describe('PlayerProgression', () => {
       expect(state).toHaveProperty('totalSpEarned');
       expect(state).toHaveProperty('slots');
       expect(state).toHaveProperty('spells');
-      expect(state.spells.Q).toEqual({ chosenSpell: 'fireball-focus', tier: 0 });
+      expect(state.spells.Q).toEqual({ chosenSpell: 'fireball-focus', tier: 0, autoEquipped: true });
     });
   });
 
@@ -336,26 +355,26 @@ describe('PlayerProgression', () => {
       // Expected: 2 (base) + 3 + 7 + 2 + 4 = 18
       expect(prog.sp).toBe(18);
 
-      // Switch Q spell to fireball-power (free switch, Q already has fireball-focus)
+      // Switch Q spell to fireball-power (first active choice, costs 3 SP)
       prog.chooseSpell('Q', 'fireball-power');
-      expect(prog.sp).toBe(18); // free switch
+      expect(prog.sp).toBe(15); // 18 - 3 = 15
 
       // Upgrade Q tier 1 (costs 3)
       prog.upgradeTier('Q');
-      expect(prog.sp).toBe(15);
+      expect(prog.sp).toBe(12);
       expect(prog.spells.Q.tier).toBe(1);
 
       // Unlock W slot (costs 5)
       prog.unlockSlot('W');
-      expect(prog.sp).toBe(10);
+      expect(prog.sp).toBe(7);
 
       // Choose W spell (costs 3)
       prog.chooseSpell('W', 'blink');
-      expect(prog.sp).toBe(7);
+      expect(prog.sp).toBe(4);
 
       // Upgrade W tier 1 (costs 3)
       prog.upgradeTier('W');
-      expect(prog.sp).toBe(4);
+      expect(prog.sp).toBe(1);
 
       // Verify stats reflect upgrades
       const qStats = prog.getSpellStatsForSlot('Q');

@@ -32,7 +32,7 @@ export class PlayerProgression {
     // Per-slot spell progression
     // null = slot locked, { chosenSpell: null, tier: 0 } = unlocked but no spell chosen
     this.spells = {
-      Q: { chosenSpell: 'fireball-focus', tier: 0 },  // Q auto-equipped with basic fireball
+      Q: { chosenSpell: 'fireball-focus', tier: 0, autoEquipped: true },  // Q auto-equipped with basic fireball
       W: null,
       E: null,
       R: null,
@@ -118,10 +118,10 @@ export class PlayerProgression {
     // If already chosen the same spell, can't re-choose
     if (spellState.chosenSpell === spellId) return false;
 
-    // If switching spells (already have one chosen), it's free but resets tier
-    if (spellState.chosenSpell !== null) return true;
+    // If switching spells (already have one chosen and not auto-equipped), it's free but resets tier
+    if (spellState.chosenSpell !== null && !spellState.autoEquipped) return true;
 
-    // First-time choice costs SP
+    // First-time choice (or first active choice after auto-equip) costs SP
     return this.sp >= SP.SPELL_CHOICE_COST;
   }
 
@@ -132,11 +132,16 @@ export class PlayerProgression {
     if (!this.canChooseSpell(slot, spellId)) return false;
 
     const spellState = this.spells[slot];
-    const isSwitch = spellState.chosenSpell !== null;
+    const isSwitch = spellState.chosenSpell !== null && !spellState.autoEquipped;
 
     if (!isSwitch) {
-      // First-time choice costs SP
+      // First-time choice (or first active choice after auto-equip) costs SP
       this.sp -= SP.SPELL_CHOICE_COST;
+    }
+
+    // Clear auto-equip flag after first active choice
+    if (spellState.autoEquipped) {
+      spellState.autoEquipped = false;
     }
 
     // Set the chosen spell and reset tier (switching loses progress)
