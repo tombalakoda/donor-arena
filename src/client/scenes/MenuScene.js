@@ -462,7 +462,8 @@ export class MenuScene extends Phaser.Scene {
     const y = 28;
 
     const bg = this.add.nineslice(x, y, 'ui-panel', null, 34, 34, 7, 7, 7, 7).setDepth(10);
-    const icon = this.add.text(x, y, isMuted ? '🔇' : '🔊', { fontSize: '16px' }).setOrigin(0.5).setDepth(12);
+    const icon = this.add.image(x, y, isMuted ? 'spell-BookThunder-off' : 'spell-BookThunder')
+      .setDepth(12).setDisplaySize(24, 24);
     const hitArea = this.add.rectangle(x, y, 34, 34, 0xffffff, 0)
       .setInteractive({ useHandCursor: true }).setDepth(14);
 
@@ -471,7 +472,7 @@ export class MenuScene extends Phaser.Scene {
     hitArea.on('pointerdown', () => {
       this.sound.mute = !this.sound.mute;
       localStorage.setItem('soundMuted', this.sound.mute);
-      icon.setText(this.sound.mute ? '🔇' : '🔊');
+      icon.setTexture(this.sound.mute ? 'spell-BookThunder-off' : 'spell-BookThunder');
     });
   }
 

@@ -132,9 +132,8 @@ export class HUDManager {
     const bg = scene.add.nineslice(x, y, 'ui-inventory-cell', null, btnSize, btnSize, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(100);
 
-    const icon = scene.add.text(x, y, isMuted ? '🔇' : '🔊', {
-      fontSize: '16px',
-    }).setScrollFactor(0).setDepth(101).setOrigin(0.5);
+    const icon = scene.add.image(x, y, isMuted ? 'spell-BookThunder-off' : 'spell-BookThunder')
+      .setScrollFactor(0).setDepth(101).setDisplaySize(22, 22);
 
     const hitArea = scene.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
       .setScrollFactor(0).setDepth(102).setInteractive({ useHandCursor: true });
@@ -144,7 +143,7 @@ export class HUDManager {
     hitArea.on('pointerdown', () => {
       scene.sound.mute = !scene.sound.mute;
       localStorage.setItem('soundMuted', scene.sound.mute);
-      icon.setText(scene.sound.mute ? '🔇' : '🔊');
+      icon.setTexture(scene.sound.mute ? 'spell-BookThunder-off' : 'spell-BookThunder');
     });
   }
 
@@ -157,9 +156,8 @@ export class HUDManager {
     const bg = scene.add.nineslice(x, y, 'ui-inventory-cell', null, btnSize, btnSize, 7, 7, 7, 7)
       .setScrollFactor(0).setDepth(100);
 
-    const icon = scene.add.text(x, y, '🏆', {
-      fontSize: '16px',
-    }).setScrollFactor(0).setDepth(101).setOrigin(0.5);
+    scene.add.image(x, y, 'spell-Cut')
+      .setScrollFactor(0).setDepth(101).setDisplaySize(22, 22);
 
     const hitArea = scene.add.rectangle(x, y, btnSize, btnSize, 0xffffff, 0)
       .setScrollFactor(0).setDepth(102).setInteractive({ useHandCursor: true });
