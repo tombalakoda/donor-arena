@@ -250,8 +250,8 @@ export const SPELLS = {
     type: SPELL_TYPES.PROJECTILE,
     slot: 'E',
     fx: {
-      sprite: 'fx-rock',
-      animKey: 'fx-rock-play',
+      sprite: 'fx-shuriken-magic',
+      animKey: 'fx-shuriken-magic-play',
       scale: 0.9,
       sound: 'sfx-hook',
       color: 0x88aa44,

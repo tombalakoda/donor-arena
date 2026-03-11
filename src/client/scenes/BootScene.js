@@ -332,6 +332,8 @@ export class BootScene extends Phaser.Scene {
       { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet('fx-swap-poof', 'assets/fx/custom/SwapPoof.png',
       { frameWidth: 16, frameHeight: 14 });
+    this.load.spritesheet('fx-shuriken-magic', 'assets/fx/custom/ShurikenMagic.png',
+      { frameWidth: 16, frameHeight: 16 });
 
     // --- Load Audio ---
     // Menu SFX
@@ -499,7 +501,7 @@ export class BootScene extends Phaser.Scene {
     }
 
     // Custom spell FX animations
-    const customFx = ['shuriken', 'fireball-display', 'canonball', 'swap-poof'];
+    const customFx = ['shuriken', 'fireball-display', 'canonball', 'swap-poof', 'shuriken-magic'];
     for (const name of customFx) {
       const key = `fx-${name}`;
       const texture = this.textures.get(key);
