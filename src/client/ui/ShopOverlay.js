@@ -102,8 +102,6 @@ export class ShopOverlay {
     this._timerText = null;
     this._spText = null;
     this._timerBar = null;
-    this._charSprite = null;
-    this._charGlow = null;
     this._equipCells = [];
   }
 
@@ -158,7 +156,6 @@ export class ShopOverlay {
     this._buildTopBar();
     this._buildSlotTabs();
     this._buildEquippedRow();
-    this._buildCharacter();
     this._buildTimerBar();
     this._buildContent();
   }
@@ -335,48 +332,61 @@ export class ShopOverlay {
   }
 
   // ═══════════════════════════════════════════════════════
-  //  CHARACTER — hero sprite at center with glow
+  //  CENTER SPELL — hero FX sprite at center with glow
   // ═══════════════════════════════════════════════════════
-  _buildCharacter() {
+  _buildCenterSpell() {
     const s = this.scene;
-    const charId = s.characterId || 'boy';
-    const slotColor = SLOT_COLOR[this.activeSlot] || SLOT_COLOR.Q;
+    const slot = this.activeSlot;
+    const slotColor = SLOT_COLOR[slot] || SLOT_COLOR.Q;
+    const spellState = this.progression ? this.progression.spells[slot] : null;
+    const chosenId = spellState ? spellState.chosenSpell : null;
+    const def = chosenId ? SPELLS[chosenId] : null;
 
-    // Glow ellipse beneath character
-    this._charGlow = s.add.graphics().setDepth(D + 1).setScrollFactor(0);
-    this._drawCharGlow(slotColor.tint);
-    this.chrome.push(this._charGlow);
+    // Glow ellipse beneath spell
+    const glow = s.add.graphics().setDepth(D + 1).setScrollFactor(0);
+    const glowColor = (def && def.fx) ? def.fx.color || slotColor.tint : slotColor.tint;
+    glow.fillStyle(0x000000, 0.25);
+    glow.fillEllipse(CX, CHAR_Y + 36, 60, 14);
+    glow.fillStyle(glowColor, 0.10);
+    glow.fillEllipse(CX, CHAR_Y + 32, 110, 28);
+    glow.fillStyle(glowColor, 0.18);
+    glow.fillEllipse(CX, CHAR_Y + 34, 70, 18);
+    this.content.push(glow);
 
-    // Walking sprite
-    const walkKey = `${charId}-walk`;
-    const animKey = `${charId}-walk-down`;
-    if (s.textures.exists(walkKey)) {
-      this._charSprite = s.add.sprite(CX, CHAR_Y, walkKey, 0)
-        .setScale(4.0).setDepth(D + 2).setScrollFactor(0);
-      if (s.anims.exists(animKey)) {
-        this._charSprite.play(animKey);
+    if (def && def.fx) {
+      // Animated FX sprite — the hero element
+      const fxKey = def.fx.sprite;
+      const animKey = def.fx.animKey;
+      if (fxKey && s.textures.exists(fxKey)) {
+        const fxSprite = s.add.sprite(CX, CHAR_Y, fxKey, 0)
+          .setScale(def.fx.scale ? def.fx.scale * 5.5 : 5.5)
+          .setDepth(D + 2).setScrollFactor(0);
+        if (animKey && s.anims.exists(animKey)) {
+          fxSprite.play(animKey);
+        }
+        this.content.push(fxSprite);
+        animateIn(s, fxSprite, { from: 'scale', delay: 0, duration: 300 });
       }
-      this.chrome.push(this._charSprite);
-      animateIn(s, this._charSprite, { from: 'scale', delay: 0, duration: 300 });
+    } else if (def && def.icon && s.textures.exists(def.icon)) {
+      // Fallback: static icon large
+      const icon = s.add.image(CX, CHAR_Y, def.icon)
+        .setScrollFactor(0).setDepth(D + 2);
+      const sc = 80 / Math.max(icon.width, icon.height);
+      icon.setScale(sc);
+      this.content.push(icon);
+      animateIn(s, icon, { from: 'scale', delay: 0, duration: 300 });
+    } else {
+      // No spell chosen — show slot letter as placeholder
+      const placeholder = createText(s, CX, CHAR_Y, slot, {
+        fontSize: '64px', fontFamily: FONT.FAMILY, fontStyle: 'bold',
+      }, {
+        fill: slotColor.hex, depth: D + 2,
+        stroke: '#000000', strokeThickness: 4,
+        alpha: 0.3,
+      });
+      this.content.push(placeholder);
+      animateIn(s, placeholder, { from: 'scale', delay: 0, duration: 300 });
     }
-  }
-
-  _drawCharGlow(color) {
-    const g = this._charGlow;
-    if (!g || g.destroyed) return;
-    g.clear();
-
-    // Shadow
-    g.fillStyle(0x000000, 0.3);
-    g.fillEllipse(CX, CHAR_Y + 40, 70, 16);
-
-    // Colored glow (outer)
-    g.fillStyle(color, 0.08);
-    g.fillEllipse(CX, CHAR_Y + 36, 120, 30);
-
-    // Colored glow (inner)
-    g.fillStyle(color, 0.15);
-    g.fillEllipse(CX, CHAR_Y + 38, 80, 20);
   }
 
   // ═══════════════════════════════════════════════════════
@@ -401,6 +411,7 @@ export class ShopOverlay {
   // ═══════════════════════════════════════════════════════
   _buildContent() {
     const slot = this.activeSlot;
+    this._buildCenterSpell();
     if (this._isSlotLocked(slot)) {
       this._buildLockedContent();
       return;
@@ -773,8 +784,6 @@ export class ShopOverlay {
     this._timerText = null;
     this._spText = null;
     this._timerBar = null;
-    this._charSprite = null;
-    this._charGlow = null;
     this._equipCells = [];
   }
 }
