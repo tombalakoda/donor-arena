@@ -166,8 +166,8 @@ export const SPELLS = {
     type: SPELL_TYPES.SWAP,
     slot: 'W',
     fx: {
-      sprite: 'fx-spirit',
-      animKey: 'fx-spirit-play',
+      sprite: 'fx-canonball',
+      animKey: 'fx-canonball-play',
       scale: 0.9,
       sound: 'sfx-blink',
       color: 0xcc44ff,

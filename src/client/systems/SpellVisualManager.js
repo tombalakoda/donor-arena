@@ -43,6 +43,16 @@ export class SpellVisualManager {
     }
   }
 
+  _spawnSwapPoof(x, y) {
+    const scene = this.scene;
+    const poof = scene.add.sprite(x, y, 'fx-swap-poof');
+    poof.setDepth(18);
+    poof.setScale(3.5);
+    poof.setAlpha(0.9);
+    poof.play({ key: 'fx-swap-poof-play', repeat: 0 });
+    poof.once('animationcomplete', () => poof.destroy());
+  }
+
   _deathBurst(x, y, color) {
     const scene = this.scene;
     if (scene.anims.exists('fx-circle-play')) {
@@ -764,6 +774,18 @@ export class SpellVisualManager {
           const movingTypes = [SPELL_TYPES.PROJECTILE, SPELL_TYPES.HOMING, SPELL_TYPES.SWAP, SPELL_TYPES.BOOMERANG];
           if (movingTypes.includes(visual.type) && visual.glowColor) {
             this._deathBurst(visual.sprite.x, visual.sprite.y, visual.glowColor);
+          }
+
+          // Swap poof effect at hit location and caster location
+          if (visual.type === SPELL_TYPES.SWAP && scene.anims.exists('fx-swap-poof-play')) {
+            this._spawnSwapPoof(visual.sprite.x, visual.sprite.y);
+            // Also poof at local player position if they were the caster
+            if (visual.ownerId === scene.localPlayerId) {
+              const localSprite = scene.playerSprites?.get(scene.localPlayerId);
+              if (localSprite) {
+                this._spawnSwapPoof(localSprite.x, localSprite.y);
+              }
+            }
           }
         }
 
