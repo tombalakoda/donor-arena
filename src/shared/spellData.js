@@ -235,7 +235,7 @@ export const SPELLS = {
       color: 0x88ccee,
       glowColor: 0xbbddff,
     },
-    icon: 'spell-BookRock',
+    icon: 'icon-mani',
   },
   'bouncer': {
     id: 'bouncer',

@@ -144,7 +144,7 @@ export class HUDManager {
     const x = SCREEN.W - 20;
     const y = 74;
 
-    const { elements, icon, cell } = createIconButton(scene, x, y, 'spell-Cut', {
+    const { elements, icon, cell } = createIconButton(scene, x, y, 'icon-scoreboard', {
       size: 18, depth: DEPTH.HUD,
       onClick: () => {
         this.toggleLeaderboard(!this._leaderboardVisible);
