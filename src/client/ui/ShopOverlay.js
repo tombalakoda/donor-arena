@@ -356,12 +356,17 @@ export class ShopOverlay {
     this.content.push(glow);
 
     if (def && def.fx && def.fx.sprite && s.textures.exists(def.fx.sprite)) {
-      // Animated spell sprite — the actual projectile/effect from the arena
-      const fxSprite = s.add.sprite(CX, CHAR_Y, def.fx.sprite, 0)
+      // Use display sprite if available, otherwise fall back to in-game sprite
+      const dispSprite = def.fx.displaySprite && s.textures.exists(def.fx.displaySprite)
+        ? def.fx.displaySprite : def.fx.sprite;
+      const dispAnim = def.fx.displayAnimKey && s.anims.exists(def.fx.displayAnimKey)
+        ? def.fx.displayAnimKey : def.fx.animKey;
+
+      const fxSprite = s.add.sprite(CX, CHAR_Y, dispSprite, 0)
         .setScale(def.fx.scale ? def.fx.scale * 5.5 : 5.5)
         .setDepth(D + 2).setScrollFactor(0);
-      if (def.fx.animKey && s.anims.exists(def.fx.animKey)) {
-        fxSprite.play(def.fx.animKey);
+      if (dispAnim && s.anims.exists(dispAnim)) {
+        fxSprite.play(dispAnim);
       }
       this.content.push(fxSprite);
       animateIn(s, fxSprite, { from: 'scale', delay: 0, duration: 300 });

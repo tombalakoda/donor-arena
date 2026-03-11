@@ -33,7 +33,7 @@ const DIRECTIONS = ['down', 'left', 'right', 'up'];
 // FX spritesheets with their frame dimensions
 const FX_ELEMENTAL = {
   explosion:  { file: 'Explosion/SpriteSheet.png',  frameW: 40, frameH: 40 },
-  flam:       { file: 'Flam/SpriteSheet.png',       frameW: 16, frameH: 16 },
+  flam:       { file: 'Flam/SpriteSheet.png',       frameW: 30, frameH: 30 },
   ice:        { file: 'Ice/SpriteSheet.png',         frameW: 32, frameH: 32 },
   rock:       { file: 'Rock/SpriteSheet.png',        frameW: 30, frameH: 30 },
   rockspike:  { file: 'RockSpike/SpriteSheet.png',   frameW: 48, frameH: 48 },
@@ -325,6 +325,8 @@ export class BootScene extends Phaser.Scene {
     // --- Custom spell FX spritesheets ---
     this.load.spritesheet('fx-shuriken', 'assets/fx/custom/Shuriken.png',
       { frameWidth: 16, frameHeight: 16 });
+    this.load.spritesheet('fx-fireball-display', 'assets/fx/custom/Fireball.png',
+      { frameWidth: 16, frameHeight: 16 });
 
     // --- Load Audio ---
     // Menu SFX
@@ -492,7 +494,7 @@ export class BootScene extends Phaser.Scene {
     }
 
     // Custom spell FX animations
-    const customFx = ['shuriken'];
+    const customFx = ['shuriken', 'fireball-display'];
     for (const name of customFx) {
       const key = `fx-${name}`;
       const texture = this.textures.get(key);
