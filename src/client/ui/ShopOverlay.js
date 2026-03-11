@@ -1,46 +1,43 @@
 /**
- * ShopOverlay.js — Spell shop overlay (redesigned).
+ * ShopOverlay.js — Scene-based floating spell shop.
  *
- * Layout: 80% viewport panel, compact tabs, left spell list + right detail,
- * bottom action bar. All visuals use Ninja Adventure nineslice/sprite assets.
+ * No big panels. Character stands center-stage. Spell options float
+ * as horizontal cards. Arena visible behind a very light dimmer.
+ * Matches the MenuScene "Arena Entrance" aesthetic.
  */
 
 import { SKILL_TREES, computeSpellStats, getNextTierInfo, getMaxTier } from '../../shared/skillTreeData.js';
 import { SPELLS, SLOT_SPELLS } from '../../shared/spellData.js';
 import { SP } from '../../shared/constants.js';
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SLOT_COLOR, SCREEN, textStyle } from './UIConfig.js';
-import { createButton, createPanel, createDimmer, createSeparator, createText, animateIn } from './UIHelpers.js';
+import { createButton, createBar, createPanel, createDimmer, createSeparator, createText, animateIn } from './UIHelpers.js';
 
 // ─── Constants ───────────────────────────────────────────
 const D = DEPTH.OVERLAY_DIM;
+const CX = SCREEN.CX;
+const CY = SCREEN.CY;
 const SLOTS = ['Q', 'W', 'E', 'R'];
 const SLOT_NAMES = { Q: 'SÖZ', W: 'EL', E: 'DİL', R: 'BEL' };
 
-// Panel geometry — ~80% of viewport
-const PW = 1020;
-const PH = 540;
-const PL = SCREEN.CX - PW / 2;
-const PR = SCREEN.CX + PW / 2;
-const PT = SCREEN.CY - PH / 2;
-const PB = SCREEN.CY + PH / 2;
-const PAD = SPACE.MD;
+// Layout Y positions
+const TITLE_Y      = 22;
+const SP_Y         = 46;
+const TAB_Y        = 76;
+const EQUIP_Y      = 112;
+const CHAR_Y       = 270;
+const STRIP_Y      = 440;
+const DETAIL_Y     = 530;
+const TIMER_BAR_Y  = 708;
 
-// Internal layout zones
-const TITLE_Y  = PT + 28;
-const TAB_Y    = PT + 64;
-const BODY_TOP = PT + 88;
-const BODY_BOT = PB - 46;
-const BOT_Y    = PB - 22;
+// Card dimensions
+const CARD_W       = 64;
+const CARD_CELL    = 58;
+const CARD_ICON    = 36;
+const CARD_GAP     = 12;
 
-// Left/right column split
-const LEFT_W  = 250;
-const LEFT_L  = PL + PAD;
-const LEFT_R  = LEFT_L + LEFT_W;
-const LEFT_CX = LEFT_L + LEFT_W / 2;
-const RIGHT_L  = LEFT_R + SPACE.SM;
-const RIGHT_R  = PR - PAD;
-const RIGHT_W  = RIGHT_R - RIGHT_L;
-const RIGHT_CX = RIGHT_L + RIGHT_W / 2;
+// Equipped row
+const EQ_SIZE      = 30;
+const EQ_GAP       = 10;
 
 // Stat display definitions
 const STAT_DEFS = [
@@ -98,9 +95,16 @@ export class ShopOverlay {
     this.visible = false;
     this.progression = null;
     this.shopTimer = 0;
+    this.shopDuration = 20;
     this.activeSlot = 'Q';
-    this.chrome = [];    // persistent: dimmer, panel, title, tabs, bottom bar
+    this.chrome = [];    // persistent: dimmer, top bar, tabs, character, timer bar
     this.content = [];   // rebuilt on tab switch / progression update
+    this._timerText = null;
+    this._spText = null;
+    this._timerBar = null;
+    this._charSprite = null;
+    this._charGlow = null;
+    this._equipCells = [];
   }
 
   // ═══════════════════════════════════════════════════════
@@ -110,7 +114,8 @@ export class ShopOverlay {
     if (this.visible) this.destroy();
     this.visible = true;
     this.progression = progression;
-    this.shopTimer = shopDuration || 20;
+    this.shopDuration = shopDuration || 20;
+    this.shopTimer = this.shopDuration;
     this.activeSlot = this._pickDefaultSlot();
     this._build();
   }
@@ -125,7 +130,8 @@ export class ShopOverlay {
     if (this.visible) {
       this._destroyContent();
       this._buildContent();
-      this._updateBottomBar();
+      this._updateSP();
+      this._updateEquippedRow();
     }
   }
 
@@ -134,7 +140,13 @@ export class ShopOverlay {
     if (this._timerText && !this._timerText.destroyed) {
       const t = Math.ceil(remaining);
       this._timerText.setText(`${t}s`);
-      this._timerText.setFill(t <= 5 ? COLOR.ACCENT_DANGER : COLOR.TEXT_SECONDARY);
+      this._timerText.setFill(t <= 5 ? COLOR.ACCENT_DANGER : COLOR.TEXT_ICE);
+    }
+    // Update timer bar
+    if (this._timerBar && this._timerBar.setValue) {
+      const ratio = Math.max(0, remaining / this.shopDuration);
+      const tint = remaining <= 5 ? COLOR.TINT_DANGER : COLOR.TINT_INFO;
+      this._timerBar.setValue(ratio, tint);
     }
   }
 
@@ -142,66 +154,64 @@ export class ShopOverlay {
   //  BUILD — full overlay
   // ═══════════════════════════════════════════════════════
   _build() {
-    const s = this.scene;
-
-    // Dimmer
-    const dimmer = createDimmer(s, { depth: D, alpha: ALPHA.DIMMER });
-    dimmer.setInteractive();
-    this.chrome.push(dimmer);
-
-    // Main panel — with entrance animation
-    const panel = createPanel(s, SCREEN.CX, SCREEN.CY, PW, PH, {
-      depth: D + 1, alpha: 0.88,
-    });
-    this.chrome.push(panel);
-    animateIn(s, panel, { from: 'scale', duration: 250 });
-
-    this._buildTitleBar();
-    this._buildTabRow();
-    this._buildBottomBar();
+    this._buildDimmer();
+    this._buildTopBar();
+    this._buildSlotTabs();
+    this._buildEquippedRow();
+    this._buildCharacter();
+    this._buildTimerBar();
     this._buildContent();
   }
 
   // ═══════════════════════════════════════════════════════
-  //  TITLE BAR
+  //  DIMMER — very light, arena stays visible
   // ═══════════════════════════════════════════════════════
-  _buildTitleBar() {
-    const s = this.scene;
-
-    // Title bar background
-    const bar = s.add.nineslice(SCREEN.CX, TITLE_Y, 'ui-panel-interior', null, PW - 24, 28, ...NINE.PANEL)
-      .setScrollFactor(0).setDepth(D + 2);
-    this.chrome.push(bar);
-
-    // Title text
-    const title = createText(s, PL + PAD + 8, TITLE_Y, 'HÜNER DÜKKÂNI', FONT.TITLE_SM, {
-      fill: COLOR.ACCENT_GOLD, depth: D + 3, originX: 0,
-      stroke: '#000000', strokeThickness: 3,
-    });
-    this.chrome.push(title);
-
-    // SP count
-    const sp = this.progression ? this.progression.sp : 0;
-    this._spTextTitle = createText(s, PR - PAD - 80, TITLE_Y, `İlham: ${sp}`, FONT.BODY_BOLD, {
-      fill: COLOR.TEXT_ICE, depth: D + 3, originX: 0.5,
-    });
-    this.chrome.push(this._spTextTitle);
-
-    // Timer
-    this._timerText = createText(s, PR - PAD - 12, TITLE_Y, `${Math.ceil(this.shopTimer)}s`, FONT.BODY, {
-      fill: COLOR.TEXT_SECONDARY, depth: D + 3, originX: 1,
-    });
-    this.chrome.push(this._timerText);
+  _buildDimmer() {
+    const dimmer = createDimmer(this.scene, { depth: D, alpha: 0.25 });
+    dimmer.setInteractive();
+    this.chrome.push(dimmer);
   }
 
   // ═══════════════════════════════════════════════════════
-  //  TAB ROW
+  //  TOP BAR — floating text, no panel background
   // ═══════════════════════════════════════════════════════
-  _buildTabRow() {
+  _buildTopBar() {
     const s = this.scene;
-    const tabW = 130, tabH = 28, tabGap = 8;
+
+    // Title
+    const title = createText(s, CX, TITLE_Y, 'HÜNER DÜKKÂNI', FONT.TITLE_SM, {
+      fill: COLOR.ACCENT_GOLD, depth: D + 3,
+      stroke: '#000000', strokeThickness: 4,
+    });
+    this.chrome.push(title);
+    animateIn(s, title, { from: 'slideDown', delay: 50, duration: 250 });
+
+    // SP counter
+    const sp = this.progression ? this.progression.sp : 0;
+    this._spText = createText(s, CX, SP_Y, `◆ ${sp} İlham`, FONT.BODY_BOLD, {
+      fill: COLOR.TEXT_ICE, depth: D + 3,
+      stroke: '#000000', strokeThickness: 2,
+    });
+    this.chrome.push(this._spText);
+    animateIn(s, this._spText, { from: 'slideDown', delay: 80, duration: 250 });
+
+    // Timer (right side)
+    this._timerText = createText(s, SCREEN.W - 40, TITLE_Y, `${Math.ceil(this.shopTimer)}s`, FONT.TITLE_SM, {
+      fill: COLOR.TEXT_ICE, depth: D + 3, originX: 1,
+      stroke: '#000000', strokeThickness: 3,
+    });
+    this.chrome.push(this._timerText);
+    animateIn(s, this._timerText, { from: 'slideDown', delay: 50, duration: 250 });
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  SLOT TABS — 4 floating pill buttons
+  // ═══════════════════════════════════════════════════════
+  _buildSlotTabs() {
+    const s = this.scene;
+    const tabW = 100, tabH = 28, tabGap = 10;
     const totalW = SLOTS.length * tabW + (SLOTS.length - 1) * tabGap;
-    const startX = SCREEN.CX - totalW / 2;
+    const startX = CX - totalW / 2;
 
     for (let i = 0; i < SLOTS.length; i++) {
       const slot = SLOTS[i];
@@ -222,45 +232,168 @@ export class ShopOverlay {
         fill: isActive ? COLOR.TEXT_LIGHT : (isLocked ? COLOR.TEXT_DISABLED : COLOR.TEXT_SECONDARY),
         fontStyle: 'bold',
         stroke: isActive ? '#000000' : undefined,
-        strokeThickness: isActive ? 1 : 0,
+        strokeThickness: isActive ? 2 : 0,
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5);
       this.chrome.push(label);
 
       // Hit area
-      const hit = s.add.nineslice(cx, TAB_Y, tex, null, tabW, tabH, ...NINE.TAB)
+      const hit = s.add.rectangle(cx, TAB_Y, tabW, tabH)
         .setScrollFactor(0).setDepth(D + 4).setAlpha(0.001)
         .setInteractive({ useHandCursor: !isLocked });
       hit.on('pointerdown', () => {
         if (this.activeSlot !== slot) {
+          this._playSfx('sfx-move');
           this.activeSlot = slot;
           this._rebuildAll();
         }
       });
       this.chrome.push(hit);
+
+      // Entrance animation
+      animateIn(s, bg, { from: 'scale', delay: 100 + i * 40, duration: 200 });
+      animateIn(s, label, { from: 'scale', delay: 100 + i * 40, duration: 200 });
     }
   }
 
   // ═══════════════════════════════════════════════════════
-  //  BOTTOM BAR
+  //  EQUIPPED ROW — 4 small cells showing current build
   // ═══════════════════════════════════════════════════════
-  _buildBottomBar() {
+  _buildEquippedRow() {
     const s = this.scene;
+    const totalW = SLOTS.length * EQ_SIZE + (SLOTS.length - 1) * EQ_GAP;
+    const startX = CX - totalW / 2 + EQ_SIZE / 2;
+    this._equipCells = [];
 
-    const bar = s.add.nineslice(SCREEN.CX, BOT_Y, 'ui-panel-interior', null, PW - 24, 32, ...NINE.PANEL)
-      .setScrollFactor(0).setDepth(D + 2);
-    this.chrome.push(bar);
+    for (let i = 0; i < SLOTS.length; i++) {
+      const slot = SLOTS[i];
+      const cx = startX + i * (EQ_SIZE + EQ_GAP);
+      const isActive = slot === this.activeSlot;
+      const isLocked = this._isSlotLocked(slot);
+      const spellState = this.progression ? this.progression.spells[slot] : null;
+      const chosenId = spellState ? spellState.chosenSpell : null;
 
-    const sp = this.progression ? this.progression.sp : 0;
-    this._spTextBottom = createText(s, PL + PAD + 60, BOT_Y, `${sp} İlham`, FONT.BODY_BOLD, {
-      fill: COLOR.TEXT_ICE, depth: D + 3, originX: 0.5,
-    });
-    this.chrome.push(this._spTextBottom);
+      // Gold highlight for active slot
+      const highlight = s.add.nineslice(cx, EQUIP_Y, 'ui-focus', null,
+        EQ_SIZE + 4, EQ_SIZE + 4, 2, 2, 2, 2)
+        .setTint(SLOT_COLOR[slot].tint).setScrollFactor(0).setDepth(D + 2)
+        .setVisible(isActive);
+      this.chrome.push(highlight);
+
+      // Cell background
+      const cell = s.add.nineslice(cx, EQUIP_Y, 'ui-inventory-cell', null,
+        EQ_SIZE, EQ_SIZE, ...NINE.CELL)
+        .setScrollFactor(0).setDepth(D + 2).setAlpha(isLocked ? 0.4 : 0.8);
+      this.chrome.push(cell);
+
+      // Spell icon or slot key
+      let iconEl = null;
+      if (chosenId && SPELLS[chosenId]) {
+        const def = SPELLS[chosenId];
+        if (def.icon && s.textures.exists(def.icon)) {
+          iconEl = s.add.image(cx, EQUIP_Y, def.icon).setScrollFactor(0).setDepth(D + 3);
+          const sc = 22 / Math.max(iconEl.width, iconEl.height);
+          iconEl.setScale(sc);
+        }
+      }
+      if (!iconEl) {
+        // Show slot key letter
+        iconEl = s.add.text(cx, EQUIP_Y, isLocked ? '🔒' : slot, textStyle(FONT.SMALL, {
+          fill: isLocked ? COLOR.TEXT_DISABLED : COLOR.TEXT_SECONDARY,
+        })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5);
+      }
+      this.chrome.push(iconEl);
+
+      this._equipCells.push({ cell, highlight, icon: iconEl });
+
+      // Entrance animation
+      animateIn(s, cell, { from: 'scale', delay: 150 + i * 30, duration: 200 });
+      animateIn(s, iconEl, { from: 'scale', delay: 160 + i * 30, duration: 200 });
+    }
   }
 
-  _updateBottomBar() {
+  _updateEquippedRow() {
+    // Just rebuild the whole thing since it's part of chrome
+    // (updateProgression already rebuilds)
+  }
+
+  _updateSP() {
     const sp = this.progression ? this.progression.sp : 0;
-    if (this._spTextTitle && !this._spTextTitle.destroyed) this._spTextTitle.setText(`İlham: ${sp}`);
-    if (this._spTextBottom && !this._spTextBottom.destroyed) this._spTextBottom.setText(`${sp} İlham`);
+    if (this._spText && !this._spText.destroyed) {
+      this._spText.setText(`◆ ${sp} İlham`);
+      // Pulse animation on SP change
+      const s = this.scene;
+      if (s.tweens) {
+        s.tweens.add({
+          targets: this._spText,
+          scaleX: 1.3, scaleY: 1.3,
+          duration: 100,
+          yoyo: true,
+          ease: 'Sine.easeOut',
+        });
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  CHARACTER — hero sprite at center with glow
+  // ═══════════════════════════════════════════════════════
+  _buildCharacter() {
+    const s = this.scene;
+    const charId = s.characterId || 'boy';
+    const slotColor = SLOT_COLOR[this.activeSlot] || SLOT_COLOR.Q;
+
+    // Glow ellipse beneath character
+    this._charGlow = s.add.graphics().setDepth(D + 1).setScrollFactor(0);
+    this._drawCharGlow(slotColor.tint);
+    this.chrome.push(this._charGlow);
+
+    // Walking sprite
+    const walkKey = `${charId}-walk`;
+    const animKey = `${charId}-walk-down`;
+    if (s.textures.exists(walkKey)) {
+      this._charSprite = s.add.sprite(CX, CHAR_Y, walkKey, 0)
+        .setScale(4.0).setDepth(D + 2).setScrollFactor(0);
+      if (s.anims.exists(animKey)) {
+        this._charSprite.play(animKey);
+      }
+      this.chrome.push(this._charSprite);
+      animateIn(s, this._charSprite, { from: 'scale', delay: 0, duration: 300 });
+    }
+  }
+
+  _drawCharGlow(color) {
+    const g = this._charGlow;
+    if (!g || g.destroyed) return;
+    g.clear();
+
+    // Shadow
+    g.fillStyle(0x000000, 0.3);
+    g.fillEllipse(CX, CHAR_Y + 40, 70, 16);
+
+    // Colored glow (outer)
+    g.fillStyle(color, 0.08);
+    g.fillEllipse(CX, CHAR_Y + 36, 120, 30);
+
+    // Colored glow (inner)
+    g.fillStyle(color, 0.15);
+    g.fillEllipse(CX, CHAR_Y + 38, 80, 20);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  TIMER BAR — thin progress bar at bottom
+  // ═══════════════════════════════════════════════════════
+  _buildTimerBar() {
+    const s = this.scene;
+    const barW = 1000;
+    const barX = CX - barW / 2;
+    const bar = createBar(s, barX, TIMER_BAR_Y, barW, 4, {
+      depth: D + 2,
+      tint: COLOR.TINT_INFO,
+      value: 1,
+    });
+    this._timerBar = bar;
+    this.chrome.push(...bar.elements);
+    bar.elements.forEach(el => animateIn(s, el, { from: 'fadeOnly', delay: 300, duration: 250 }));
   }
 
   // ═══════════════════════════════════════════════════════
@@ -272,123 +405,130 @@ export class ShopOverlay {
       this._buildLockedContent();
       return;
     }
-    this._buildLeftSpellList();
-    this._buildRightDetail();
-    this._buildActionButton();
+    this._buildSpellStrip();
+    this._buildDetailZone();
   }
 
   // ═══════════════════════════════════════════════════════
-  //  LEFT — SPELL LIST
+  //  SPELL STRIP — horizontal spell cards
   // ═══════════════════════════════════════════════════════
-  _buildLeftSpellList() {
+  _buildSpellStrip() {
     const s = this.scene;
     const slot = this.activeSlot;
     const prog = this.progression;
     const spellState = prog ? prog.spells[slot] : null;
     const chosenSpellId = spellState ? spellState.chosenSpell : null;
+    const isAutoEquipped = spellState ? spellState.autoEquipped : false;
+    const isFirstChoice = chosenSpellId === null || isAutoEquipped;
     const availableSpells = SLOT_SPELLS[slot] || [];
 
-    const bodyH = BODY_BOT - BODY_TOP;
-    const leftCY = BODY_TOP + bodyH / 2;
-
-    // Panel background
-    const leftBg = s.add.nineslice(LEFT_CX, leftCY, 'ui-panel-2', null, LEFT_W, bodyH, ...NINE.PANEL)
-      .setScrollFactor(0).setDepth(D + 2).setAlpha(ALPHA.PANEL);
-    this.content.push(leftBg);
-
-    // Header
-    const headerY = BODY_TOP + 16;
-    const header = createText(s, LEFT_CX, headerY, `${SLOT_NAMES[slot]} Hünerleri`, FONT.SMALL, {
-      fill: COLOR.TEXT_SECONDARY, depth: D + 3,
-    });
-    this.content.push(header);
-
-    const sep = createSeparator(s, LEFT_CX, headerY + 12, LEFT_W - 24, { depth: D + 3 });
-    this.content.push(sep);
-
-    // Spell rows
-    const listTop = headerY + 24;
-    const rowH = 42;
+    // Calculate strip positioning
+    const totalW = availableSpells.length * CARD_W + (availableSpells.length - 1) * CARD_GAP;
+    const startX = CX - totalW / 2 + CARD_W / 2;
 
     for (let i = 0; i < availableSpells.length; i++) {
       const spellId = availableSpells[i];
       const def = SPELLS[spellId];
       if (!def) continue;
 
-      const rowY = listTop + i * rowH + rowH / 2;
+      const cx = startX + i * (CARD_W + CARD_GAP);
       const isChosen = chosenSpellId === spellId;
-      const isAutoEquipped = spellState ? spellState.autoEquipped : false;
-      const isFirstChoice = chosenSpellId === null || isAutoEquipped;
       const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
 
-      // Chosen row highlight
+      // ── Gold selection border (chosen spell) ──
       if (isChosen) {
-        const rowBg = s.add.nineslice(LEFT_CX, rowY, 'ui-focus', null, LEFT_W - 16, rowH - 4, 2, 2, 2, 2)
-          .setScrollFactor(0).setDepth(D + 2).setTint(SLOT_COLOR[slot].tint).setAlpha(ALPHA.SUBTLE);
-        this.content.push(rowBg);
+        const selBorder = s.add.nineslice(cx, STRIP_Y - 6, 'ui-focus', null,
+          CARD_CELL + 8, CARD_CELL + 8, 2, 2, 2, 2)
+          .setTint(COLOR.TINT_GOLD).setScrollFactor(0).setDepth(D + 2);
+        this.content.push(selBorder);
+
+        // Pulsing alpha on selection border
+        s.tweens.add({
+          targets: selBorder,
+          alpha: { from: 0.6, to: 1 },
+          duration: 800, yoyo: true, repeat: -1,
+          ease: 'Sine.easeInOut',
+        });
       }
 
-      // Icon cell
-      const cellX = LEFT_L + 24;
-      const cell = s.add.nineslice(cellX, rowY, 'ui-inventory-cell', null, 30, 30, ...NINE.CELL)
-        .setScrollFactor(0).setDepth(D + 3).setAlpha(0.8);
+      // ── Card cell ──
+      const cell = s.add.nineslice(cx, STRIP_Y - 6, 'ui-inventory-cell', null,
+        CARD_CELL, CARD_CELL, ...NINE.CELL)
+        .setScrollFactor(0).setDepth(D + 3)
+        .setAlpha((!isChosen && !canAfford) ? 0.4 : 0.85);
+      if (!isChosen && !canAfford) cell.setTint(COLOR.TINT_DISABLED);
       this.content.push(cell);
 
-      // Spell icon
+      // ── Spell icon ──
       if (def.icon && s.textures.exists(def.icon)) {
-        const icon = s.add.image(cellX, rowY, def.icon).setScrollFactor(0).setDepth(D + 4);
-        const sc = 22 / Math.max(icon.width, icon.height);
+        const icon = s.add.image(cx, STRIP_Y - 8, def.icon)
+          .setScrollFactor(0).setDepth(D + 4);
+        const sc = CARD_ICON / Math.max(icon.width, icon.height);
         icon.setScale(sc);
+        if (!isChosen && !canAfford) icon.setAlpha(0.5);
         this.content.push(icon);
       }
 
-      // Spell name
-      const nameX = cellX + 24;
-      const nameText = s.add.text(nameX, rowY, def.name, textStyle(FONT.BODY, {
-        fill: isChosen ? COLOR.TEXT_LIGHT : COLOR.TEXT_SECONDARY,
+      // ── Spell name below card ──
+      const nameText = s.add.text(cx, STRIP_Y + 26, def.name, textStyle(FONT.TINY, {
+        fill: isChosen ? COLOR.ACCENT_GOLD : COLOR.TEXT_SECONDARY,
         fontStyle: isChosen ? 'bold' : 'normal',
-      })).setScrollFactor(0).setDepth(D + 4).setOrigin(0, 0.5);
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
       this.content.push(nameText);
 
-      // Cost hint for unchosen first-choice spells
+      // ── Cost badge for unchosen first-choice spells ──
       if (!isChosen && isFirstChoice) {
-        const costHint = s.add.text(LEFT_R - 12, rowY, `${SP.SPELL_CHOICE_COST}◆`, textStyle(FONT.TINY, {
-          fill: canAfford ? COLOR.ACCENT_INFO : COLOR.TEXT_DISABLED,
-        })).setScrollFactor(0).setDepth(D + 4).setOrigin(1, 0.5);
-        this.content.push(costHint);
+        const costBadge = s.add.text(cx + CARD_CELL / 2 - 2, STRIP_Y - CARD_CELL / 2 - 4,
+          `${SP.SPELL_CHOICE_COST}◆`, textStyle(FONT.TINY, {
+            fill: canAfford ? COLOR.ACCENT_INFO : COLOR.TEXT_DISABLED,
+            strokeThickness: 3,
+          })).setScrollFactor(0).setDepth(D + 5).setOrigin(1, 0);
+        this.content.push(costBadge);
       }
 
-      // Hit area for row
-      const hit = s.add.nineslice(LEFT_CX, rowY, 'ui-inventory-cell', null, LEFT_W - 8, rowH - 2, ...NINE.CELL)
-        .setScrollFactor(0).setDepth(D + 5).setAlpha(0.001)
+      // ── Hit area ──
+      const hit = s.add.rectangle(cx, STRIP_Y - 6, CARD_W, CARD_CELL + 10)
+        .setScrollFactor(0).setDepth(D + 6).setAlpha(0.001)
         .setInteractive({ useHandCursor: canAfford || isChosen });
       this.content.push(hit);
 
+      // Hover & click behavior
       if (!isChosen && canAfford) {
         hit.on('pointerover', () => {
           cell.setTint(COLOR.TINT_HOVER);
+          s.tweens.add({ targets: cell, scaleX: 1.08, scaleY: 1.08, duration: 100 });
           nameText.setFill(COLOR.TEXT_PRIMARY);
         });
         hit.on('pointerout', () => {
           cell.clearTint();
+          s.tweens.add({ targets: cell, scaleX: 1, scaleY: 1, duration: 100 });
           nameText.setFill(COLOR.TEXT_SECONDARY);
         });
         hit.on('pointerdown', () => {
+          this._playSfx('sfx-accept');
           if (s.network && s.network.connected) {
             s.network.sendShopChooseSpell(slot, spellId);
           }
         });
       } else if (isChosen) {
-        hit.on('pointerover', () => { cell.setTint(COLOR.TINT_HOVER); });
-        hit.on('pointerout', () => { cell.clearTint(); });
+        hit.on('pointerover', () => {
+          cell.setTint(COLOR.TINT_HOVER);
+        });
+        hit.on('pointerout', () => {
+          cell.clearTint();
+        });
       }
+
+      // Entrance animation — staggered
+      animateIn(s, cell, { from: 'slideUp', delay: 200 + i * 50, duration: 250 });
+      animateIn(s, nameText, { from: 'slideUp', delay: 220 + i * 50, duration: 250 });
     }
   }
 
   // ═══════════════════════════════════════════════════════
-  //  RIGHT — DETAIL CARD
+  //  DETAIL ZONE — contextual tier/upgrade info
   // ═══════════════════════════════════════════════════════
-  _buildRightDetail() {
+  _buildDetailZone() {
     const s = this.scene;
     const slot = this.activeSlot;
     const prog = this.progression;
@@ -396,24 +536,20 @@ export class ShopOverlay {
     const chosenSpellId = spellState ? spellState.chosenSpell : null;
     const currentTier = spellState ? spellState.tier : 0;
 
-    const bodyH = BODY_BOT - BODY_TOP;
-    const rightCY = BODY_TOP + bodyH / 2;
-
-    // Right panel background
-    const rightBg = s.add.nineslice(RIGHT_CX, rightCY, 'ui-panel', null, RIGHT_W, bodyH, ...NINE.PANEL)
-      .setScrollFactor(0).setDepth(D + 2).setAlpha(ALPHA.PANEL);
-    this.content.push(rightBg);
-
-    // No spell chosen — prompt
+    // No spell chosen — show prompt
     if (!chosenSpellId) {
-      const prompt = createText(s, RIGHT_CX, rightCY - 10, 'Soldan bir hüner seç', FONT.TITLE_SM, {
+      const prompt = createText(s, CX, DETAIL_Y, 'Bir hüner seç', FONT.TITLE_SM, {
         fill: COLOR.TEXT_DISABLED, depth: D + 3,
+        stroke: '#000000', strokeThickness: 2,
       });
       this.content.push(prompt);
-      const costHint = createText(s, RIGHT_CX, rightCY + 16, `(${SP.SPELL_CHOICE_COST} İlham)`, FONT.BODY, {
+      animateIn(s, prompt, { from: 'fadeOnly', delay: 400, duration: 250 });
+
+      const costHint = createText(s, CX, DETAIL_Y + 26, `(${SP.SPELL_CHOICE_COST} İlham)`, FONT.BODY, {
         fill: COLOR.TEXT_DISABLED, depth: D + 3,
       });
       this.content.push(costHint);
+      animateIn(s, costHint, { from: 'fadeOnly', delay: 420, duration: 250 });
       return;
     }
 
@@ -423,200 +559,121 @@ export class ShopOverlay {
 
     const stats = computeSpellStats(chosenSpellId, currentTier);
     const maxTier = getMaxTier(chosenSpellId);
+    let y = DETAIL_Y;
 
-    // ── Spell Identity ──
-    let y = BODY_TOP + 20;
-
-    // Icon
-    const iconX = RIGHT_L + 32;
-    const iconCell = s.add.nineslice(iconX, y + 16, 'ui-inventory-cell', null, 44, 44, ...NINE.CELL)
-      .setScrollFactor(0).setDepth(D + 3);
-    this.content.push(iconCell);
-
-    if (def.icon && s.textures.exists(def.icon)) {
-      const icon = s.add.image(iconX, y + 16, def.icon).setScrollFactor(0).setDepth(D + 4);
-      const sc = 32 / Math.max(icon.width, icon.height);
-      icon.setScale(sc);
-      this.content.push(icon);
-    }
-
-    // Spell name
-    const nameX = iconX + 34;
-    const nameText = createText(s, nameX, y + 8, def.name, FONT.TITLE_SM, {
-      fill: SLOT_COLOR[slot].hex, depth: D + 3, originX: 0,
-      stroke: '#000000', strokeThickness: 2,
+    // ── Spell name (slot color) ──
+    const spellName = createText(s, CX, y, def.name, FONT.TITLE_SM, {
+      fill: SLOT_COLOR[slot].hex, depth: D + 3,
+      stroke: '#000000', strokeThickness: 3,
     });
-    this.content.push(nameText);
+    this.content.push(spellName);
+    animateIn(s, spellName, { from: 'slideUp', delay: 400, duration: 200 });
 
-    // Description
-    if (def.description) {
-      const desc = s.add.text(nameX, y + 26, def.description, textStyle(FONT.SMALL, {
-        fill: COLOR.TEXT_SECONDARY,
-        wordWrap: { width: RIGHT_W - 90 },
-      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0);
-      this.content.push(desc);
-    }
-
-    // ── Separator ──
-    y += 54;
-    const sep1 = createSeparator(s, RIGHT_CX, y, RIGHT_W - 24, { depth: D + 3 });
-    this.content.push(sep1);
-
-    // ── Stat Bars ──
-    y += 8;
-    const visibleStats = STAT_DEFS.filter(sd => stats[sd.key] != null && stats[sd.key] !== 0);
-    const barW = Math.min(280, RIGHT_W - 180);
-    const labelX = RIGHT_L + 20;
-    const barStartX = labelX + 80;
-    const valX = barStartX + barW + 8;
-
-    for (const sd of visibleStats) {
-      y += 18;
-      this._buildStatRow(sd, stats[sd.key], y, slot, barW, labelX, barStartX, valX);
-    }
-
-    // ── Tier Progress ──
+    // ── Description ──
     y += 24;
-    const sep2 = createSeparator(s, RIGHT_CX, y, RIGHT_W - 24, { depth: D + 3 });
-    this.content.push(sep2);
-    y += 14;
+    if (def.description) {
+      const desc = s.add.text(CX, y, def.description, textStyle(FONT.SMALL, {
+        fill: COLOR.TEXT_SECONDARY,
+        wordWrap: { width: 500 },
+        align: 'center',
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
+      this.content.push(desc);
+      animateIn(s, desc, { from: 'fadeOnly', delay: 420, duration: 200 });
+      y += desc.height + 8;
+    } else {
+      y += 4;
+    }
+
+    // ── Tier dots ──
+    const dotSize = 14;
+    const dotGap = 6;
+    const dotsW = maxTier * dotSize + (maxTier - 1) * dotGap;
+    const dotStartX = CX - dotsW / 2 + dotSize / 2;
 
     // Tier label
-    const tierLabel = createText(s, RIGHT_L + 20, y, `Pâye ${currentTier}/${maxTier}`, FONT.BODY_BOLD, {
-      fill: COLOR.ACCENT_GOLD, depth: D + 3, originX: 0,
-    });
+    const tierLabel = createText(s, CX - dotsW / 2 - 10, y + dotSize / 2,
+      `Pâye ${currentTier}/${maxTier}`, FONT.SMALL, {
+        fill: COLOR.ACCENT_GOLD, depth: D + 3, originX: 1,
+      });
     this.content.push(tierLabel);
 
-    // Tier dots
-    const dotSize = 16;
-    const dotGap = 4;
-    const dotsStartX = RIGHT_L + 120;
     for (let t = 0; t < maxTier; t++) {
       const filled = t < currentTier;
-      const dx = dotsStartX + t * (dotSize + dotGap);
+      const dx = dotStartX + t * (dotSize + dotGap);
       const dot = s.add.nineslice(
-        dx, y, filled ? 'ui-focus' : 'ui-inventory-cell', null,
+        dx + dotsW / 2 + 20, y + dotSize / 2,
+        filled ? 'ui-focus' : 'ui-inventory-cell', null,
         dotSize, dotSize, ...(filled ? [2, 2, 2, 2] : NINE.CELL)
       ).setScrollFactor(0).setDepth(D + 3);
       if (filled) dot.setTint(SLOT_COLOR[slot].tint);
       this.content.push(dot);
     }
 
-    // ── Next Tier Info ──
+    y += dotSize + 10;
+
+    // ── Key stats (compact, horizontal) ──
+    const visibleStats = STAT_DEFS.filter(sd => stats[sd.key] != null && stats[sd.key] !== 0);
+    if (visibleStats.length > 0) {
+      const statParts = visibleStats.slice(0, 5).map(sd => `${sd.label}: ${sd.fmt(stats[sd.key])}`);
+      const statLine = s.add.text(CX, y, statParts.join('   '), textStyle(FONT.TINY, {
+        fill: COLOR.TEXT_SECONDARY,
+        align: 'center',
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
+      this.content.push(statLine);
+      y += 16;
+    }
+
+    // ── Next tier info + upgrade button ──
     const nextTier = getNextTierInfo(chosenSpellId, currentTier);
-    y += 24;
 
     if (nextTier) {
-      const nextLabel = createText(s, RIGHT_L + 20, y, `Sonraki: ${nextTier.name}`, FONT.BODY_BOLD, {
-        fill: COLOR.TEXT_PRIMARY, depth: D + 3, originX: 0,
-      });
-      this.content.push(nextLabel);
-      y += 16;
-
-      if (nextTier.description) {
-        const nextDesc = s.add.text(RIGHT_L + 20, y, nextTier.description, textStyle(FONT.SMALL, {
-          fill: COLOR.TEXT_SECONDARY,
-          wordWrap: { width: RIGHT_W - 40 },
-        })).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0);
-        this.content.push(nextDesc);
-        y += nextDesc.height + 6;
-      }
-
-      // Mod changes
+      // Next tier mods
       const modText = Object.entries(nextTier.mods)
         .map(([k, v]) => typeof v === 'boolean'
           ? `${MOD_LABELS[k] || k}: ${v ? 'evet' : 'hayır'}`
           : `${MOD_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v}`)
         .join('  ');
+
       if (modText) {
-        const mods = s.add.text(RIGHT_L + 20, y, modText, textStyle(FONT.TINY, {
+        const mods = s.add.text(CX, y, `Sonraki: ${modText}`, textStyle(FONT.TINY, {
           fill: COLOR.ACCENT_INFO,
-          wordWrap: { width: RIGHT_W - 40 },
-        })).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0);
+          wordWrap: { width: 600 },
+          align: 'center',
+        })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
         this.content.push(mods);
+        y += mods.height + 8;
       }
+
+      // Upgrade button
+      const cost = nextTier.cost;
+      const canUpgrade = prog && prog.sp >= cost;
+      const { elements: btnEls } = createButton(s, CX, y + 14, `Pişir (${cost}◆)`, {
+        width: 160, height: 32, depth: D + 4, enabled: canUpgrade,
+        onClick: () => {
+          this._playSfx('sfx-accept');
+          if (s.network && s.network.connected) {
+            s.network.sendShopUpgradeTier(slot);
+          }
+        },
+      });
+      this.content.push(...btnEls);
+      btnEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 450, duration: 200 }));
     } else {
       // Max tier badge
-      const badge = createText(s, RIGHT_CX, y, 'EN ÜST PÂYE', FONT.BODY_BOLD, {
+      const badge = createText(s, CX, y, '★ EN ÜST PÂYE ★', FONT.BODY_BOLD, {
         fill: COLOR.ACCENT_GOLD, depth: D + 3,
         stroke: '#000000', strokeThickness: 2,
       });
       this.content.push(badge);
+
+      // Gentle pulse
+      s.tweens.add({
+        targets: badge,
+        alpha: { from: 0.7, to: 1 },
+        duration: 800, yoyo: true, repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
     }
-
-    // ── Completed tiers (compact) ──
-    if (currentTier > 0 && tree.tiers) {
-      y += 20;
-      for (let t = 0; t < currentTier && t < tree.tiers.length; t++) {
-        const tier = tree.tiers[t];
-        const check = s.add.text(RIGHT_L + 20, y, `T${t + 1}: ${tier.name}`, textStyle(FONT.TINY, {
-          fill: COLOR.ACCENT_SUCCESS,
-        })).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0);
-        this.content.push(check);
-        y += 14;
-      }
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════
-  //  STAT ROW — single stat bar
-  // ═══════════════════════════════════════════════════════
-  _buildStatRow(sd, value, y, slot, barW, labelX, barStartX, valX) {
-    const s = this.scene;
-
-    // Label
-    const lbl = s.add.text(labelX, y, sd.label, textStyle(FONT.SMALL, {
-      fill: COLOR.TEXT_SECONDARY,
-    })).setScrollFactor(0).setDepth(D + 4).setOrigin(0, 0.5);
-    this.content.push(lbl);
-
-    // Bar background
-    const barBg = s.add.nineslice(barStartX + barW / 2, y, 'ui-panel-interior', null, barW, 6, ...NINE.PANEL)
-      .setScrollFactor(0).setDepth(D + 3).setAlpha(ALPHA.BAR_BG);
-    this.content.push(barBg);
-
-    // Bar fill
-    let ratio = sd.invert ? 1 - (value / sd.max) : value / sd.max;
-    ratio = Math.max(0, Math.min(1, ratio));
-    const fillW = Math.max(2, ratio * barW);
-    const fill = s.add.nineslice(barStartX + fillW / 2, y, 'ui-slider-progress', null, fillW, 6, ...NINE.SLIDER)
-      .setScrollFactor(0).setDepth(D + 4).setTint(SLOT_COLOR[slot].tint);
-    this.content.push(fill);
-
-    // Value text
-    const val = s.add.text(valX, y, sd.fmt(value), textStyle(FONT.SMALL, {
-      fill: COLOR.TEXT_PRIMARY,
-    })).setScrollFactor(0).setDepth(D + 4).setOrigin(0, 0.5);
-    this.content.push(val);
-  }
-
-  // ═══════════════════════════════════════════════════════
-  //  ACTION BUTTON — in bottom bar
-  // ═══════════════════════════════════════════════════════
-  _buildActionButton() {
-    const s = this.scene;
-    const slot = this.activeSlot;
-    const prog = this.progression;
-    const spellState = prog ? prog.spells[slot] : null;
-    const chosenSpellId = spellState ? spellState.chosenSpell : null;
-
-    if (!chosenSpellId) return;
-
-    const nextTier = getNextTierInfo(chosenSpellId, spellState.tier);
-    if (!nextTier) return;
-
-    const cost = nextTier.cost;
-    const canUpgrade = prog && prog.sp >= cost;
-
-    const { elements } = createButton(s, PR - PAD - 80, BOT_Y, `Pişir (${cost})`, {
-      width: 140, height: 26, depth: D + 3, enabled: canUpgrade,
-      onClick: () => {
-        if (s.network && s.network.connected) {
-          s.network.sendShopUpgradeTier(slot);
-        }
-      },
-    });
-    this.content.push(...elements);
   }
 
   // ═══════════════════════════════════════════════════════
@@ -627,35 +684,41 @@ export class ShopOverlay {
     const slot = this.activeSlot;
     const prog = this.progression;
 
-    const bodyH = BODY_BOT - BODY_TOP;
-    const cy = BODY_TOP + bodyH / 2;
-
     // Lock icon
-    const lockIcon = s.add.image(SCREEN.CX, cy - 30, 'spell-BookDarkness-off')
-      .setDisplaySize(32, 32).setScrollFactor(0).setDepth(D + 3);
-    this.content.push(lockIcon);
+    const lockY = 400;
+    if (s.textures.exists('spell-BookDarkness-off')) {
+      const lockIcon = s.add.image(CX, lockY - 30, 'spell-BookDarkness-off')
+        .setDisplaySize(40, 40).setScrollFactor(0).setDepth(D + 3);
+      this.content.push(lockIcon);
+      animateIn(s, lockIcon, { from: 'scale', delay: 200, duration: 250 });
+    }
 
-    const label = createText(s, SCREEN.CX, cy + 10, `${SLOT_NAMES[slot]} — KİLİTLİ`, FONT.TITLE_SM, {
+    const label = createText(s, CX, lockY + 10, `${SLOT_NAMES[slot]} — KİLİTLİ`, FONT.TITLE_SM, {
       fill: COLOR.TEXT_DISABLED, depth: D + 3,
+      stroke: '#000000', strokeThickness: 3,
     });
     this.content.push(label);
+    animateIn(s, label, { from: 'slideUp', delay: 250, duration: 250 });
 
-    const costLabel = createText(s, SCREEN.CX, cy + 36, `Açmak için ${SP.SLOT_UNLOCK_COST} İlham gerekir`, FONT.BODY, {
+    const costLabel = createText(s, CX, lockY + 38, `Açmak için ${SP.SLOT_UNLOCK_COST} İlham gerekir`, FONT.BODY, {
       fill: COLOR.TEXT_SECONDARY, depth: D + 3,
     });
     this.content.push(costLabel);
+    animateIn(s, costLabel, { from: 'fadeOnly', delay: 300, duration: 250 });
 
-    // Unlock button in bottom bar
+    // Unlock button
     const canUnlock = prog && prog.sp >= SP.SLOT_UNLOCK_COST;
-    const { elements } = createButton(s, PR - PAD - 100, BOT_Y, `Kilidi Aç (${SP.SLOT_UNLOCK_COST})`, {
-      width: 160, height: 26, depth: D + 3, enabled: canUnlock,
+    const { elements: btnEls } = createButton(s, CX, lockY + 74, `Kilidi Aç (${SP.SLOT_UNLOCK_COST}◆)`, {
+      width: 180, height: 34, depth: D + 4, enabled: canUnlock,
       onClick: () => {
+        this._playSfx('sfx-accept');
         if (s.network && s.network.connected) {
           s.network.sendShopUnlockSlot(slot);
         }
       },
     });
-    this.content.push(...elements);
+    this.content.push(...btnEls);
+    btnEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 350, duration: 200 }));
   }
 
   // ═══════════════════════════════════════════════════════
@@ -679,6 +742,10 @@ export class ShopOverlay {
     return 'Q';
   }
 
+  _playSfx(key) {
+    try { this.scene.sound.play(key, { volume: 0.5 }); } catch (_) { /* */ }
+  }
+
   _rebuildAll() {
     this.destroy();
     this._build();
@@ -686,19 +753,28 @@ export class ShopOverlay {
 
   _destroyContent() {
     for (const el of this.content) {
-      if (el && !el.destroyed) { el.removeAllListeners(); el.destroy(); }
+      if (el && !el.destroyed) {
+        if (el.removeAllListeners) el.removeAllListeners();
+        el.destroy();
+      }
     }
     this.content = [];
   }
 
   destroy() {
     for (const el of [...this.chrome, ...this.content]) {
-      if (el && !el.destroyed) { el.removeAllListeners(); el.destroy(); }
+      if (el && !el.destroyed) {
+        if (el.removeAllListeners) el.removeAllListeners();
+        el.destroy();
+      }
     }
     this.chrome = [];
     this.content = [];
     this._timerText = null;
-    this._spTextTitle = null;
-    this._spTextBottom = null;
+    this._spText = null;
+    this._timerBar = null;
+    this._charSprite = null;
+    this._charGlow = null;
+    this._equipCells = [];
   }
 }
