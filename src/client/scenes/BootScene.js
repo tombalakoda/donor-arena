@@ -14,7 +14,8 @@ export const CHARACTERS = [
 ];
 
 // Animation names mapped to their spritesheet files
-// Walk: 64x64 (4 cols x 4 rows, 16x16 frames) - rows: down, left, right, up
+// Walk: 64x64 (4 cols x 4 rows, 16x16 frames) - columns = directions, rows = animation frames
+//   col0=down, col1=up, col2=left, col3=right
 // Idle: 64x16 (4 cols x 1 row) - columns: down, left, right, up
 // Attack: 64x16 (4 cols x 1 row) - columns: down, left, right, up
 // Dead: 16x16 (single frame)
@@ -26,8 +27,16 @@ const ANIM_SHEETS = {
   special: { file: 'Special1.png', frameW: 16, frameH: 16 },
 };
 
-// Direction row mapping for walk spritesheet (4x4)
-// Row 0 = down, Row 1 = left, Row 2 = right, Row 3 = up
+// Walk.png column-to-direction mapping (columns = directions, rows = anim frames)
+// Phaser frame indices: frame = col + row*4 (4 columns per row)
+const WALK_DIR_FRAMES = {
+  down:  [0, 4, 8, 12],   // column 0
+  up:    [1, 5, 9, 13],   // column 1
+  left:  [2, 6, 10, 14],  // column 2
+  right: [3, 7, 11, 15],  // column 3
+};
+
+// Idle/Attack direction mapping (single row: col0=down, col1=left, col2=right, col3=up)
 const DIRECTIONS = ['down', 'left', 'right', 'up'];
 
 // FX spritesheets with their frame dimensions
@@ -394,19 +403,28 @@ export class BootScene extends Phaser.Scene {
 
   createAnimations() {
     for (const char of CHARACTERS) {
-      // Walk animations (4 directions, 4 frames each)
-      for (let dirIdx = 0; dirIdx < DIRECTIONS.length; dirIdx++) {
-        const dir = DIRECTIONS[dirIdx];
+      // Walk animations (4 directions, 4 frames each — column-based)
+      for (const dir of Object.keys(WALK_DIR_FRAMES)) {
         this.anims.create({
           key: `${char.id}-walk-${dir}`,
-          frames: this.anims.generateFrameNumbers(`${char.id}-walk`, {
-            start: dirIdx * 4,
-            end: dirIdx * 4 + 3,
-          }),
+          frames: WALK_DIR_FRAMES[dir].map(f => ({ key: `${char.id}-walk`, frame: f })),
           frameRate: 8,
           repeat: -1,
         });
       }
+
+      // Spin animation for knockback (cycles through direction poses clockwise)
+      this.anims.create({
+        key: `${char.id}-spin`,
+        frames: [
+          { key: `${char.id}-walk`, frame: 0 },  // down
+          { key: `${char.id}-walk`, frame: 3 },  // right
+          { key: `${char.id}-walk`, frame: 1 },  // up
+          { key: `${char.id}-walk`, frame: 2 },  // left
+        ],
+        frameRate: 16,
+        repeat: -1,
+      });
 
       // Idle animations (1 frame per direction, columns: down, left, right, up)
       for (let dirIdx = 0; dirIdx < DIRECTIONS.length; dirIdx++) {

@@ -34,6 +34,7 @@ export class GameScene extends Phaser.Scene {
     this.isMoving = false;
     this.speedTrail = [];  // Array of { x, y, alpha } for knockback speed lines
     this.knockbackUntil = 0;  // performance.now() timestamp when knockback ends
+    this._inKnockbackAnim = false;  // true while playing spin animation during knockback
 
     // Grappling hook state (Branch B) — server-controlled, no client prediction
     this.grapplingActive = false;
@@ -104,6 +105,7 @@ export class GameScene extends Phaser.Scene {
     this.isMoving = false;
     this.speedTrail = [];
     this.knockbackUntil = 0;
+    this._inKnockbackAnim = false;
     this.grapplingActive = false;
     this.localHp = 100;
     this.localMaxHp = 100;
@@ -650,6 +652,8 @@ export class GameScene extends Phaser.Scene {
       hp: maxHp || PLAYER.MAX_HP, maxHp: maxHp || PLAYER.MAX_HP,
       facingDir: 'down',
       isMoving: false,
+      kbUntil: 0,
+      _inKnockbackAnim: false,
       _lastHpRatio: null,
     });
   }
@@ -682,6 +686,11 @@ export class GameScene extends Phaser.Scene {
     rp.vx = serverState.vx;
     rp.vy = serverState.vy;
     rp.lastUpdateTime = performance.now();
+    // Update knockback state (only extend, never shorten — avoids jitter)
+    if (serverState.kb > 0) {
+      const newKbUntil = performance.now() + serverState.kb;
+      if (newKbUntil > (rp.kbUntil || 0)) rp.kbUntil = newKbUntil;
+    }
     const prevHp = rp.hp;
     rp.hp = serverState.hp;
     rp.maxHp = serverState.maxHp;
@@ -800,9 +809,18 @@ export class GameScene extends Phaser.Scene {
 
       const speed = Math.sqrt(rp.vx * rp.vx + rp.vy * rp.vy);
       const wasMoving = rp.isMoving;
+      const wasKnockback = rp._inKnockbackAnim;
       rp.isMoving = speed > 0.5;
+      const inKnockback = performance.now() < (rp.kbUntil || 0);
 
-      if (rp.isMoving) {
+      if (inKnockback && rp.isMoving) {
+        // Knockback flight: play spin animation
+        if (!wasKnockback) {
+          rp.sprite.play(`${rp.characterId}-spin`);
+          rp._inKnockbackAnim = true;
+        }
+      } else if (rp.isMoving) {
+        // Normal movement: play directional walk
         const ax = Math.abs(rp.vx);
         const ay = Math.abs(rp.vy);
         const newDir = ax >= ay
@@ -810,11 +828,13 @@ export class GameScene extends Phaser.Scene {
           : (rp.vy > 0 ? 'down' : 'up');
         const dirChanged = newDir !== rp.facingDir;
         rp.facingDir = newDir;
-        if (!wasMoving || dirChanged) {
+        if (wasKnockback || !wasMoving || dirChanged) {
           rp.sprite.play(`${rp.characterId}-walk-${rp.facingDir}`);
+          rp._inKnockbackAnim = false;
         }
-      } else if (wasMoving) {
+      } else if (wasMoving || wasKnockback) {
         rp.sprite.play(`${rp.characterId}-idle-${rp.facingDir}`);
+        rp._inKnockbackAnim = false;
       }
     }
   }
@@ -1889,17 +1909,27 @@ export class GameScene extends Phaser.Scene {
     this.playerShadow.setPosition(pos.x, pos.y + PLAYER.RADIUS * 0.5);
 
     const wasMoving = this.isMoving;
+    const wasKnockback = this._inKnockbackAnim;
     this.isMoving = speed > 0.5;
+    const inKnockback = performance.now() < this.knockbackUntil;
 
-    if (this.isMoving) {
-      // facingDir is set once in setMoveTarget() at click time.
-      // We only call play() on the transition from idle→moving,
-      // NOT every frame — prevents animation restarts from speed oscillation.
-      if (!wasMoving) {
-        this.playerSprite.play(`${this.characterId}-walk-${this.facingDir}`);
+    if (inKnockback && this.isMoving) {
+      // Knockback flight: play spin animation
+      if (!wasKnockback) {
+        this.playerSprite.play(`${this.characterId}-spin`);
+        this._inKnockbackAnim = true;
       }
-    } else if (wasMoving) {
+    } else if (this.isMoving) {
+      // Normal movement: play directional walk
+      // Only call play() on transition to prevent animation restarts
+      if (wasKnockback || !wasMoving) {
+        this.playerSprite.play(`${this.characterId}-walk-${this.facingDir}`);
+        this._inKnockbackAnim = false;
+      }
+    } else if (wasMoving || wasKnockback) {
+      // Stopped: play idle
       this.playerSprite.play(`${this.characterId}-idle-${this.facingDir}`);
+      this._inKnockbackAnim = false;
     }
 
     // Speed trail for knockback flights (spark sprites)
