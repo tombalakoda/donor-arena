@@ -581,11 +581,11 @@ export class ShopOverlay {
     animateIn(s, spellName, { from: 'slideUp', delay: 400, duration: 200 });
 
     // ── Description ──
-    y += 24;
+    y += 26;
     if (def.description) {
-      const desc = s.add.text(CX, y, def.description, textStyle(FONT.SMALL, {
+      const desc = s.add.text(CX, y, def.description, textStyle(FONT.BODY, {
         fill: COLOR.TEXT_SECONDARY,
-        wordWrap: { width: 500 },
+        wordWrap: { width: 550 },
         align: 'center',
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
       this.content.push(desc);
