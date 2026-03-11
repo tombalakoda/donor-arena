@@ -314,6 +314,10 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`spell-${icon}-off`, pathOff);
     }
 
+    // --- Sound toggle icons ---
+    this.load.image('icon-sound-on', 'assets/ui/icon-sound-on.png');
+    this.load.image('icon-sound-off', 'assets/ui/icon-sound-off.png');
+
     // --- Load Audio ---
     // Menu SFX
     this.load.audio('sfx-accept', 'assets/audio/sfx/Menu/Accept.wav');

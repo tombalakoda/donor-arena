@@ -127,12 +127,12 @@ export class HUDManager {
     const y = 46;
 
     const { elements, icon, cell } = createIconButton(scene, x, y,
-      isMuted ? 'spell-BookThunder-off' : 'spell-BookThunder', {
+      isMuted ? 'icon-sound-off' : 'icon-sound-on', {
         size: 18, depth: DEPTH.HUD,
         onClick: () => {
           scene.sound.mute = !scene.sound.mute;
           localStorage.setItem('soundMuted', scene.sound.mute);
-          icon.setTexture(scene.sound.mute ? 'spell-BookThunder-off' : 'spell-BookThunder');
+          icon.setTexture(scene.sound.mute ? 'icon-sound-off' : 'icon-sound-on');
         },
       });
     this._soundIcon = icon;

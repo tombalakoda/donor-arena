@@ -432,7 +432,7 @@ export class MenuScene extends Phaser.Scene {
   _createSoundToggle() {
     const isMuted = this.sound.mute;
     createIconButton(this, SCREEN.W - 28, 28,
-      isMuted ? 'spell-BookThunder-off' : 'spell-BookThunder', {
+      isMuted ? 'icon-sound-off' : 'icon-sound-on', {
         size: 22, depth: 20,
         onClick: () => {
           this.sound.mute = !this.sound.mute;
