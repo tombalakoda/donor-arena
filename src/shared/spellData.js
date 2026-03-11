@@ -286,9 +286,8 @@ export const SPELLS = {
     type: SPELL_TYPES.HOOK,
     slot: 'R',
     fx: {
-      sprite: 'fx-rock',
-      animKey: 'fx-rock-play',
-      scale: 0.9,
+      sprite: 'fx-kunai',
+      scale: 1.8,
       sound: 'sfx-hook',
       color: 0x886644,
       chainColor: 0xaaaaaa,
@@ -302,9 +301,8 @@ export const SPELLS = {
     type: SPELL_TYPES.HOOK,
     slot: 'R',
     fx: {
-      sprite: 'fx-rock',
-      animKey: 'fx-rock-play',
-      scale: 0.9,
+      sprite: 'fx-kunai',
+      scale: 1.8,
       sound: 'sfx-hook',
       color: 0x666688,
       chainColor: 0x888888,

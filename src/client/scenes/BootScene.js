@@ -327,6 +327,7 @@ export class BootScene extends Phaser.Scene {
       { frameWidth: 16, frameHeight: 16 });
     this.load.spritesheet('fx-fireball-display', 'assets/fx/custom/Fireball.png',
       { frameWidth: 16, frameHeight: 16 });
+    this.load.image('fx-kunai', 'assets/fx/custom/BigKunai.png');
 
     // --- Load Audio ---
     // Menu SFX

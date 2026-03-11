@@ -235,14 +235,16 @@ export class SpellVisualManager {
       case SPELL_TYPES.HOOK: {
         const fx = def.fx || {};
         const spriteKey = fx.sprite || 'fx-rock';
-        const animKey = fx.animKey || 'fx-rock-play';
+        const animKey = fx.animKey;
         const scale = fx.scale || 1.5;
         const chainColor = fx.chainColor || 0xaaaaaa;
 
         const sprite = scene.add.sprite(spell.x, spell.y, spriteKey);
         sprite.setScale(scale);
         sprite.setDepth(16);
-        sprite.play({ key: animKey, repeat: -1 });
+        if (animKey && scene.anims.exists(animKey)) {
+          sprite.play({ key: animKey, repeat: -1 });
+        }
 
         const hookAngle = Math.atan2(spell.vy || 0, spell.vx || 0);
         sprite.setRotation(hookAngle);
