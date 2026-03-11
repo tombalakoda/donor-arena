@@ -189,7 +189,7 @@ export const SPELLS = {
       color: 0x44ff88,
       glowColor: 0x88ffaa,
     },
-    icon: 'spell-BookPlant',
+    icon: 'icon-devir',
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -257,7 +257,7 @@ export const SPELLS = {
       color: 0x88aa44,
       glowColor: 0xaacc66,
     },
-    icon: 'spell-BookThunder',
+    icon: 'icon-karsilama',
   },
   'shield': {
     id: 'shield',

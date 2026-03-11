@@ -321,6 +321,8 @@ export class BootScene extends Phaser.Scene {
 
     // --- Custom spell icons ---
     this.load.image('icon-mani', 'assets/ui/icon-mani.png');
+    this.load.image('icon-devir', 'assets/ui/icon-devir.png');
+    this.load.image('icon-karsilama', 'assets/ui/icon-karsilama.png');
 
     // --- Custom spell FX spritesheets ---
     this.load.spritesheet('fx-shuriken', 'assets/fx/custom/Shuriken.png',
