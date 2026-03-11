@@ -168,10 +168,11 @@ export class MatchEndOverlay {
       const rankColor = RANK_COLORS[i] || COLOR.TEXT_SECONDARY;
       const nameColor = isLocal ? COLOR.TEXT_ICE : COLOR.TEXT_PRIMARY;
 
-      // Alternating row bg
+      // Alternating row bg (icy tint)
       if (i % 2 === 0) {
-        const rowBg = s.add.nineslice(CX, ry, 'ui-panel-interior', null, PW - 30, rowH, ...NINE.PANEL)
-          .setScrollFactor(0).setDepth(D + 1).setAlpha(ALPHA.HINT);
+        const rowBg = s.add.graphics().setScrollFactor(0).setDepth(D + 1);
+        rowBg.fillStyle(0xb8e4f0, 0.12);
+        rowBg.fillRoundedRect(CX - (PW - 30) / 2, ry - rowH / 2, PW - 30, rowH, 3);
         this.elements.push(rowBg);
       }
 

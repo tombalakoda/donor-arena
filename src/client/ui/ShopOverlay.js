@@ -216,12 +216,14 @@ export class ShopOverlay {
       const isActive = slot === this.activeSlot;
       const isLocked = this._isSlotLocked(slot);
 
-      // Tab background
-      const tex = isActive ? 'ui-tab' : 'ui-tab-unselected';
-      const bg = s.add.nineslice(cx, TAB_Y, tex, null, tabW, tabH, ...NINE.TAB)
-        .setScrollFactor(0).setDepth(D + 2);
-      if (isLocked) bg.setTint(COLOR.TINT_DISABLED);
-      else if (isActive) bg.setTint(SLOT_COLOR[slot].tint);
+      // Tab background (icy Graphics-drawn)
+      const bg = s.add.graphics().setScrollFactor(0).setDepth(D + 2);
+      const tabColor = isLocked ? 0x607880 : (isActive ? SLOT_COLOR[slot].tint : 0x8ad4e8);
+      const tabAlpha = isActive ? 0.85 : (isLocked ? 0.35 : 0.50);
+      bg.fillStyle(tabColor, tabAlpha);
+      bg.fillRoundedRect(cx - tabW / 2, TAB_Y - tabH / 2, tabW, tabH, 4);
+      bg.lineStyle(1.5, 0xd0eef6, isActive ? 0.6 : 0.25);
+      bg.strokeRoundedRect(cx - tabW / 2, TAB_Y - tabH / 2, tabW, tabH, 4);
       this.chrome.push(bg);
 
       // Tab label

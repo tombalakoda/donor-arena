@@ -1,14 +1,21 @@
 /**
  * UIHelpers.js — Reusable UI component factory functions.
- * All visual elements use Ninja Adventure nineslice/sprite assets.
+ * Icy frosted glass aesthetic — Graphics-drawn rounded rectangles.
  * Design tokens come from UIConfig.js.
  */
 
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, textStyle } from './UIConfig.js';
 
+// ─── Icy color constants ─────────────────────────────────────
+const BTN_FILL    = 0x8ad4e8;
+const BTN_HOVER   = 0xa8e4f4;
+const BTN_PRESS   = 0x6ec0d8;
+const BTN_BORDER  = 0xd0eef6;
+const BTN_DISABLED = 0x607880;
+
 // ─── Text Button ─────────────────────────────────────────────
 /**
- * Create a nineslice text button with hover/pressed texture swaps.
+ * Create an opaque icy blue button drawn with Graphics.
  *
  * @param {Phaser.Scene} scene
  * @param {number} x - Center X
@@ -22,8 +29,7 @@ import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, textStyle } from './UIConfig.js
  * @param {boolean} [opts.enabled=true]
  * @param {function} [opts.onClick]
  * @param {boolean} [opts.sfx=true]
- * @param {number} [opts.alpha=1]
- * @returns {{ elements: Phaser.GameObjects.GameObject[], btn: NineSlice, text: Text }}
+ * @returns {{ elements: Phaser.GameObjects.GameObject[], btn: Graphics, text: Text }}
  */
 export function createButton(scene, x, y, label, opts = {}) {
   const w       = opts.width  || 140;
@@ -33,14 +39,21 @@ export function createButton(scene, x, y, label, opts = {}) {
   const enabled = opts.enabled !== false;
   const onClick = opts.onClick || (() => {});
   const sfx     = opts.sfx !== false;
-  const alpha   = opts.alpha ?? 1;
   const elements = [];
+  const r = 5;
 
-  const [nl, nr, nt, nb] = NINE.BUTTON;
+  const btn = scene.add.graphics().setScrollFactor(0).setDepth(depth);
+
+  const drawBtn = (color, alpha) => {
+    btn.clear();
+    btn.fillStyle(color, alpha);
+    btn.fillRoundedRect(x - w / 2, y - h / 2, w, h, r);
+    btn.lineStyle(2, BTN_BORDER, 0.7);
+    btn.strokeRoundedRect(x - w / 2, y - h / 2, w, h, r);
+  };
 
   if (!enabled) {
-    const btn = scene.add.nineslice(x, y, 'ui-button-disabled', null, w, h, nl, nr, nt, nb)
-      .setScrollFactor(0).setDepth(depth).setAlpha(0.7);
+    drawBtn(BTN_DISABLED, 0.6);
     const text = scene.add.text(x, y, label, textStyle(token, {
       fill: COLOR.TEXT_DISABLED,
     })).setScrollFactor(0).setDepth(depth + 1).setOrigin(0.5);
@@ -48,55 +61,38 @@ export function createButton(scene, x, y, label, opts = {}) {
     return { elements, btn, text };
   }
 
-  // Normal state
-  const btn = scene.add.nineslice(x, y, 'ui-button', null, w, h, nl, nr, nt, nb)
-    .setScrollFactor(0).setDepth(depth).setAlpha(alpha);
+  drawBtn(BTN_FILL, 0.92);
 
-  const text = scene.add.text(x, y - 1, label, textStyle(token, {
-    fill: COLOR.TEXT_LIGHT,
-    stroke: '#000000', strokeThickness: 3,
+  const text = scene.add.text(x, y, label, textStyle(token, {
+    fill: '#ffffff',
+    stroke: '#1a3a4a', strokeThickness: 3,
   })).setScrollFactor(0).setDepth(depth + 1).setOrigin(0.5);
 
   // Invisible hit area
-  const hitArea = scene.add.nineslice(x, y, 'ui-button', null, w + 2, h + 2, nl, nr, nt, nb)
+  const hitArea = scene.add.rectangle(x, y, w + 2, h + 2)
     .setScrollFactor(0).setDepth(depth + 2).setAlpha(0.001)
     .setInteractive({ useHandCursor: true });
 
-  let isOver = false;
-  let isDown = false;
-
   hitArea.on('pointerover', () => {
-    isOver = true;
-    if (!isDown) {
-      btn.setTexture('ui-button-hover');
-      text.setY(y - 2);
-    }
+    drawBtn(BTN_HOVER, 0.95);
+    text.setY(y - 1);
     if (sfx) try { scene.sound.play('sfx-move', { volume: 0.4 }); } catch (_) { /* */ }
   });
 
   hitArea.on('pointerout', () => {
-    isOver = false;
-    isDown = false;
-    btn.setTexture('ui-button');
-    text.setY(y - 1);
+    drawBtn(BTN_FILL, 0.92);
+    text.setY(y);
   });
 
   hitArea.on('pointerdown', () => {
-    isDown = true;
-    btn.setTexture('ui-button-pressed');
+    drawBtn(BTN_PRESS, 0.95);
     text.setY(y + 1);
   });
 
   hitArea.on('pointerup', () => {
-    isDown = false;
-    if (isOver) {
-      btn.setTexture('ui-button-hover');
-      text.setY(y - 2);
-      onClick();
-    } else {
-      btn.setTexture('ui-button');
-      text.setY(y - 1);
-    }
+    drawBtn(BTN_HOVER, 0.95);
+    text.setY(y - 1);
+    onClick();
   });
 
   elements.push(btn, text, hitArea);
@@ -158,7 +154,7 @@ export function createIconButton(scene, x, y, iconKey, opts = {}) {
 
 // ─── Panel ───────────────────────────────────────────────────
 /**
- * Create a nineslice panel.
+ * Create a frosted glass panel drawn with Graphics.
  *
  * @param {Phaser.Scene} scene
  * @param {number} x - Center X
@@ -166,26 +162,56 @@ export function createIconButton(scene, x, y, iconKey, opts = {}) {
  * @param {number} w - Width
  * @param {number} h - Height
  * @param {object} opts
- * @param {string} [opts.texture='ui-panel']
  * @param {number} [opts.depth=DEPTH.OVERLAY_PANEL]
- * @param {number} [opts.alpha=ALPHA.PANEL]
- * @param {number} [opts.tint] - Optional tint color
- * @returns {Phaser.GameObjects.NineSlice}
+ * @param {number} [opts.fillAlpha=0.30] - Panel fill opacity
+ * @returns {Phaser.GameObjects.Graphics}
  */
 export function createPanel(scene, x, y, w, h, opts = {}) {
-  const texture = opts.texture || 'ui-panel';
-  const depth   = opts.depth ?? DEPTH.OVERLAY_PANEL;
-  const alpha   = opts.alpha ?? ALPHA.PANEL;
-  const [nl, nr, nt, nb] = NINE.PANEL;
+  const depth     = opts.depth ?? DEPTH.OVERLAY_PANEL;
+  const fillAlpha = opts.fillAlpha ?? 0.30;
 
-  const panel = scene.add.nineslice(x, y, texture, null, w, h, nl, nr, nt, nb)
-    .setScrollFactor(0).setDepth(depth).setAlpha(alpha);
+  return createIcyFrame(scene, x, y, w, h, depth, fillAlpha);
+}
 
-  if (opts.tint !== undefined) {
-    panel.setTint(opts.tint);
-  }
+// ─── Icy Frame ──────────────────────────────────────────────
+/**
+ * Draw an icy frosted glass frame using Graphics.
+ * Translucent ice-blue fill with glass reflection highlight and border.
+ *
+ * @param {Phaser.Scene} scene
+ * @param {number} cx - Center X
+ * @param {number} cy - Center Y
+ * @param {number} w - Width
+ * @param {number} h - Height
+ * @param {number} [depth=DEPTH.OVERLAY_PANEL]
+ * @param {number} [fillAlpha=0.22]
+ * @returns {Phaser.GameObjects.Graphics}
+ */
+export function createIcyFrame(scene, cx, cy, w, h, depth, fillAlpha) {
+  depth = depth ?? DEPTH.OVERLAY_PANEL;
+  fillAlpha = fillAlpha ?? 0.22;
+  const g = scene.add.graphics().setScrollFactor(0).setDepth(depth);
+  const lx = cx - w / 2;
+  const ly = cy - h / 2;
+  const r = 6;
 
-  return panel;
+  // Frosted glass fill
+  g.fillStyle(0xb8e4f0, fillAlpha);
+  g.fillRoundedRect(lx, ly, w, h, r);
+
+  // Inner highlight (lighter, top half for glass reflection)
+  g.fillStyle(0xddeeff, fillAlpha * 0.45);
+  g.fillRoundedRect(lx + 2, ly + 2, w - 4, h / 2 - 2, { tl: r - 2, tr: r - 2, bl: 0, br: 0 });
+
+  // Border
+  g.lineStyle(2, 0xb8e4f0, 0.45);
+  g.strokeRoundedRect(lx, ly, w, h, r);
+
+  // Outer glow border
+  g.lineStyle(1, 0xddeeff, 0.20);
+  g.strokeRoundedRect(lx - 2, ly - 2, w + 4, h + 4, r + 2);
+
+  return g;
 }
 
 // ─── Dimmer ──────────────────────────────────────────────────

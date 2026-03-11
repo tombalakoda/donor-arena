@@ -10,7 +10,7 @@ import { CHARACTERS } from '../scenes/BootScene.js';
 import { MATCH } from '../../shared/constants.js';
 import { TIPS } from '../config.js';
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle } from './UIConfig.js';
-import { createButton, createPanel, createDimmer, createSeparator, createText, animateIn } from './UIHelpers.js';
+import { createButton, createPanel, createDimmer, createSeparator, createText, createIcyFrame, animateIn } from './UIHelpers.js';
 
 // ─── Constants ───────────────────────────────────────────
 const SLOT_COLOR_GOLD = 0xf0c040;
@@ -117,10 +117,9 @@ export class LobbyOverlay {
     this.elements.push(panel);
     animateIn(s, panel, { from: 'scale', duration: 250 });
 
-    // ── Title bar ──
+    // ── Title bar (icy frame) ──
     const titleY = PT + 24;
-    const titleBar = s.add.nineslice(CX, titleY, 'ui-panel-interior', null, PW - 20, 28, ...NINE.PANEL)
-      .setScrollFactor(0).setDepth(D + 2);
+    const titleBar = createIcyFrame(s, CX, titleY, PW - 20, 28, D + 2, 0.18);
     this.elements.push(titleBar);
 
     const titleLabel = this.lobbyMode ? 'BEKLEME ODASI' : 'ÂŞIKLAR BEKLENİYOR';

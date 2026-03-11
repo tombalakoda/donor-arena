@@ -798,10 +798,10 @@ export class HUDManager {
     const panelX = SCREEN.W - SPACE.MD;
     const panelY = 92;
 
-    // Background panel
+    // Background panel (frosted glass)
     const bg = createPanel(scene, panelX - panelW / 2, panelY + panelH / 2,
       panelW, panelH, {
-        texture: 'ui-panel-interior', depth: DEPTH.HUD_BG, alpha: 0.6,
+        depth: DEPTH.HUD_BG, fillAlpha: 0.20,
       });
     this._leaderboardElements.push(bg);
 

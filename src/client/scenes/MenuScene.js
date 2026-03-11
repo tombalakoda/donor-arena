@@ -9,7 +9,7 @@ import {
 } from '../ui/UIConfig.js';
 import {
   createButton, createIconButton, createPanel, createDimmer,
-  createSeparator, createText, animateIn,
+  createSeparator, createText, createIcyFrame, animateIn,
 } from '../ui/UIHelpers.js';
 
 const CX = SCREEN.CX;
@@ -267,7 +267,7 @@ export class MenuScene extends Phaser.Scene {
     // Icy frosted glass frame behind the face strip
     const frameW = STRIP_W + 28;
     const frameH = FACE_SIZE + 22;
-    const faceFrame = this._drawIcyFrame(CX, FACE_STRIP_Y, frameW, frameH, 18);
+    const faceFrame = createIcyFrame(this,CX, FACE_STRIP_Y, frameW, frameH, 18);
     animateIn(this, faceFrame, { from: 'scale', delay: 130, duration: 250 });
 
     for (let i = 0; i < FACE_COUNT; i++) {
@@ -350,7 +350,7 @@ export class MenuScene extends Phaser.Scene {
     const pad = 20;  // equal padding on both sides
     const frameL = CX - barW / 2; // 270
     const frameR = CX + barW / 2; // 1010
-    const barFrame = this._drawIcyFrame(CX, y, barW, 50, 14);
+    const barFrame = createIcyFrame(this,CX, y, barW, 50, 14);
     animateIn(this, barFrame, { from: 'slideUp', delay: 430, duration: 250 });
 
     // "Mahlas:" label — pinned to left side with padding
@@ -388,7 +388,13 @@ export class MenuScene extends Phaser.Scene {
 
     btns.forEach((b, i) => {
       const bx = btnsStartX + i * (btnW + btnGap);
-      this._createIcyButton(bx, y, btnW, btnH, b.label, BTN_FONT, 15, b.onClick, 500 + i * 70);
+      const { elements } = createButton(this, bx, y, b.label, {
+        width: btnW, height: btnH, depth: 15,
+        fontToken: BTN_FONT, onClick: b.onClick,
+      });
+      elements.forEach(el => animateIn(this, el, {
+        from: 'slideUp', delay: 500 + i * 70, duration: 250,
+      }));
     });
 
     // Room list state
@@ -778,90 +784,6 @@ export class MenuScene extends Phaser.Scene {
         onComplete: () => { this.menuMusic.stop(); },
       });
     }
-  }
-
-  /**
-   * Draw an icy frosted glass frame using Graphics.
-   * Returns the Graphics object for animateIn / depth control.
-   */
-  _drawIcyFrame(cx, cy, w, h, depth) {
-    const g = this.add.graphics().setDepth(depth);
-    const x = cx - w / 2;
-    const y = cy - h / 2;
-    const r = 6; // corner radius
-
-    // Frosted glass fill
-    g.fillStyle(0xb8e4f0, 0.22);
-    g.fillRoundedRect(x, y, w, h, r);
-
-    // Inner highlight (lighter, top half for glass reflection)
-    g.fillStyle(0xddeeff, 0.10);
-    g.fillRoundedRect(x + 2, y + 2, w - 4, h / 2 - 2, { tl: r - 2, tr: r - 2, bl: 0, br: 0 });
-
-    // Border
-    g.lineStyle(2, 0xb8e4f0, 0.45);
-    g.strokeRoundedRect(x, y, w, h, r);
-
-    // Outer glow border
-    g.lineStyle(1, 0xddeeff, 0.20);
-    g.strokeRoundedRect(x - 2, y - 2, w + 4, h + 4, r + 2);
-
-    return g;
-  }
-
-  /**
-   * Create an opaque icy blue button using Graphics (no brown nineslice).
-   */
-  _createIcyButton(cx, cy, w, h, label, fontToken, depth, onClick, animDelay) {
-    const r = 5;
-    const fillColor = 0x8ad4e8;
-    const hoverColor = 0xa8e4f4;
-    const pressColor = 0x6ec0d8;
-    const borderColor = 0xd0eef6;
-
-    // Button background
-    const bg = this.add.graphics().setDepth(depth);
-    const drawBtn = (color) => {
-      bg.clear();
-      bg.fillStyle(color, 0.92);
-      bg.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, r);
-      bg.lineStyle(2, borderColor, 0.7);
-      bg.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, r);
-    };
-    drawBtn(fillColor);
-
-    // Label
-    const text = this.add.text(cx, cy, label, textStyle(fontToken, {
-      fill: '#ffffff',
-      stroke: '#1a3a4a', strokeThickness: 3,
-    })).setDepth(depth + 1).setOrigin(0.5);
-
-    // Hit area
-    const hit = this.add.rectangle(cx, cy, w, h)
-      .setDepth(depth + 2).setAlpha(0.001)
-      .setInteractive({ useHandCursor: true });
-
-    hit.on('pointerover', () => {
-      drawBtn(hoverColor);
-      text.setY(cy - 1);
-      this._playSfx('sfx-move');
-    });
-    hit.on('pointerout', () => {
-      drawBtn(fillColor);
-      text.setY(cy);
-    });
-    hit.on('pointerdown', () => {
-      drawBtn(pressColor);
-      text.setY(cy + 1);
-    });
-    hit.on('pointerup', () => {
-      drawBtn(hoverColor);
-      text.setY(cy - 1);
-      onClick();
-    });
-
-    animateIn(this, bg, { from: 'slideUp', delay: animDelay, duration: 250 });
-    animateIn(this, text, { from: 'slideUp', delay: animDelay, duration: 250 });
   }
 
   _getPassiveIcon(passive) {
