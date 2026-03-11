@@ -264,6 +264,12 @@ export class MenuScene extends Phaser.Scene {
     this.faceCells = [];
     const startX = CX - STRIP_W / 2 + FACE_SIZE / 2;
 
+    // Icy frosted glass frame behind the face strip
+    const frameW = STRIP_W + 28;
+    const frameH = FACE_SIZE + 22;
+    const faceFrame = this._drawIcyFrame(CX, FACE_STRIP_Y, frameW, frameH, 18);
+    animateIn(this, faceFrame, { from: 'scale', delay: 130, duration: 250 });
+
     for (let i = 0; i < FACE_COUNT; i++) {
       const char = CHARACTERS[i];
       const x = startX + i * (FACE_SIZE + FACE_GAP);
@@ -339,21 +345,23 @@ export class MenuScene extends Phaser.Scene {
   _createBottomBar() {
     const y = BOTTOM_Y;
 
-    // Name input background (small panel)
-    const inputBg = createPanel(this, CX - 185, y, 230, 36, {
-      texture: 'ui-panel-2', depth: 15,
-    });
-    animateIn(this, inputBg, { from: 'slideUp', delay: 450, duration: 250 });
+    // Icy frosted glass frame behind entire bottom bar — covers name + buttons
+    const barW = 740;
+    const pad = 20;  // equal padding on both sides
+    const frameL = CX - barW / 2; // 270
+    const frameR = CX + barW / 2; // 1010
+    const barFrame = this._drawIcyFrame(CX, y, barW, 50, 14);
+    animateIn(this, barFrame, { from: 'slideUp', delay: 430, duration: 250 });
 
-    // "Mahlas:" label — light color with stroke for readability over scene
+    // "Mahlas:" label — pinned to left side with padding
     const LABEL_FONT = { fontSize: '14px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
-    const label = createText(this, CX - 275, y, 'Mahlas:', LABEL_FONT, {
-      fill: COLOR.TEXT_CREAM, depth: 16, originX: 0,
+    const label = createText(this, frameL + pad, y, 'Mahlas:', LABEL_FONT, {
+      fill: COLOR.TEXT_ICE, depth: 16, originX: 0,
       stroke: '#000000', strokeThickness: 3,
     });
     animateIn(this, label, { from: 'slideUp', delay: 450, duration: 250 });
 
-    // DOM input element
+    // DOM input element — after label
     const inputElement = document.createElement('input');
     inputElement.type = 'text';
     inputElement.value = 'Âşık';
@@ -361,31 +369,26 @@ export class MenuScene extends Phaser.Scene {
     inputElement.style.cssText = `
       font-size: 16px; font-family: 'KiwiSoda', monospace;
       padding: 4px 8px; width: 140px;
-      background: transparent; color: ${COLOR.ACCENT_GOLD};
-      border: none; outline: none; caret-color: ${COLOR.ACCENT_GOLD};
+      background: transparent; color: #ffffff;
+      border: none; outline: none; caret-color: #b8e4f0;
       font-weight: bold; text-shadow: 0 0 4px rgba(0,0,0,0.8);
     `;
-    this.nameInput = this.add.dom(CX - 165, y, inputElement).setDepth(17);
+    this.nameInput = this.add.dom(frameL + pad + 120, y, inputElement).setDepth(17);
 
-    // Action buttons — to the right of name input, bigger with larger text
+    // Action buttons — pinned to right side with same padding
     const BTN_FONT = { fontSize: '15px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
-    const btnStartX = CX + 55;
-    const btnGap = 140;
+    const btnW = 130, btnH = 36, btnGap = 8;
+    const totalBtnsW = 3 * btnW + 2 * btnGap;
+    const btnsStartX = frameR - pad - totalBtnsW + btnW / 2; // first btn center
     const btns = [
-      { label: 'MEYDANE', x: btnStartX, onClick: () => this._startGame('normal') },
-      { label: 'ODALAR',  x: btnStartX + btnGap, onClick: () => this._showRoomList() },
-      { label: 'SERBEST', x: btnStartX + btnGap * 2, onClick: () => this._startGame('sandbox') },
+      { label: 'MEYDANE', onClick: () => this._startGame('normal') },
+      { label: 'ODALAR',  onClick: () => this._showRoomList() },
+      { label: 'SERBEST', onClick: () => this._startGame('sandbox') },
     ];
 
     btns.forEach((b, i) => {
-      const { elements } = createButton(this, b.x, y, b.label, {
-        width: 125, height: 36, depth: 15,
-        fontToken: BTN_FONT,
-        onClick: b.onClick,
-      });
-      elements.forEach(el => animateIn(this, el, {
-        from: 'slideUp', delay: 500 + i * 70, duration: 250,
-      }));
+      const bx = btnsStartX + i * (btnW + btnGap);
+      this._createIcyButton(bx, y, btnW, btnH, b.label, BTN_FONT, 15, b.onClick, 500 + i * 70);
     });
 
     // Room list state
@@ -775,6 +778,90 @@ export class MenuScene extends Phaser.Scene {
         onComplete: () => { this.menuMusic.stop(); },
       });
     }
+  }
+
+  /**
+   * Draw an icy frosted glass frame using Graphics.
+   * Returns the Graphics object for animateIn / depth control.
+   */
+  _drawIcyFrame(cx, cy, w, h, depth) {
+    const g = this.add.graphics().setDepth(depth);
+    const x = cx - w / 2;
+    const y = cy - h / 2;
+    const r = 6; // corner radius
+
+    // Frosted glass fill
+    g.fillStyle(0xb8e4f0, 0.22);
+    g.fillRoundedRect(x, y, w, h, r);
+
+    // Inner highlight (lighter, top half for glass reflection)
+    g.fillStyle(0xddeeff, 0.10);
+    g.fillRoundedRect(x + 2, y + 2, w - 4, h / 2 - 2, { tl: r - 2, tr: r - 2, bl: 0, br: 0 });
+
+    // Border
+    g.lineStyle(2, 0xb8e4f0, 0.45);
+    g.strokeRoundedRect(x, y, w, h, r);
+
+    // Outer glow border
+    g.lineStyle(1, 0xddeeff, 0.20);
+    g.strokeRoundedRect(x - 2, y - 2, w + 4, h + 4, r + 2);
+
+    return g;
+  }
+
+  /**
+   * Create an opaque icy blue button using Graphics (no brown nineslice).
+   */
+  _createIcyButton(cx, cy, w, h, label, fontToken, depth, onClick, animDelay) {
+    const r = 5;
+    const fillColor = 0x8ad4e8;
+    const hoverColor = 0xa8e4f4;
+    const pressColor = 0x6ec0d8;
+    const borderColor = 0xd0eef6;
+
+    // Button background
+    const bg = this.add.graphics().setDepth(depth);
+    const drawBtn = (color) => {
+      bg.clear();
+      bg.fillStyle(color, 0.92);
+      bg.fillRoundedRect(cx - w / 2, cy - h / 2, w, h, r);
+      bg.lineStyle(2, borderColor, 0.7);
+      bg.strokeRoundedRect(cx - w / 2, cy - h / 2, w, h, r);
+    };
+    drawBtn(fillColor);
+
+    // Label
+    const text = this.add.text(cx, cy, label, textStyle(fontToken, {
+      fill: '#ffffff',
+      stroke: '#1a3a4a', strokeThickness: 3,
+    })).setDepth(depth + 1).setOrigin(0.5);
+
+    // Hit area
+    const hit = this.add.rectangle(cx, cy, w, h)
+      .setDepth(depth + 2).setAlpha(0.001)
+      .setInteractive({ useHandCursor: true });
+
+    hit.on('pointerover', () => {
+      drawBtn(hoverColor);
+      text.setY(cy - 1);
+      this._playSfx('sfx-move');
+    });
+    hit.on('pointerout', () => {
+      drawBtn(fillColor);
+      text.setY(cy);
+    });
+    hit.on('pointerdown', () => {
+      drawBtn(pressColor);
+      text.setY(cy + 1);
+    });
+    hit.on('pointerup', () => {
+      drawBtn(hoverColor);
+      text.setY(cy - 1);
+      onClick();
+    });
+
+    animateIn(this, bg, { from: 'slideUp', delay: animDelay, duration: 250 });
+    animateIn(this, text, { from: 'slideUp', delay: animDelay, duration: 250 });
   }
 
   _getPassiveIcon(passive) {
