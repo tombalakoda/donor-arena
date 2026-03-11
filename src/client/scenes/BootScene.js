@@ -33,7 +33,7 @@ const DIRECTIONS = ['down', 'left', 'right', 'up'];
 // FX spritesheets with their frame dimensions
 const FX_ELEMENTAL = {
   explosion:  { file: 'Explosion/SpriteSheet.png',  frameW: 40, frameH: 40 },
-  flam:       { file: 'Flam/SpriteSheet.png',       frameW: 30, frameH: 30 },
+  flam:       { file: 'Flam/SpriteSheet.png',       frameW: 16, frameH: 16 },
   ice:        { file: 'Ice/SpriteSheet.png',         frameW: 32, frameH: 32 },
   rock:       { file: 'Rock/SpriteSheet.png',        frameW: 30, frameH: 30 },
   rockspike:  { file: 'RockSpike/SpriteSheet.png',   frameW: 48, frameH: 48 },
