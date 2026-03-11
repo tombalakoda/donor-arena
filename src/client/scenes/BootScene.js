@@ -80,21 +80,28 @@ export class BootScene extends Phaser.Scene {
     const cy = cam.height / 2;
 
     // Dark background
-    cam.setBackgroundColor('#0a0a1e');
+    cam.setBackgroundColor('#0d1520');
 
     // --- Title ---
+    // Shadow
+    this.add.text(cx + 3, cy - 117, 'ÂŞIKLAR MEYDANE', {
+      fontFamily: UI_FONT,
+      fontSize: '52px',
+      fill: '#000000',
+    }).setOrigin(0.5).setAlpha(0.3);
+    // Main title
     this.add.text(cx, cy - 120, 'ÂŞIKLAR MEYDANE', {
       fontFamily: UI_FONT,
-      fontSize: '48px',
-      fill: '#ffdd44',
-      stroke: '#000000',
+      fontSize: '52px',
+      fill: '#ffffff',
+      stroke: '#2a1a0a',
       strokeThickness: 6,
     }).setOrigin(0.5);
 
-    this.add.text(cx, cy - 75, 'Meydana hazırlan...', {
+    this.add.text(cx, cy - 70, 'Meydana hazırlan...', {
       fontFamily: UI_FONT,
-      fontSize: '16px',
-      fill: '#888899',
+      fontSize: '18px',
+      fill: '#b8e4f0',
     }).setOrigin(0.5);
 
     // --- Progress Bar ---
@@ -105,25 +112,25 @@ export class BootScene extends Phaser.Scene {
 
     const progressBox = this.add.graphics();
     // Outer glow
-    progressBox.lineStyle(2, 0x44aadd, 0.3);
+    progressBox.lineStyle(2, 0xb8e4f0, 0.3);
     progressBox.strokeRoundedRect(barX - 4, barY - 4, barW + 8, barH + 8, 6);
     // Inner background
-    progressBox.fillStyle(0x111122, 0.9);
+    progressBox.fillStyle(0x0a1520, 0.9);
     progressBox.fillRoundedRect(barX, barY, barW, barH, 4);
 
     const progressBar = this.add.graphics();
 
     const percentText = this.add.text(cx, cy + 24, '0%', {
       fontFamily: UI_FONT,
-      fontSize: '16px',
-      fill: '#44aadd',
+      fontSize: '18px',
+      fill: '#b8e4f0',
     }).setOrigin(0.5);
 
     // --- Rotating Tips ---
     const tipText = this.add.text(cx, cy + 70, TIPS[0], {
       fontFamily: UI_FONT,
       fontSize: '16px',
-      fill: '#666688',
+      fill: '#7a8e9c',
       fontStyle: 'italic',
     }).setOrigin(0.5);
 
@@ -139,10 +146,10 @@ export class BootScene extends Phaser.Scene {
     this.load.on('progress', (value) => {
       progressBar.clear();
       // Main fill
-      progressBar.fillStyle(0x44aadd, 1);
+      progressBar.fillStyle(0xb8e4f0, 1);
       progressBar.fillRoundedRect(barX + 2, barY + 2, (barW - 4) * value, barH - 4, 3);
       // Bright highlight on top half
-      progressBar.fillStyle(0x88ddff, 0.3);
+      progressBar.fillStyle(0xddeeff, 0.3);
       progressBar.fillRoundedRect(barX + 2, barY + 2, (barW - 4) * value, (barH - 4) / 2, 3);
 
       percentText.setText(`${Math.round(value * 100)}%`);

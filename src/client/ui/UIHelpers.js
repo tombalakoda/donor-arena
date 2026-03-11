@@ -54,7 +54,7 @@ export function createButton(scene, x, y, label, opts = {}) {
 
   const text = scene.add.text(x, y - 1, label, textStyle(token, {
     fill: COLOR.TEXT_LIGHT,
-    stroke: '#000000', strokeThickness: 2,
+    stroke: '#000000', strokeThickness: 3,
   })).setScrollFactor(0).setDepth(depth + 1).setOrigin(0.5);
 
   // Invisible hit area
@@ -380,7 +380,7 @@ export function createNinesliceButton(scene, x, y, label, opts = {}) {
     width: opts.width || 160,
     height: opts.height || 34,
     depth: opts.depth || 10,
-    fontToken: { fontSize: opts.fontSize || '13px', fontFamily: FONT.FAMILY, fontStyle: 'bold' },
+    fontToken: { fontSize: opts.fontSize || '16px', fontFamily: FONT.FAMILY, fontStyle: 'bold' },
     enabled: opts.enabled,
     onClick: opts.onClick,
     sfx: opts.sfx,

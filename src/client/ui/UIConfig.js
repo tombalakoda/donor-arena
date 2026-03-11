@@ -2,7 +2,7 @@
  * UIConfig.js — Single source of truth for ALL UI design tokens.
  * Colors, typography, spacing, slot colors, and shared constants.
  *
- * Warm wood palette — matches the Theme-Wood Ninja Adventure kit.
+ * Cool ice palette — white/ice-blue text with strokes for readability.
  */
 
 // Font defined here (NOT imported from config.js to avoid circular dependency)
@@ -10,14 +10,19 @@ const UI_FONT = "'KiwiSoda', monospace";
 
 // ─── Color Palette ───────────────────────────────────────────
 export const COLOR = {
-  // Text on wood panels (dark brown — panels are warm/light)
-  TEXT_PRIMARY:   '#3a2218',
-  TEXT_SECONDARY: '#5a3a28',
-  TEXT_DISABLED:  '#8a7e6c',
+  // Primary text (white — readable over any background with stroke)
+  TEXT_PRIMARY:   '#ffffff',
+  TEXT_SECONDARY: '#dce8ef',
+  TEXT_DISABLED:  '#7a8e9c',
 
-  // Text on dark/colored backgrounds (buttons, tinted tabs, dimmer)
+  // Warm text variants
   TEXT_LIGHT:     '#ffffff',
   TEXT_CREAM:     '#f0e6d2',
+  TEXT_ICE:       '#b8e4f0',
+
+  // Stroke colors
+  STROKE_DARK:    '#000000',
+  STROKE_BROWN:   '#2a1a0a',
 
   // Accent colors (CSS strings)
   ACCENT_GOLD:    '#ffdd44',
@@ -55,14 +60,14 @@ export const SLOT_COLOR = {
 export const FONT = {
   FAMILY: UI_FONT,
 
-  TITLE_LG: { fontSize: '28px', fontFamily: UI_FONT, fontStyle: 'bold' },
-  TITLE_SM: { fontSize: '18px', fontFamily: UI_FONT, fontStyle: 'bold' },
-  BODY:     { fontSize: '12px', fontFamily: UI_FONT },
-  BODY_BOLD:{ fontSize: '12px', fontFamily: UI_FONT, fontStyle: 'bold' },
-  SMALL:    { fontSize: '10px', fontFamily: UI_FONT },
-  TINY:     { fontSize: '9px',  fontFamily: UI_FONT, fontStyle: 'bold' },
-  NUMBER_LG:{ fontSize: '24px', fontFamily: UI_FONT, fontStyle: 'bold' },
-  DAMAGE:   { fontSize: '13px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  TITLE_LG: { fontSize: '38px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  TITLE_SM: { fontSize: '24px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  BODY:     { fontSize: '16px', fontFamily: UI_FONT },
+  BODY_BOLD:{ fontSize: '16px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  SMALL:    { fontSize: '13px', fontFamily: UI_FONT },
+  TINY:     { fontSize: '11px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  NUMBER_LG:{ fontSize: '32px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  DAMAGE:   { fontSize: '16px', fontFamily: UI_FONT, fontStyle: 'bold' },
 };
 
 // ─── Spacing ─────────────────────────────────────────────────
@@ -107,8 +112,8 @@ export const DEPTH = {
 
 // ─── Alpha Presets ───────────────────────────────────────────
 export const ALPHA = {
-  PANEL:    1.0,
-  DIMMER:   0.65,
+  PANEL:    0.85,
+  DIMMER:   0.55,
   BAR_BG:   0.6,
   LOCKED:   0.8,
   COOLDOWN: 0.7,
@@ -127,8 +132,8 @@ export function getHpTint(ratio) {
 
 /**
  * Utility: build a Phaser text style from a FONT token + overrides.
- * Default fill is TEXT_PRIMARY (dark brown — for text on wood panels).
+ * Default fill is white with black stroke for readability over any background.
  */
 export function textStyle(token, overrides = {}) {
-  return { ...token, fill: COLOR.TEXT_PRIMARY, ...overrides };
+  return { ...token, fill: COLOR.TEXT_PRIMARY, stroke: COLOR.STROKE_DARK, strokeThickness: 2, ...overrides };
 }

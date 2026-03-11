@@ -26,11 +26,11 @@ const PB = SCREEN.CY + PH / 2;
 const PAD = SPACE.MD;
 
 // Internal layout zones
-const TITLE_Y  = PT + 24;
-const TAB_Y    = PT + 56;
-const BODY_TOP = PT + 74;
-const BODY_BOT = PB - 42;
-const BOT_Y    = PB - 20;
+const TITLE_Y  = PT + 28;
+const TAB_Y    = PT + 64;
+const BODY_TOP = PT + 88;
+const BODY_BOT = PB - 46;
+const BOT_Y    = PB - 22;
 
 // Left/right column split
 const LEFT_W  = 250;
@@ -151,7 +151,7 @@ export class ShopOverlay {
 
     // Main panel — with entrance animation
     const panel = createPanel(s, SCREEN.CX, SCREEN.CY, PW, PH, {
-      depth: D + 1, alpha: 0.95,
+      depth: D + 1, alpha: 0.88,
     });
     this.chrome.push(panel);
     animateIn(s, panel, { from: 'scale', duration: 250 });
@@ -176,14 +176,14 @@ export class ShopOverlay {
     // Title text
     const title = createText(s, PL + PAD + 8, TITLE_Y, 'HÜNER DÜKKÂNI', FONT.TITLE_SM, {
       fill: COLOR.ACCENT_GOLD, depth: D + 3, originX: 0,
-      stroke: '#000000', strokeThickness: 2,
+      stroke: '#000000', strokeThickness: 3,
     });
     this.chrome.push(title);
 
     // SP count
     const sp = this.progression ? this.progression.sp : 0;
     this._spTextTitle = createText(s, PR - PAD - 80, TITLE_Y, `İlham: ${sp}`, FONT.BODY_BOLD, {
-      fill: '#1a5588', depth: D + 3, originX: 0.5,
+      fill: COLOR.TEXT_ICE, depth: D + 3, originX: 0.5,
     });
     this.chrome.push(this._spTextTitle);
 
@@ -199,7 +199,7 @@ export class ShopOverlay {
   // ═══════════════════════════════════════════════════════
   _buildTabRow() {
     const s = this.scene;
-    const tabW = 110, tabH = 22, tabGap = 6;
+    const tabW = 130, tabH = 28, tabGap = 8;
     const totalW = SLOTS.length * tabW + (SLOTS.length - 1) * tabGap;
     const startX = SCREEN.CX - totalW / 2;
 
@@ -252,7 +252,7 @@ export class ShopOverlay {
 
     const sp = this.progression ? this.progression.sp : 0;
     this._spTextBottom = createText(s, PL + PAD + 60, BOT_Y, `${sp} İlham`, FONT.BODY_BOLD, {
-      fill: '#1a5588', depth: D + 3, originX: 0.5,
+      fill: COLOR.TEXT_ICE, depth: D + 3, originX: 0.5,
     });
     this.chrome.push(this._spTextBottom);
   }
@@ -308,7 +308,7 @@ export class ShopOverlay {
 
     // Spell rows
     const listTop = headerY + 24;
-    const rowH = 36;
+    const rowH = 42;
 
     for (let i = 0; i < availableSpells.length; i++) {
       const spellId = availableSpells[i];

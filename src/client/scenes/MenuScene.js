@@ -24,9 +24,9 @@ const STRIP_W = FACE_COUNT * FACE_SIZE + (FACE_COUNT - 1) * FACE_GAP;
 
 // Vertical positions
 const TITLE_Y = 52;
-const CHAR_NAME_Y = 150;
-const CHAR_PASSIVE_Y = 172;
-const CHAR_DESC_Y = 190;
+const CHAR_NAME_Y = 130;
+const CHAR_PASSIVE_Y = 168;
+const CHAR_DESC_Y = 196;
 const CHAR_SPRITE_Y = 310;
 const ARROW_Y = 310;
 const FACE_STRIP_Y = 455;
@@ -119,17 +119,17 @@ export class MenuScene extends Phaser.Scene {
 
   _createTitle() {
     // Bigger title font for menu
-    const TITLE_FONT = { fontSize: '38px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const TITLE_FONT = { fontSize: '52px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
 
     // Shadow
-    const shadow = this.add.text(CX + 2, TITLE_Y + 2, 'ÂŞIKLAR MEYDANE', textStyle(TITLE_FONT, {
+    const shadow = this.add.text(CX + 3, TITLE_Y + 3, 'ÂŞIKLAR MEYDANE', textStyle(TITLE_FONT, {
       fill: '#000000',
     })).setDepth(16).setOrigin(0.5).setAlpha(0.3);
 
     // Main title
     const title = createText(this, CX, TITLE_Y, 'ÂŞIKLAR MEYDANE', TITLE_FONT, {
-      fill: COLOR.ACCENT_GOLD, depth: 17,
-      stroke: '#000000', strokeThickness: 5,
+      fill: '#ffffff', depth: 17,
+      stroke: '#2a1a0a', strokeThickness: 6,
     });
 
     // Gentle float
@@ -151,25 +151,25 @@ export class MenuScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════════════
 
   _createCharInfo() {
-    // Bigger fonts for character info
-    const NAME_FONT = { fontSize: '24px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
-    const PASSIVE_FONT = { fontSize: '15px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
-    const DESC_FONT = { fontSize: '13px', fontFamily: FONT.FAMILY };
+    // Character info fonts — large and readable
+    const NAME_FONT = { fontSize: '38px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const PASSIVE_FONT = { fontSize: '24px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const DESC_FONT = { fontSize: '20px', fontFamily: FONT.FAMILY };
 
     this.charNameText = createText(this, CX, CHAR_NAME_Y, '', NAME_FONT, {
-      fill: COLOR.ACCENT_GOLD, depth: 15,
-      stroke: '#000000', strokeThickness: 4,
+      fill: '#ffffff', depth: 15,
+      stroke: '#000000', strokeThickness: 5,
     });
 
     this.charPassiveText = createText(this, CX, CHAR_PASSIVE_Y, '', PASSIVE_FONT, {
-      fill: COLOR.ACCENT_INFO, depth: 15,
-      stroke: '#000000', strokeThickness: 2,
+      fill: '#b8e4f0', depth: 15,
+      stroke: '#000000', strokeThickness: 3,
     });
 
     this.charDescText = this.add.text(CX, CHAR_DESC_Y, '', textStyle(DESC_FONT, {
-      fill: COLOR.TEXT_CREAM,
+      fill: '#dce8ef',
       stroke: '#000000', strokeThickness: 2,
-      wordWrap: { width: 350 },
+      wordWrap: { width: 420 },
       align: 'center',
     })).setDepth(15).setOrigin(0.5, 0);
   }

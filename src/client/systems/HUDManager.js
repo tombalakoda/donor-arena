@@ -90,12 +90,12 @@ export class HUDManager {
     });
 
     // --- Center-top: HP bar ---
-    const barX = SCREEN.CX - 100; // left edge
+    const barX = SCREEN.CX - 120; // left edge
     const barY = 28;
-    this._hpBar = createBar(scene, barX, barY, 200, 6, {
+    this._hpBar = createBar(scene, barX, barY, 240, 6, {
       depth: DEPTH.HUD, tint: COLOR.HP_FULL, showBg: true, value: 1,
     });
-    this.hpText = createText(scene, SCREEN.CX + 108, barY, '100 Nefes', FONT.SMALL, {
+    this.hpText = createText(scene, SCREEN.CX + 128, barY, '100 Nefes', FONT.SMALL, {
       fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0.5,
     });
 
@@ -161,8 +161,8 @@ export class HUDManager {
 
   createSpellHUD() {
     const scene = this.scene;
-    const slotSize = 36;
-    const slotGap = 4;
+    const slotSize = 42;
+    const slotGap = 6;
     const totalWidth = 4 * slotSize + 3 * slotGap;
     const startX = (SCREEN.W - totalWidth) / 2;
     const slotY = SCREEN.H - 46;
@@ -194,7 +194,7 @@ export class HUDManager {
       // Key sprite hint (top-left corner)
       const keySprite = scene.add.image(x - slotSize / 2 + 8, slotY - slotSize / 2 + 8, `key-${key}`)
         .setScrollFactor(0).setDepth(DEPTH.HUD_OVERLAY)
-        .setDisplaySize(12, 12).setAlpha(0.7);
+        .setDisplaySize(14, 14).setAlpha(0.7);
 
       // Lock overlay
       const lockOverlay = scene.add.nineslice(x, slotY, 'ui-bg', null, slotSize - 2, slotSize - 2, 4, 4, 4, 4)
@@ -286,7 +286,7 @@ export class HUDManager {
 
   addKillFeed(text) {
     const scene = this.scene;
-    const y = 50 + this.killFeedTexts.length * 14;
+    const y = 50 + this.killFeedTexts.length * 18;
     const feedText = createText(scene, SCREEN.W - SPACE.MD, y, text, FONT.SMALL, {
       fill: COLOR.ACCENT_DANGER, depth: DEPTH.HUD_OVERLAY, originX: 1, originY: 0,
       stroke: '#000000', strokeThickness: 2,
@@ -297,7 +297,7 @@ export class HUDManager {
     if (this.killFeedTexts.length > 3) {
       const old = this.killFeedTexts.shift();
       old.destroy();
-      this.killFeedTexts.forEach((t, i) => t.setY(50 + i * 14));
+      this.killFeedTexts.forEach((t, i) => t.setY(50 + i * 18));
     }
 
     const timeoutId = setTimeout(() => {
@@ -307,7 +307,7 @@ export class HUDManager {
       if (idx !== -1) {
         this.killFeedTexts.splice(idx, 1);
         feedText.destroy();
-        this.killFeedTexts.forEach((t, i) => t.setY(50 + i * 14));
+        this.killFeedTexts.forEach((t, i) => t.setY(50 + i * 18));
       }
     }, 3000);
     this.killFeedTimeouts.push(timeoutId);
@@ -792,8 +792,8 @@ export class HUDManager {
 
     const scene = this.scene;
     const sorted = [...this._cachedScores].sort((a, b) => b.points - a.points);
-    const rowH = 14;
-    const panelW = 170;
+    const rowH = 18;
+    const panelW = 200;
     const panelH = 20 + sorted.length * rowH + SPACE.SM;
     const panelX = SCREEN.W - SPACE.MD;
     const panelY = 92;
@@ -816,7 +816,7 @@ export class HUDManager {
     for (let i = 0; i < sorted.length; i++) {
       const s = sorted[i];
       const isLocal = s.id === this._cachedLocalPlayerId;
-      const color = isLocal ? COLOR.ACCENT_INFO : (rankColors[i] || COLOR.TEXT_SECONDARY);
+      const color = isLocal ? COLOR.TEXT_ICE : (rankColors[i] || COLOR.TEXT_SECONDARY);
       const y = panelY + 18 + i * rowH;
       const row = createText(scene, panelX - panelW + SPACE.SM, y,
         `${i + 1}. ${s.name}  ${s.points ?? 0}p  ${s.eliminations ?? 0}k`, FONT.SMALL, {

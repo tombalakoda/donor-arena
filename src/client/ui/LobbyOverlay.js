@@ -15,8 +15,8 @@ import { createButton, createPanel, createDimmer, createSeparator, createText, a
 // ─── Constants ───────────────────────────────────────────
 const SLOT_COLOR_GOLD = 0xf0c040;
 const D = DEPTH.OVERLAY_DIM;
-const PW = 360;
-const PH = 310;
+const PW = 400;
+const PH = 340;
 const CX = SCREEN.CX;
 const CY = SCREEN.CY;
 const PT = CY - PH / 2;
@@ -124,9 +124,9 @@ export class LobbyOverlay {
     this.elements.push(titleBar);
 
     const titleLabel = this.lobbyMode ? 'BEKLEME ODASI' : 'ÂŞIKLAR BEKLENİYOR';
-    this.titleText = createText(s, CX - PW / 2 + 22, titleY, titleLabel, FONT.BODY_BOLD, {
+    this.titleText = createText(s, CX - PW / 2 + 22, titleY, titleLabel, FONT.TITLE_SM, {
       fill: COLOR.ACCENT_GOLD, depth: D + 3, originX: 0,
-      stroke: '#000000', strokeThickness: 1,
+      stroke: '#000000', strokeThickness: 3,
     });
     this.elements.push(this.titleText);
 
@@ -147,14 +147,14 @@ export class LobbyOverlay {
 
     // Player count
     this.countText = createText(s, CX + PW / 2 - 22, titleY, `0/${MATCH.MAX_PLAYERS}`, FONT.BODY_BOLD, {
-      fill: COLOR.ACCENT_INFO, depth: D + 3, originX: 1,
-      stroke: '#000000', strokeThickness: 1,
+      fill: COLOR.TEXT_ICE, depth: D + 3, originX: 1,
+      stroke: '#000000', strokeThickness: 2,
     });
     this.elements.push(this.countText);
 
     // ── Player grid (2×4) ──
-    const slotSize = 48;
-    const gap = 10;
+    const slotSize = 56;
+    const gap = 12;
     const gridCols = 4;
     const gridRows = 2;
     const gridW = gridCols * slotSize + (gridCols - 1) * gap;
@@ -188,8 +188,8 @@ export class LobbyOverlay {
         this.elements.push(placeholder);
 
         // Name text (below slot)
-        const nameText = s.add.text(sx, sy + slotSize / 2 + 7, '', textStyle(FONT.TINY, {
-          fill: COLOR.TEXT_SECONDARY,
+        const nameText = s.add.text(sx, sy + slotSize / 2 + 7, '', textStyle(FONT.SMALL, {
+          fill: COLOR.TEXT_ICE,
         })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
         this.elements.push(nameText);
 
@@ -272,7 +272,7 @@ export class LobbyOverlay {
         const isHostPlayer = this.lobbyMode && player.id === this.hostId;
 
         slot.nameText.setText(isHostPlayer ? `★${displayName}` : displayName);
-        slot.nameText.setFill(isHostPlayer ? COLOR.ACCENT_GOLD : COLOR.TEXT_PRIMARY);
+        slot.nameText.setFill(isHostPlayer ? COLOR.ACCENT_GOLD : COLOR.TEXT_ICE);
         slot.bg.setTint(0xbbbbaa);
         slot.focusHighlight.setVisible(true);
 

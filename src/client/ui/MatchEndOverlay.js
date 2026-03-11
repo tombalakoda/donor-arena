@@ -11,8 +11,8 @@ import { createButton, createPanel, createDimmer, createSeparator, createText, a
 
 // ─── Constants ───────────────────────────────────────────
 const D = DEPTH.OVERLAY_DIM;
-const PW = 420;
-const PH = 380;
+const PW = 480;
+const PH = 440;
 const CX = SCREEN.CX;
 const CY = SCREEN.CY;
 const PT = CY - PH / 2;
@@ -81,7 +81,7 @@ export class MatchEndOverlay {
     let y = PT + 26;
     const title = createText(s, CX, y, 'ATIŞMA BİTTİ', FONT.TITLE_SM, {
       fill: COLOR.ACCENT_GOLD, depth: D + 2,
-      stroke: '#000000', strokeThickness: 3,
+      stroke: '#000000', strokeThickness: 4,
     });
     this.elements.push(title);
     animateIn(s, title, { from: 'slideDown', delay: 150, duration: 250 });
@@ -106,7 +106,7 @@ export class MatchEndOverlay {
       const winnerName = winner.name || winner.id.slice(-4);
       const name = createText(s, CX, y, winnerName, FONT.TITLE_SM, {
         fill: COLOR.ACCENT_GOLD, depth: D + 3,
-        stroke: '#000000', strokeThickness: 2,
+        stroke: '#000000', strokeThickness: 3,
       });
       this.elements.push(name);
       animateIn(s, name, { from: 'slideUp', delay: 350, duration: 250 });
@@ -158,7 +158,7 @@ export class MatchEndOverlay {
     y += 8;
 
     // Data rows
-    const rowH = 20;
+    const rowH = 24;
     const maxRows = Math.min(scores ? scores.length : 0, 8);
 
     for (let i = 0; i < maxRows; i++) {
@@ -166,7 +166,7 @@ export class MatchEndOverlay {
       const ry = y + i * rowH;
       const isLocal = p.id === localPlayerId;
       const rankColor = RANK_COLORS[i] || COLOR.TEXT_SECONDARY;
-      const nameColor = isLocal ? COLOR.ACCENT_INFO : COLOR.TEXT_PRIMARY;
+      const nameColor = isLocal ? COLOR.TEXT_ICE : COLOR.TEXT_PRIMARY;
 
       // Alternating row bg
       if (i % 2 === 0) {
@@ -232,15 +232,15 @@ export class MatchEndOverlay {
     // ── Buttons ──
     const btnY = PB - 30;
 
-    const { elements: menuEls } = createButton(s, CX - 85, btnY, 'Meydan', {
-      width: 130, height: 30, depth: D + 3,
+    const { elements: menuEls } = createButton(s, CX - 95, btnY, 'Meydan', {
+      width: 145, height: 38, depth: D + 3,
       onClick: () => { this.playSfx('sfx-accept'); this.returnToMenu(); },
     });
     this.elements.push(...menuEls);
     menuEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 600, duration: 250 }));
 
-    const { elements: playEls } = createButton(s, CX + 85, btnY, 'Bir Daha', {
-      width: 130, height: 30, depth: D + 3,
+    const { elements: playEls } = createButton(s, CX + 95, btnY, 'Bir Daha', {
+      width: 145, height: 38, depth: D + 3,
       onClick: () => { this.playSfx('sfx-accept'); this.playAgain(); },
     });
     this.elements.push(...playEls);

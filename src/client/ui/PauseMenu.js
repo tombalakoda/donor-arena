@@ -70,31 +70,31 @@ export class PauseMenu {
     this.elements.push(dimmer);
 
     // Panel
-    const pw = 240;
-    const ph = 160;
+    const pw = 280;
+    const ph = 190;
     const panel = createPanel(s, CX, CY, pw, ph, { depth: D + 1 });
     this.elements.push(panel);
     animateIn(s, panel, { from: 'scale', duration: 200 });
 
     // Title
-    const title = createText(s, CX, CY - ph / 2 + 28, 'ARA', FONT.TITLE_SM, {
+    const title = createText(s, CX, CY - ph / 2 + 32, 'ARA', FONT.TITLE_SM, {
       fill: COLOR.ACCENT_GOLD, depth: D + 2,
-      stroke: '#000000', strokeThickness: 2,
+      stroke: '#000000', strokeThickness: 3,
     });
     this.elements.push(title);
     animateIn(s, title, { from: 'slideDown', delay: 80, duration: 200 });
 
     // Resume button
     const { elements: resumeEls } = createButton(s, CX, CY + 4, 'Devam', {
-      width: 170, height: 32, depth: D + 2,
+      width: 200, height: 40, depth: D + 2,
       onClick: () => { this.playSfx('sfx-accept'); this.hide(); },
     });
     this.elements.push(...resumeEls);
     resumeEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 120, duration: 200 }));
 
     // Exit button
-    const { elements: exitEls } = createButton(s, CX, CY + 46, 'Çıkış', {
-      width: 170, height: 32, depth: D + 2,
+    const { elements: exitEls } = createButton(s, CX, CY + 52, 'Çıkış', {
+      width: 200, height: 40, depth: D + 2,
       onClick: () => { this.playSfx('sfx-accept'); this.showConfirm(); },
     });
     this.elements.push(...exitEls);
@@ -115,32 +115,32 @@ export class PauseMenu {
     this.elements.push(overlay);
 
     // Confirm panel
-    const pw = 260;
-    const ph = 120;
-    const panel = createPanel(s, CX, CY, pw, ph, {
+    const cpw = 300;
+    const cph = 150;
+    const cpanel = createPanel(s, CX, CY, cpw, cph, {
       depth: CD + 1, texture: 'ui-panel-2',
     });
-    this.elements.push(panel);
-    animateIn(s, panel, { from: 'scale', duration: 200 });
+    this.elements.push(cpanel);
+    animateIn(s, cpanel, { from: 'scale', duration: 200 });
 
     // Message
-    const msg = createText(s, CX, CY - 22, 'Atışmadan ayrılacak mısın?', FONT.BODY_BOLD, {
+    const msg = createText(s, CX, CY - 26, 'Atışmadan ayrılacak mısın?', FONT.BODY_BOLD, {
       fill: COLOR.ACCENT_GOLD, depth: CD + 2,
-      stroke: '#000000', strokeThickness: 1,
+      stroke: '#000000', strokeThickness: 2,
     });
     this.elements.push(msg);
     animateIn(s, msg, { from: 'slideDown', delay: 80, duration: 200 });
 
     // Yes button
-    const { elements: yesEls } = createButton(s, CX - 65, CY + 22, 'He', {
-      width: 100, height: 30, depth: CD + 2,
+    const { elements: yesEls } = createButton(s, CX - 75, CY + 26, 'He', {
+      width: 120, height: 36, depth: CD + 2,
       onClick: () => { this.returnToMenu(); },
     });
     this.elements.push(...yesEls);
 
     // No button
-    const { elements: noEls } = createButton(s, CX + 65, CY + 22, 'Yok', {
-      width: 100, height: 30, depth: CD + 2,
+    const { elements: noEls } = createButton(s, CX + 75, CY + 26, 'Yok', {
+      width: 120, height: 36, depth: CD + 2,
       onClick: () => {
         this.playSfx('sfx-cancel');
         this.destroy();
