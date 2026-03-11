@@ -322,6 +322,10 @@ export class BootScene extends Phaser.Scene {
     // --- Custom spell icons ---
     this.load.image('icon-mani', 'assets/ui/icon-mani.png');
 
+    // --- Custom spell FX spritesheets ---
+    this.load.spritesheet('fx-shuriken', 'assets/fx/custom/Shuriken.png',
+      { frameWidth: 16, frameHeight: 16 });
+
     // --- Load Audio ---
     // Menu SFX
     this.load.audio('sfx-accept', 'assets/audio/sfx/Menu/Accept.wav');
@@ -483,6 +487,24 @@ export class BootScene extends Phaser.Scene {
           }),
           frameRate: 16,
           repeat: 0,
+        });
+      }
+    }
+
+    // Custom spell FX animations
+    const customFx = ['shuriken'];
+    for (const name of customFx) {
+      const key = `fx-${name}`;
+      const texture = this.textures.get(key);
+      if (texture && texture.frameTotal > 1) {
+        this.anims.create({
+          key: `${key}-play`,
+          frames: this.anims.generateFrameNumbers(key, {
+            start: 0,
+            end: texture.frameTotal - 2,
+          }),
+          frameRate: 10,
+          repeat: -1,
         });
       }
     }
