@@ -334,7 +334,7 @@ export const SPELLS = {
     fx: {
       sprite: 'fx-magicball',
       animKey: 'fx-magicball-play',
-      scale: 1.5,
+      scale: 0.7,
       sound: 'sfx-fireball',
       color: 0xaa44ff,
       glowColor: 0xcc88ff,
@@ -366,7 +366,7 @@ export const SPELLS = {
     fx: {
       sprite: 'fx-giybet',
       animKey: 'fx-giybet-play',
-      scale: 1.0,
+      scale: 0.5,
       sound: 'sfx-fireball',
       color: 0x88cc44,
       glowColor: 0xaaee66,
