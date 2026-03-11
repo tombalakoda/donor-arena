@@ -353,28 +353,16 @@ export class ShopOverlay {
     glow.fillEllipse(CX, CHAR_Y + 34, 70, 18);
     this.content.push(glow);
 
-    if (def && def.fx) {
-      // Animated FX sprite — the hero element
-      const fxKey = def.fx.sprite;
-      const animKey = def.fx.animKey;
-      if (fxKey && s.textures.exists(fxKey)) {
-        const fxSprite = s.add.sprite(CX, CHAR_Y, fxKey, 0)
-          .setScale(def.fx.scale ? def.fx.scale * 5.5 : 5.5)
-          .setDepth(D + 2).setScrollFactor(0);
-        if (animKey && s.anims.exists(animKey)) {
-          fxSprite.play(animKey);
-        }
-        this.content.push(fxSprite);
-        animateIn(s, fxSprite, { from: 'scale', delay: 0, duration: 300 });
+    if (def && def.fx && def.fx.sprite && s.textures.exists(def.fx.sprite)) {
+      // Animated spell sprite — the actual projectile/effect from the arena
+      const fxSprite = s.add.sprite(CX, CHAR_Y, def.fx.sprite, 0)
+        .setScale(def.fx.scale ? def.fx.scale * 5.5 : 5.5)
+        .setDepth(D + 2).setScrollFactor(0);
+      if (def.fx.animKey && s.anims.exists(def.fx.animKey)) {
+        fxSprite.play(def.fx.animKey);
       }
-    } else if (def && def.icon && s.textures.exists(def.icon)) {
-      // Fallback: static icon large
-      const icon = s.add.image(CX, CHAR_Y, def.icon)
-        .setScrollFactor(0).setDepth(D + 2);
-      const sc = 80 / Math.max(icon.width, icon.height);
-      icon.setScale(sc);
-      this.content.push(icon);
-      animateIn(s, icon, { from: 'scale', delay: 0, duration: 300 });
+      this.content.push(fxSprite);
+      animateIn(s, fxSprite, { from: 'scale', delay: 0, duration: 300 });
     } else {
       // No spell chosen — show slot letter as placeholder
       const placeholder = createText(s, CX, CHAR_Y, slot, {
