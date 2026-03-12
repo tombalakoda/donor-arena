@@ -22,19 +22,19 @@ const SLOT_NAMES = { Q: 'SÖZ', W: 'EL', E: 'DİL', R: 'BEL' };
 
 // Layout Y positions
 const TITLE_Y      = 22;
-const SP_Y         = 46;
-const TAB_Y        = 76;
-const EQUIP_Y      = 112;
+const SP_Y         = 50;
+const TAB_Y        = 82;
+const EQUIP_Y      = 118;
 const CHAR_Y       = 230;
-const STRIP_Y      = 380;
-const DETAIL_Y     = 490;
+const STRIP_Y      = 370;
+const DETAIL_Y     = 478;
 const TIMER_BAR_Y  = 708;
 
 // Card dimensions
-const CARD_W       = 78;
-const CARD_CELL    = 68;
-const CARD_ICON    = 46;
-const CARD_GAP     = 10;
+const CARD_W       = 86;
+const CARD_CELL    = 74;
+const CARD_ICON    = 50;
+const CARD_GAP     = 8;
 
 // Equipped row
 const EQ_SIZE      = 30;
@@ -207,7 +207,7 @@ export class ShopOverlay {
   // ═══════════════════════════════════════════════════════
   _buildSlotTabs() {
     const s = this.scene;
-    const tabW = 110, tabH = 32, tabGap = 10;
+    const tabW = 125, tabH = 36, tabGap = 10;
     const totalW = SLOTS.length * tabW + (SLOTS.length - 1) * tabGap;
     const startX = CX - totalW / 2;
 
@@ -477,7 +477,7 @@ export class ShopOverlay {
       }
 
       // ── Spell name below card ──
-      const nameText = s.add.text(cx, STRIP_Y + 30, def.name, textStyle(FONT.SMALL, {
+      const nameText = s.add.text(cx, STRIP_Y + 34, def.name, textStyle(FONT.SMALL, {
         fill: isChosen ? COLOR.ACCENT_GOLD : COLOR.TEXT_SECONDARY,
         fontStyle: isChosen ? 'bold' : 'normal',
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
@@ -577,7 +577,7 @@ export class ShopOverlay {
     animateIn(s, spellName, { from: 'slideUp', delay: 400, duration: 200 });
 
     // ── Description ──
-    y += 30;
+    y += 34;
     if (def.description) {
       const desc = s.add.text(CX, y, def.description, textStyle(FONT.BODY_BOLD, {
         fill: COLOR.TEXT_SECONDARY,
@@ -592,8 +592,8 @@ export class ShopOverlay {
     }
 
     // ── Tier dots ──
-    const dotSize = 16;
-    const dotGap = 7;
+    const dotSize = 18;
+    const dotGap = 8;
     const dotsW = maxTier * dotSize + (maxTier - 1) * dotGap;
     const dotStartX = CX - dotsW / 2 + dotSize / 2;
 
@@ -627,7 +627,7 @@ export class ShopOverlay {
         align: 'center',
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
       this.content.push(statLine);
-      y += 22;
+      y += 28;
     }
 
     // ── Next tier info + upgrade button ──
@@ -655,7 +655,7 @@ export class ShopOverlay {
       const cost = nextTier.cost;
       const canUpgrade = prog && prog.sp >= cost;
       const { elements: btnEls } = createButton(s, CX, y + 14, `Pişir (${cost}◆)`, {
-        width: 180, height: 36, depth: D + 4, enabled: canUpgrade,
+        width: 200, height: 40, depth: D + 4, enabled: canUpgrade,
         onClick: () => {
           this._playSfx('sfx-accept');
           if (s.network && s.network.connected) {
@@ -716,7 +716,7 @@ export class ShopOverlay {
     // Unlock button
     const canUnlock = prog && prog.sp >= SP.SLOT_UNLOCK_COST;
     const { elements: btnEls } = createButton(s, CX, lockY + 74, `Kilidi Aç (${SP.SLOT_UNLOCK_COST}◆)`, {
-      width: 200, height: 38, depth: D + 4, enabled: canUnlock,
+      width: 220, height: 42, depth: D + 4, enabled: canUnlock,
       onClick: () => {
         this._playSfx('sfx-accept');
         if (s.network && s.network.connected) {

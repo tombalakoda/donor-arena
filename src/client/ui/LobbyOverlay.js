@@ -15,8 +15,8 @@ import { createButton, createPanel, createDimmer, createSeparator, createText, c
 // ─── Constants ───────────────────────────────────────────
 const SLOT_COLOR_GOLD = 0xf0c040;
 const D = DEPTH.OVERLAY_DIM;
-const PW = 440;
-const PH = 380;
+const PW = 500;
+const PH = 420;
 const CX = SCREEN.CX;
 const CY = SCREEN.CY;
 const PT = CY - PH / 2;
@@ -119,7 +119,7 @@ export class LobbyOverlay {
 
     // ── Title bar (icy frame) ──
     const titleY = PT + 24;
-    const titleBar = createIcyFrame(s, CX, titleY, PW - 20, 34, D + 2, 0.18);
+    const titleBar = createIcyFrame(s, CX, titleY, PW - 20, 40, D + 2, 0.18);
     this.elements.push(titleBar);
 
     const titleLabel = this.lobbyMode ? 'BEKLEME ODASI' : 'ÂŞIKLAR BEKLENİYOR';
@@ -152,8 +152,8 @@ export class LobbyOverlay {
     this.elements.push(this.countText);
 
     // ── Player grid (2×4) ──
-    const slotSize = 60;
-    const gap = 12;
+    const slotSize = 66;
+    const gap = 14;
     const gridCols = 4;
     const gridRows = 2;
     const gridW = gridCols * slotSize + (gridCols - 1) * gap;
@@ -236,7 +236,7 @@ export class LobbyOverlay {
     const btnY = CY + PH / 2 - 40;
 
     const { elements } = createButton(s, CX, btnY, 'BAŞLAT', {
-      width: 170, height: 36, depth: D + 5,
+      width: 190, height: 40, depth: D + 5,
       onClick: () => {
         if (s.network) s.network.sendStartGame();
       },

@@ -65,7 +65,6 @@ export class MenuScene extends Phaser.Scene {
     this._createFaceStrip();
     this._createBottomBar();
     this._createBottomTip();
-    this._createSoundControls();
     this._createKeyboardNav();
 
     this._selectCharacter(0, true);
@@ -119,7 +118,7 @@ export class MenuScene extends Phaser.Scene {
 
   _createTitle() {
     // Bigger title font for menu
-    const TITLE_FONT = { fontSize: '60px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const TITLE_FONT = { fontSize: '68px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
 
     // Shadow
     const shadow = this.add.text(CX + 3, TITLE_Y + 3, 'ÂŞIKLAR MEYDANE', textStyle(TITLE_FONT, {
@@ -129,7 +128,7 @@ export class MenuScene extends Phaser.Scene {
     // Main title
     const title = createText(this, CX, TITLE_Y, 'ÂŞIKLAR MEYDANE', TITLE_FONT, {
       fill: '#ffffff', depth: 17,
-      stroke: '#2a1a0a', strokeThickness: 7,
+      stroke: '#2a1a0a', strokeThickness: 8,
     });
 
     // Gentle float
@@ -152,13 +151,13 @@ export class MenuScene extends Phaser.Scene {
 
   _createCharInfo() {
     // Character info fonts — large and readable
-    const NAME_FONT = { fontSize: '44px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
-    const PASSIVE_FONT = { fontSize: '28px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
-    const DESC_FONT = { fontSize: '24px', fontFamily: FONT.FAMILY };
+    const NAME_FONT = { fontSize: '50px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const PASSIVE_FONT = { fontSize: '34px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const DESC_FONT = { fontSize: '28px', fontFamily: FONT.FAMILY };
 
     this.charNameText = createText(this, CX, CHAR_NAME_Y, '', NAME_FONT, {
       fill: '#ffffff', depth: 15,
-      stroke: '#000000', strokeThickness: 6,
+      stroke: '#000000', strokeThickness: 7,
     });
 
     this.charPassiveText = createText(this, CX, CHAR_PASSIVE_Y, '', PASSIVE_FONT, {
@@ -354,7 +353,7 @@ export class MenuScene extends Phaser.Scene {
     animateIn(this, barFrame, { from: 'slideUp', delay: 430, duration: 250 });
 
     // "Mahlas:" label — pinned to left side with padding
-    const LABEL_FONT = { fontSize: '18px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const LABEL_FONT = { fontSize: '22px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
     const label = createText(this, frameL + pad, y, 'Mahlas:', LABEL_FONT, {
       fill: COLOR.TEXT_ICE, depth: 16, originX: 0,
       stroke: '#000000', strokeThickness: 3,
@@ -367,7 +366,7 @@ export class MenuScene extends Phaser.Scene {
     inputElement.value = 'Âşık';
     inputElement.maxLength = 16;
     inputElement.style.cssText = `
-      font-size: 18px; font-family: 'Alkhemikal', monospace;
+      font-size: 22px; font-family: 'Alkhemikal', monospace;
       padding: 4px 8px; width: 140px;
       background: transparent; color: #ffffff;
       border: none; outline: none; caret-color: #b8e4f0;
@@ -376,7 +375,7 @@ export class MenuScene extends Phaser.Scene {
     this.nameInput = this.add.dom(frameL + pad + 120, y, inputElement).setDepth(17);
 
     // Action buttons — pinned to right side with same padding
-    const BTN_FONT = { fontSize: '18px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const BTN_FONT = { fontSize: '22px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
     const btnW = 130, btnH = 36, btnGap = 8;
     const totalBtnsW = 3 * btnW + 2 * btnGap;
     const btnsStartX = frameR - pad - totalBtnsW + btnW / 2; // first btn center
@@ -426,76 +425,6 @@ export class MenuScene extends Phaser.Scene {
           },
         });
       },
-    });
-  }
-
-  _createSoundControls() {
-    const d = 20;
-    const sliderW = 100;
-    const sliderH = 6;
-    const baseX = SCREEN.W - sliderW - 28;
-    const musicY = 18;
-    const sfxY = 42;
-
-    // Helper: build one slider
-    const buildSlider = (x, y, label, storageKey, defaultVal, onChange) => {
-      const val = parseFloat(localStorage.getItem(storageKey) ?? String(defaultVal));
-      const lbl = createText(this, x - 6, y, label, FONT.TINY, {
-        fill: COLOR.TEXT_SECONDARY, depth: d, originX: 1, originY: 0.5,
-      });
-      this._soundElements = this._soundElements || [];
-      this._soundElements.push(lbl);
-
-      const g = this.add.graphics().setDepth(d).setScrollFactor(0);
-      this._soundElements.push(g);
-
-      // Track background
-      g.fillStyle(0x334455, 0.6);
-      g.fillRoundedRect(x, y - sliderH / 2, sliderW, sliderH, 3);
-
-      // Fill bar
-      const fill = this.add.graphics().setDepth(d + 1).setScrollFactor(0);
-      this._soundElements.push(fill);
-
-      const drawFill = (v) => {
-        fill.clear();
-        fill.fillStyle(0x88ccff, 0.8);
-        fill.fillRoundedRect(x, y - sliderH / 2, sliderW * v, sliderH, 3);
-      };
-      drawFill(val);
-
-      // Invisible drag zone
-      const zone = this.add.zone(x + sliderW / 2, y, sliderW + 20, 24)
-        .setOrigin(0.5).setDepth(d + 2).setScrollFactor(0).setInteractive({ useHandCursor: true });
-      this._soundElements.push(zone);
-
-      zone.on('pointerdown', (pointer) => {
-        const pct = Phaser.Math.Clamp((pointer.x - x) / sliderW, 0, 1);
-        localStorage.setItem(storageKey, pct.toFixed(2));
-        drawFill(pct);
-        onChange(pct);
-      });
-      zone.on('pointermove', (pointer) => {
-        if (!pointer.isDown) return;
-        const pct = Phaser.Math.Clamp((pointer.x - x) / sliderW, 0, 1);
-        localStorage.setItem(storageKey, pct.toFixed(2));
-        drawFill(pct);
-        onChange(pct);
-      });
-
-      return val;
-    };
-
-    // Music slider
-    buildSlider(baseX, musicY, 'Ezgi', 'musicVolume', 0.35, (v) => {
-      if (this.menuMusic && this.menuMusic.isPlaying) {
-        this.menuMusic.volume = v;
-      }
-    });
-
-    // SFX slider
-    buildSlider(baseX, sfxY, 'Efekt', 'sfxVolume', 0.5, (_v) => {
-      // SFX volume is read per-call via getSfxVolume(); nothing to update live
     });
   }
 

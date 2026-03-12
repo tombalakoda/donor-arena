@@ -86,15 +86,15 @@ export class HUDManager {
     this.roundText = createText(scene, SPACE.SM, SPACE.SM, 'Fasıl 0/20', FONT.BODY_BOLD, {
       fill: COLOR.ACCENT_GOLD, depth: DEPTH.HUD, originX: 0, originY: 0,
     });
-    this.timerText = createText(scene, SPACE.SM, SPACE.SM + 20, '60s', FONT.BODY, {
+    this.timerText = createText(scene, SPACE.SM, SPACE.SM + 26, '60s', FONT.BODY, {
       fill: COLOR.ACCENT_INFO, depth: DEPTH.HUD, originX: 0, originY: 0,
     });
 
     // --- Top-left: Ping & player count (below round info) ---
-    this.pingText = createText(scene, SPACE.SM, SPACE.SM + 40, 'Ping: --', FONT.SMALL, {
+    this.pingText = createText(scene, SPACE.SM, SPACE.SM + 52, 'Ping: --', FONT.SMALL, {
       fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD, originX: 0, originY: 0,
     });
-    this.playerCountText = createText(scene, SPACE.SM, SPACE.SM + 56, 'Âşıklar: 0', FONT.SMALL, {
+    this.playerCountText = createText(scene, SPACE.SM, SPACE.SM + 74, 'Âşıklar: 0', FONT.SMALL, {
       fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD, originX: 0, originY: 0,
     });
 
@@ -104,7 +104,7 @@ export class HUDManager {
     this._hpBar = createBar(scene, barX, barY, 240, 6, {
       depth: DEPTH.HUD, tint: COLOR.HP_FULL, showBg: true, value: 1,
     });
-    this.hpText = createText(scene, SCREEN.CX + 132, barY, '100 Nefes', FONT.SMALL, {
+    this.hpText = createText(scene, SCREEN.CX + 138, barY, '100 Nefes', FONT.SMALL, {
       fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0.5,
     });
     this.phaseText = createText(scene, SCREEN.CX, 40, '', FONT.SMALL, {
@@ -287,7 +287,7 @@ export class HUDManager {
 
   addKillFeed(text) {
     const scene = this.scene;
-    const y = 55 + this.killFeedTexts.length * 22;
+    const y = 75 + this.killFeedTexts.length * 28;
     const feedText = createText(scene, SCREEN.W - SPACE.MD, y, text, FONT.SMALL, {
       fill: COLOR.ACCENT_DANGER, depth: DEPTH.HUD_OVERLAY, originX: 1, originY: 0,
       stroke: '#000000', strokeThickness: 2,
@@ -298,7 +298,7 @@ export class HUDManager {
     if (this.killFeedTexts.length > 3) {
       const old = this.killFeedTexts.shift();
       old.destroy();
-      this.killFeedTexts.forEach((t, i) => t.setY(55 + i * 22));
+      this.killFeedTexts.forEach((t, i) => t.setY(75 + i * 28));
     }
 
     const timeoutId = setTimeout(() => {
@@ -308,7 +308,7 @@ export class HUDManager {
       if (idx !== -1) {
         this.killFeedTexts.splice(idx, 1);
         feedText.destroy();
-        this.killFeedTexts.forEach((t, i) => t.setY(55 + i * 22));
+        this.killFeedTexts.forEach((t, i) => t.setY(75 + i * 28));
       }
     }, 3000);
     this.killFeedTimeouts.push(timeoutId);
@@ -801,8 +801,8 @@ export class HUDManager {
 
     const scene = this.scene;
     const sorted = [...this._cachedScores].sort((a, b) => b.points - a.points);
-    const rowH = 22;
-    const panelW = 230;
+    const rowH = 28;
+    const panelW = 260;
     const panelH = 20 + sorted.length * rowH + SPACE.SM;
     const panelX = SCREEN.W - SPACE.MD;
     const panelY = 92;
@@ -851,14 +851,14 @@ export class HUDManager {
     if (!playerName) return;
 
     const scene = this.scene;
-    const nameText = createText(scene, SCREEN.CX, SCREEN.H - 114,
+    const nameText = createText(scene, SCREEN.CX, SCREEN.H - 122,
       `İzleniyor: ${playerName}`, FONT.BODY_BOLD, {
         fill: '#ffffff', depth: DEPTH.OVERLAY_TOP, originX: 0.5, originY: 0.5,
         stroke: '#000000', strokeThickness: 2,
       });
     this._spectateElements.push(nameText);
 
-    const hint = createText(scene, SCREEN.CX, SCREEN.H - 88,
+    const hint = createText(scene, SCREEN.CX, SCREEN.H - 94,
       'Tıkla veya ← → ile değiştir', FONT.SMALL, {
         fill: COLOR.TEXT_SECONDARY, depth: DEPTH.OVERLAY_TOP, originX: 0.5, originY: 0.5,
       });

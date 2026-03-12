@@ -60,14 +60,14 @@ export const SLOT_COLOR = {
 export const FONT = {
   FAMILY: UI_FONT,
 
-  TITLE_LG: { fontSize: '46px', fontFamily: UI_FONT, fontStyle: 'bold' },
-  TITLE_SM: { fontSize: '30px', fontFamily: UI_FONT, fontStyle: 'bold' },
-  BODY:     { fontSize: '20px', fontFamily: UI_FONT },
-  BODY_BOLD:{ fontSize: '20px', fontFamily: UI_FONT, fontStyle: 'bold' },
-  SMALL:    { fontSize: '18px', fontFamily: UI_FONT },
-  TINY:     { fontSize: '16px', fontFamily: UI_FONT, fontStyle: 'bold' },
-  NUMBER_LG:{ fontSize: '40px', fontFamily: UI_FONT, fontStyle: 'bold' },
-  DAMAGE:   { fontSize: '20px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  TITLE_LG: { fontSize: '54px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  TITLE_SM: { fontSize: '36px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  BODY:     { fontSize: '24px', fontFamily: UI_FONT },
+  BODY_BOLD:{ fontSize: '24px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  SMALL:    { fontSize: '22px', fontFamily: UI_FONT },
+  TINY:     { fontSize: '20px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  NUMBER_LG:{ fontSize: '48px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  DAMAGE:   { fontSize: '24px', fontFamily: UI_FONT, fontStyle: 'bold' },
 };
 
 // ─── Spacing ─────────────────────────────────────────────────
@@ -135,5 +135,5 @@ export function getHpTint(ratio) {
  * Default fill is white with black stroke for readability over any background.
  */
 export function textStyle(token, overrides = {}) {
-  return { ...token, fill: COLOR.TEXT_PRIMARY, stroke: COLOR.STROKE_DARK, strokeThickness: 3, ...overrides };
+  return { ...token, fill: COLOR.TEXT_PRIMARY, stroke: COLOR.STROKE_DARK, strokeThickness: 4, ...overrides };
 }
