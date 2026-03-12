@@ -397,8 +397,8 @@ export const SPELLS = {
     type: SPELL_TYPES.BARREL,
     slot: 'R',
     fx: {
-      sprite: 'fx-canonball',
-      animKey: 'fx-canonball-play',
+      sprite: 'fx-canonball-bade',
+      animKey: 'fx-canonball-bade-play',
       scale: 2.5,
       sound: 'sfx-fireball',
       color: 0x885522,
