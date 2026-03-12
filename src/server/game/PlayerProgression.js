@@ -132,6 +132,12 @@ export class PlayerProgression {
     if (!this.canChooseSpell(slot, spellId)) return false;
 
     const spellState = this.spells[slot];
+
+    // Same spell already chosen — no-op (don't reset tier)
+    if (spellState.chosenSpell === spellId && !spellState.autoEquipped) {
+      return false;
+    }
+
     const isSwitch = spellState.chosenSpell !== null && !spellState.autoEquipped;
 
     if (!isSwitch) {
@@ -144,9 +150,11 @@ export class PlayerProgression {
       spellState.autoEquipped = false;
     }
 
-    // Set the chosen spell and reset tier (switching loses progress)
+    // Set the chosen spell — reset tier only when switching to a different spell
     spellState.chosenSpell = spellId;
-    spellState.tier = 0;
+    if (isSwitch) {
+      spellState.tier = 0;
+    }
     return true;
   }
 

@@ -100,6 +100,7 @@ export class ShopOverlay {
     this.activeSlot = 'Q';
     this.chrome = [];    // persistent: dimmer, top bar, tabs, character, timer bar
     this.content = [];   // rebuilt on tab switch / progression update
+    this.previewSpellId = null;  // spell being previewed (not yet committed)
     this._timerText = null;
     this._spText = null;
     this._timerBar = null;
@@ -126,6 +127,7 @@ export class ShopOverlay {
 
   updateProgression(progression) {
     this.progression = progression;
+    this.previewSpellId = null;  // clear preview when server confirms
     if (this.visible) {
       this._destroyContent();
       this._buildContent();
@@ -244,6 +246,7 @@ export class ShopOverlay {
         if (this.activeSlot !== slot) {
           this._playSfx('sfx-move');
           this.activeSlot = slot;
+          this.previewSpellId = null;  // clear preview on tab switch
           this._rebuildAll();
         }
       });
@@ -440,16 +443,18 @@ export class ShopOverlay {
 
       const cx = startX + i * (CARD_W + CARD_GAP);
       const isChosen = chosenSpellId === spellId;
+      const isPreviewing = this.previewSpellId === spellId && !isChosen;
       const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
 
-      // ── Gold selection border (chosen spell) ──
-      if (isChosen) {
+      // ── Selection/preview border ──
+      if (isChosen || isPreviewing) {
+        const borderTint = isChosen ? COLOR.TINT_GOLD : COLOR.TINT_INFO;
         const selBorder = s.add.nineslice(cx, STRIP_Y - 6, 'ui-focus', null,
           CARD_CELL + 8, CARD_CELL + 8, 2, 2, 2, 2)
-          .setTint(COLOR.TINT_GOLD).setScrollFactor(0).setDepth(D + 2);
+          .setTint(borderTint).setScrollFactor(0).setDepth(D + 2);
         this.content.push(selBorder);
 
-        // Pulsing alpha on selection border
+        // Pulsing alpha on border
         s.tweens.add({
           targets: selBorder,
           alpha: { from: 0.6, to: 1 },
@@ -478,8 +483,8 @@ export class ShopOverlay {
 
       // ── Spell name below card ──
       const nameText = s.add.text(cx, STRIP_Y + 34, def.name, textStyle(FONT.SMALL, {
-        fill: isChosen ? COLOR.ACCENT_GOLD : COLOR.TEXT_SECONDARY,
-        fontStyle: isChosen ? 'bold' : 'normal',
+        fill: isChosen ? COLOR.ACCENT_GOLD : (isPreviewing ? COLOR.ACCENT_INFO : COLOR.TEXT_SECONDARY),
+        fontStyle: (isChosen || isPreviewing) ? 'bold' : 'normal',
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
       this.content.push(nameText);
 
@@ -507,17 +512,17 @@ export class ShopOverlay {
           nameText.setFill(COLOR.TEXT_PRIMARY);
         });
         hit.on('pointerout', () => {
-          cell.clearTint();
+          if (!isPreviewing) cell.clearTint();
           s.tweens.add({ targets: cell, scaleX: 1, scaleY: 1, duration: 100 });
-          nameText.setFill(COLOR.TEXT_SECONDARY);
+          if (!isPreviewing) nameText.setFill(COLOR.TEXT_SECONDARY);
         });
         hit.on('pointerdown', () => {
-          this._playSfx('sfx-accept');
-          if (s.network && s.network.connected) {
-            s.network.sendShopChooseSpell(slot, spellId);
-          }
+          this._playSfx('sfx-move');
+          this.previewSpellId = spellId;
+          this._destroyContent();
+          this._buildContent();
         });
-      } else if (isChosen) {
+      } else if (isChosen || isPreviewing) {
         hit.on('pointerover', () => {
           cell.setTint(COLOR.TINT_HOVER);
         });
@@ -542,9 +547,16 @@ export class ShopOverlay {
     const spellState = prog ? prog.spells[slot] : null;
     const chosenSpellId = spellState ? spellState.chosenSpell : null;
     const currentTier = spellState ? spellState.tier : 0;
+    const isAutoEquipped = spellState ? spellState.autoEquipped : false;
+    const isFirstChoice = chosenSpellId === null || isAutoEquipped;
 
-    // No spell chosen — show prompt
-    if (!chosenSpellId) {
+    // Determine which spell to display in detail zone
+    const previewId = this.previewSpellId;
+    const isPreviewingDifferent = previewId && previewId !== chosenSpellId;
+    const displaySpellId = isPreviewingDifferent ? previewId : chosenSpellId;
+
+    // No spell chosen and nothing previewed — show prompt
+    if (!displaySpellId) {
       const prompt = createText(s, CX, DETAIL_Y, 'Bir hüner seç', FONT.TITLE_SM, {
         fill: COLOR.TEXT_DISABLED, depth: D + 3,
         stroke: '#000000', strokeThickness: 3,
@@ -560,17 +572,20 @@ export class ShopOverlay {
       return;
     }
 
-    const def = SPELLS[chosenSpellId];
-    const tree = SKILL_TREES[chosenSpellId];
+    const def = SPELLS[displaySpellId];
+    const tree = SKILL_TREES[displaySpellId];
     if (!def || !tree) return;
 
-    const stats = computeSpellStats(chosenSpellId, currentTier);
-    const maxTier = getMaxTier(chosenSpellId);
+    // For preview: show base stats (tier 0). For chosen: show current tier stats.
+    const displayTier = isPreviewingDifferent ? 0 : currentTier;
+    const stats = computeSpellStats(displaySpellId, displayTier);
+    const maxTier = getMaxTier(displaySpellId);
     let y = DETAIL_Y;
 
-    // ── Spell name (slot color) ──
+    // ── Spell name (slot color for chosen, info color for preview) ──
+    const nameColor = isPreviewingDifferent ? COLOR.ACCENT_INFO : SLOT_COLOR[slot].hex;
     const spellName = createText(s, CX, y, def.name, FONT.TITLE_SM, {
-      fill: SLOT_COLOR[slot].hex, depth: D + 3,
+      fill: nameColor, depth: D + 3,
       stroke: '#000000', strokeThickness: 3,
     });
     this.content.push(spellName);
@@ -591,6 +606,46 @@ export class ShopOverlay {
       y += 4;
     }
 
+    // ── Key stats (compact, horizontal) ──
+    const visibleStats = STAT_DEFS.filter(sd => stats[sd.key] != null && stats[sd.key] !== 0);
+    if (visibleStats.length > 0) {
+      const statParts = visibleStats.slice(0, 5).map(sd => `${sd.label}: ${sd.fmt(stats[sd.key])}`);
+      const statLine = s.add.text(CX, y, statParts.join('   '), textStyle(FONT.SMALL, {
+        fill: COLOR.TEXT_SECONDARY,
+        align: 'center',
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
+      this.content.push(statLine);
+      y += 28;
+    }
+
+    // ═══ PREVIEW MODE: show "Choose" button ═══
+    if (isPreviewingDifferent) {
+      const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
+      const costLabel = isFirstChoice ? ` (${SP.SPELL_CHOICE_COST}◆)` : '';
+      const warnLabel = (!isFirstChoice && currentTier > 0) ? '  ⚠ pâye sıfırlanır' : '';
+      const { elements: chooseBtnEls } = createButton(s, CX, y + 14, `Seç${costLabel}`, {
+        width: 200, height: 40, depth: D + 4, enabled: canAfford,
+        onClick: () => {
+          this._playSfx('sfx-accept');
+          if (s.network && s.network.connected) {
+            s.network.sendShopChooseSpell(slot, previewId);
+          }
+        },
+      });
+      this.content.push(...chooseBtnEls);
+      chooseBtnEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 450, duration: 200 }));
+
+      // Warning that switching resets tier
+      if (warnLabel) {
+        const warn = createText(s, CX, y + 42, warnLabel, FONT.SMALL, {
+          fill: COLOR.ACCENT_DANGER, depth: D + 3,
+        });
+        this.content.push(warn);
+      }
+      return;
+    }
+
+    // ═══ CHOSEN MODE: show tier dots + upgrade ═══
     // ── Tier dots ──
     const dotSize = 18;
     const dotGap = 8;
@@ -617,18 +672,6 @@ export class ShopOverlay {
     }
 
     y += dotSize + 10;
-
-    // ── Key stats (compact, horizontal) ──
-    const visibleStats = STAT_DEFS.filter(sd => stats[sd.key] != null && stats[sd.key] !== 0);
-    if (visibleStats.length > 0) {
-      const statParts = visibleStats.slice(0, 5).map(sd => `${sd.label}: ${sd.fmt(stats[sd.key])}`);
-      const statLine = s.add.text(CX, y, statParts.join('   '), textStyle(FONT.SMALL, {
-        fill: COLOR.TEXT_SECONDARY,
-        align: 'center',
-      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
-      this.content.push(statLine);
-      y += 28;
-    }
 
     // ── Next tier info + upgrade button ──
     const nextTier = getNextTierInfo(chosenSpellId, currentTier);
