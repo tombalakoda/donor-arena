@@ -20,9 +20,9 @@ export const SPELL_TYPES = {
 // Which spells are available in each slot
 export const SLOT_SPELLS = {
   Q: ['fireball-focus', 'fireball-speed', 'fireball-power'],
-  W: ['blink', 'dash', 'flash', 'ghost', 'swap', 'timeshift'],
+  W: ['blink', 'dash', 'flash', 'ghost', 'swap', 'timeshift', 'grappling'],
   E: ['frostbolt', 'blizzard', 'icewall', 'bouncer', 'shield'],
-  R: ['hook', 'grappling', 'lightning', 'homing', 'meteor', 'rocketswarm', 'boomerang'],
+  R: ['hook', 'lightning', 'homing', 'meteor', 'rocketswarm', 'boomerang'],
 };
 
 // Reverse map: spell ID → slot
@@ -299,7 +299,7 @@ export const SPELLS = {
     name: 'Sallama',
     description: 'Bir noktaya tutun, kendini çek, yoldakilere çarp.',
     type: SPELL_TYPES.HOOK,
-    slot: 'R',
+    slot: 'W',
     fx: {
       sprite: 'fx-kunai',
       scale: 1.8,
@@ -307,7 +307,7 @@ export const SPELLS = {
       color: 0x666688,
       chainColor: 0x888888,
     },
-    icon: 'spell-Alchemy',
+    icon: 'icon-sallama',
   },
   'lightning': {
     id: 'lightning',
