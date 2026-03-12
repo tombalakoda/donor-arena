@@ -529,6 +529,16 @@ export class ShopOverlay {
         hit.on('pointerout', () => {
           cell.clearTint();
         });
+        if (isChosen) {
+          hit.on('pointerdown', () => {
+            if (this.previewSpellId) {
+              this._playSfx('sfx-move');
+              this.previewSpellId = null;
+              this._destroyContent();
+              this._buildContent();
+            }
+          });
+        }
       }
 
       // Entrance animation — staggered

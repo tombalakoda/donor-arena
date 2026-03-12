@@ -344,6 +344,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('icon-nazar', 'assets/ui/icon-nazar.png');
     this.load.image('icon-segirtme', 'assets/ui/icon-segirtme.png');
     this.load.image('icon-sitem', 'assets/ui/icon-sitem.png');
+    this.load.image('icon-uzunhava', 'assets/ui/icon-uzunhava.png');
 
     // --- Custom spell FX spritesheets ---
     this.load.spritesheet('fx-shuriken', 'assets/fx/custom/Shuriken.png',
@@ -363,6 +364,8 @@ export class BootScene extends Phaser.Scene {
       { frameWidth: 25, frameHeight: 30 });
     this.load.spritesheet('fx-giybet', 'assets/fx/custom/giybet.png',
       { frameWidth: 32, frameHeight: 32 });
+    this.load.spritesheet('fx-puf', 'assets/fx/custom/puf.png',
+      { frameWidth: 40, frameHeight: 40 });
 
     // --- Load Audio ---
     // Menu SFX
@@ -539,7 +542,7 @@ export class BootScene extends Phaser.Scene {
     }
 
     // Custom spell FX animations
-    const customFx = ['shuriken', 'fireball-display', 'canonball', 'canonball-bade', 'swap-poof', 'shuriken-magic', 'magicball', 'giybet'];
+    const customFx = ['shuriken', 'fireball-display', 'canonball', 'canonball-bade', 'swap-poof', 'shuriken-magic', 'magicball', 'giybet', 'puf'];
     for (const name of customFx) {
       const key = `fx-${name}`;
       const texture = this.textures.get(key);

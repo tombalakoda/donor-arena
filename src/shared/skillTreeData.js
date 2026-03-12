@@ -35,7 +35,7 @@ export const SKILL_TREES = {
       cooldown: 1800,             // machinegun: fast fire rate
       speed: 8,
       range: 250,                 // machinegun: short range
-      radius: 7,
+      radius: 2,                  // small rapid-fire projectile
       lifetime: 1300,             // proportional to range
       piercing: false,
     },
