@@ -207,7 +207,7 @@ export class ShopOverlay {
   // ═══════════════════════════════════════════════════════
   _buildSlotTabs() {
     const s = this.scene;
-    const tabW = 100, tabH = 28, tabGap = 10;
+    const tabW = 110, tabH = 32, tabGap = 10;
     const totalW = SLOTS.length * tabW + (SLOTS.length - 1) * tabGap;
     const startX = CX - totalW / 2;
 
@@ -374,7 +374,7 @@ export class ShopOverlay {
     } else {
       // No spell chosen — show slot letter as placeholder
       const placeholder = createText(s, CX, CHAR_Y, slot, {
-        fontSize: '64px', fontFamily: FONT.FAMILY, fontStyle: 'bold',
+        fontSize: '72px', fontFamily: FONT.FAMILY, fontStyle: 'bold',
       }, {
         fill: slotColor.hex, depth: D + 2,
         stroke: '#000000', strokeThickness: 4,
@@ -592,8 +592,8 @@ export class ShopOverlay {
     }
 
     // ── Tier dots ──
-    const dotSize = 14;
-    const dotGap = 6;
+    const dotSize = 16;
+    const dotGap = 7;
     const dotsW = maxTier * dotSize + (maxTier - 1) * dotGap;
     const dotStartX = CX - dotsW / 2 + dotSize / 2;
 
@@ -655,7 +655,7 @@ export class ShopOverlay {
       const cost = nextTier.cost;
       const canUpgrade = prog && prog.sp >= cost;
       const { elements: btnEls } = createButton(s, CX, y + 14, `Pişir (${cost}◆)`, {
-        width: 160, height: 32, depth: D + 4, enabled: canUpgrade,
+        width: 180, height: 36, depth: D + 4, enabled: canUpgrade,
         onClick: () => {
           this._playSfx('sfx-accept');
           if (s.network && s.network.connected) {
@@ -716,7 +716,7 @@ export class ShopOverlay {
     // Unlock button
     const canUnlock = prog && prog.sp >= SP.SLOT_UNLOCK_COST;
     const { elements: btnEls } = createButton(s, CX, lockY + 74, `Kilidi Aç (${SP.SLOT_UNLOCK_COST}◆)`, {
-      width: 180, height: 34, depth: D + 4, enabled: canUnlock,
+      width: 200, height: 38, depth: D + 4, enabled: canUnlock,
       onClick: () => {
         this._playSfx('sfx-accept');
         if (s.network && s.network.connected) {

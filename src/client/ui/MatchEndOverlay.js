@@ -12,8 +12,8 @@ import { getSfxVolume } from '../config.js';
 
 // ─── Constants ───────────────────────────────────────────
 const D = DEPTH.OVERLAY_DIM;
-const PW = 480;
-const PH = 440;
+const PW = 540;
+const PH = 500;
 const CX = SCREEN.CX;
 const CY = SCREEN.CY;
 const PT = CY - PH / 2;
@@ -97,7 +97,7 @@ export class MatchEndOverlay {
       const faceKey = `${winnerCharId}-face`;
       if (s.textures.exists(faceKey)) {
         const face = s.add.image(CX, y + 4, faceKey)
-          .setScale(2.0).setScrollFactor(0).setDepth(D + 3);
+          .setScale(2.2).setScrollFactor(0).setDepth(D + 3);
         this.elements.push(face);
         animateIn(s, face, { from: 'scale', delay: 250, duration: 300 });
       }
@@ -134,12 +134,12 @@ export class MatchEndOverlay {
     y += 14;
 
     // Column positions
-    const rankX = PL + 26;
-    const faceX = PL + 52;
-    const nameX = PL + 82;
-    const ptsX  = PL + 270;
-    const elimX = PL + 325;
-    const winsX = PL + 380;
+    const rankX = PL + 28;
+    const faceX = PL + 58;
+    const nameX = PL + 92;
+    const ptsX  = PL + 310;
+    const elimX = PL + 375;
+    const winsX = PL + 440;
 
     // Header row
     const hdrStyle = textStyle(FONT.TINY, { fill: COLOR.TEXT_SECONDARY });
@@ -159,7 +159,7 @@ export class MatchEndOverlay {
     y += 8;
 
     // Data rows
-    const rowH = 24;
+    const rowH = 28;
     const maxRows = Math.min(scores ? scores.length : 0, 8);
 
     for (let i = 0; i < maxRows; i++) {
@@ -234,15 +234,15 @@ export class MatchEndOverlay {
     // ── Buttons ──
     const btnY = PB - 30;
 
-    const { elements: menuEls } = createButton(s, CX - 95, btnY, 'Meydan', {
-      width: 145, height: 38, depth: D + 3,
+    const { elements: menuEls } = createButton(s, CX - 105, btnY, 'Meydan', {
+      width: 160, height: 42, depth: D + 3,
       onClick: () => { this.playSfx('sfx-accept'); this.returnToMenu(); },
     });
     this.elements.push(...menuEls);
     menuEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 600, duration: 250 }));
 
-    const { elements: playEls } = createButton(s, CX + 95, btnY, 'Bir Daha', {
-      width: 145, height: 38, depth: D + 3,
+    const { elements: playEls } = createButton(s, CX + 105, btnY, 'Bir Daha', {
+      width: 160, height: 42, depth: D + 3,
       onClick: () => { this.playSfx('sfx-accept'); this.playAgain(); },
     });
     this.elements.push(...playEls);

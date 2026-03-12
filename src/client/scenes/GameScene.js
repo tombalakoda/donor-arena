@@ -643,7 +643,7 @@ export class GameScene extends Phaser.Scene {
     const isDummy = playerId.startsWith('dummy-');
     const displayName = isDummy ? 'Kukla' : (playerName || playerId.slice(-4));
     const nameLabel = this.add.text(x, y - 30, displayName, {
-      fontSize: '12px',
+      fontSize: '14px',
       fontFamily: UI_FONT,
       fill: isDummy ? '#ff8866' : '#aaaaaa',
       align: 'center',

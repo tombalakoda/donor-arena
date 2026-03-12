@@ -119,7 +119,7 @@ export class MenuScene extends Phaser.Scene {
 
   _createTitle() {
     // Bigger title font for menu
-    const TITLE_FONT = { fontSize: '52px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const TITLE_FONT = { fontSize: '60px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
 
     // Shadow
     const shadow = this.add.text(CX + 3, TITLE_Y + 3, 'ÂŞIKLAR MEYDANE', textStyle(TITLE_FONT, {
@@ -129,7 +129,7 @@ export class MenuScene extends Phaser.Scene {
     // Main title
     const title = createText(this, CX, TITLE_Y, 'ÂŞIKLAR MEYDANE', TITLE_FONT, {
       fill: '#ffffff', depth: 17,
-      stroke: '#2a1a0a', strokeThickness: 6,
+      stroke: '#2a1a0a', strokeThickness: 7,
     });
 
     // Gentle float
@@ -152,13 +152,13 @@ export class MenuScene extends Phaser.Scene {
 
   _createCharInfo() {
     // Character info fonts — large and readable
-    const NAME_FONT = { fontSize: '38px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
-    const PASSIVE_FONT = { fontSize: '24px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
-    const DESC_FONT = { fontSize: '20px', fontFamily: FONT.FAMILY };
+    const NAME_FONT = { fontSize: '44px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const PASSIVE_FONT = { fontSize: '28px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const DESC_FONT = { fontSize: '24px', fontFamily: FONT.FAMILY };
 
     this.charNameText = createText(this, CX, CHAR_NAME_Y, '', NAME_FONT, {
       fill: '#ffffff', depth: 15,
-      stroke: '#000000', strokeThickness: 5,
+      stroke: '#000000', strokeThickness: 6,
     });
 
     this.charPassiveText = createText(this, CX, CHAR_PASSIVE_Y, '', PASSIVE_FONT, {
@@ -354,7 +354,7 @@ export class MenuScene extends Phaser.Scene {
     animateIn(this, barFrame, { from: 'slideUp', delay: 430, duration: 250 });
 
     // "Mahlas:" label — pinned to left side with padding
-    const LABEL_FONT = { fontSize: '14px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const LABEL_FONT = { fontSize: '18px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
     const label = createText(this, frameL + pad, y, 'Mahlas:', LABEL_FONT, {
       fill: COLOR.TEXT_ICE, depth: 16, originX: 0,
       stroke: '#000000', strokeThickness: 3,
@@ -367,7 +367,7 @@ export class MenuScene extends Phaser.Scene {
     inputElement.value = 'Âşık';
     inputElement.maxLength = 16;
     inputElement.style.cssText = `
-      font-size: 16px; font-family: 'Alkhemikal', monospace;
+      font-size: 18px; font-family: 'Alkhemikal', monospace;
       padding: 4px 8px; width: 140px;
       background: transparent; color: #ffffff;
       border: none; outline: none; caret-color: #b8e4f0;
@@ -376,7 +376,7 @@ export class MenuScene extends Phaser.Scene {
     this.nameInput = this.add.dom(frameL + pad + 120, y, inputElement).setDepth(17);
 
     // Action buttons — pinned to right side with same padding
-    const BTN_FONT = { fontSize: '15px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
+    const BTN_FONT = { fontSize: '18px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
     const btnW = 130, btnH = 36, btnGap = 8;
     const totalBtnsW = 3 * btnW + 2 * btnGap;
     const btnsStartX = frameR - pad - totalBtnsW + btnW / 2; // first btn center
