@@ -4,10 +4,11 @@ import { PLAYER } from '../../../shared/constants.js';
 // Speed curve multipliers (applied to base spell.speed)
 const OUTBOUND_MAX_SPEED_MULT = 1.8;   // throw: fast start
 const OUTBOUND_MIN_SPEED_MULT = 0.15;  // apex: near-zero pause
-const RETURN_MIN_SPEED_MULT = 0.5;     // just after apex: already moving
-const RETURN_MAX_SPEED_MULT = 2.2;     // arriving back: fast
-const OVERSHOOT_MAX_SPEED_MULT = 3.5;  // overshoot: keeps accelerating past caster
+const RETURN_MIN_SPEED_MULT = 0.8;     // just after apex: already moving
+const RETURN_MAX_SPEED_MULT = 3.0;     // arriving back: fast
+const OVERSHOOT_MAX_SPEED_MULT = 4.5;  // overshoot: keeps accelerating past caster
 const HIT_DEFLECT_BLEND = 0.45;        // how much velocity deflects on hit (0=none, 1=full bounce)
+const HIT_SPEED_DECAY = 0.6;           // each hit reduces speed to 60% (first hit strong, subsequent weaker)
 
 export const boomerangHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY) {
@@ -156,9 +157,11 @@ export const boomerangHandler = {
       const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
 
       if (pDist < spell.radius + PLAYER.RADIUS) {
-        // KB scales with distance traveled
-        const distRatio = spell.maxDist / (spell.range || 70);
-        const scaledKb = spell.knockbackForce + (spell.maxKnockbackForce - spell.knockbackForce) * Math.min(1, distRatio);
+        // KB scales with current speed — faster = harder hit
+        const curSpd = Math.sqrt(spell.vx * spell.vx + spell.vy * spell.vy) || 1;
+        const maxPossibleSpeed = spell.speed * OVERSHOOT_MAX_SPEED_MULT;
+        const speedRatio = Math.min(1, curSpd / maxPossibleSpeed);
+        const scaledKb = spell.knockbackForce + (spell.maxKnockbackForce - spell.knockbackForce) * speedRatio;
 
         const nx = pDist > 0 ? pdx / pDist : 0;
         const ny = pDist > 0 ? pdy / pDist : 1;
@@ -172,8 +175,7 @@ export const boomerangHandler = {
         ctx.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.damage, spellId: spell.type });
         spell.hitIds.push(playerId);
 
-        // Deflect velocity on hit — bounce away from player
-        const curSpd = Math.sqrt(spell.vx * spell.vx + spell.vy * spell.vy) || 1;
+        // Deflect velocity on hit — bounce away from player (reuse curSpd from KB calc above)
         const dirX = spell.vx / curSpd;
         const dirY = spell.vy / curSpd;
         const bounceX = -nx; // away from player
@@ -181,8 +183,9 @@ export const boomerangHandler = {
         const blendX = dirX * (1 - HIT_DEFLECT_BLEND) + bounceX * HIT_DEFLECT_BLEND;
         const blendY = dirY * (1 - HIT_DEFLECT_BLEND) + bounceY * HIT_DEFLECT_BLEND;
         const blendLen = Math.sqrt(blendX * blendX + blendY * blendY) || 1;
-        spell.vx = (blendX / blendLen) * curSpd;
-        spell.vy = (blendY / blendLen) * curSpd;
+        const reducedSpeed = curSpd * HIT_SPEED_DECAY;
+        spell.vx = (blendX / blendLen) * reducedSpeed;
+        spell.vy = (blendY / blendLen) * reducedSpeed;
 
         // Deflect acts as the turning point — enter overshoot (coast & fade)
         spell.returning = true;

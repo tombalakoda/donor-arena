@@ -26,6 +26,8 @@ export class ServerSpell {
     this.cooldowns = new Map(); // playerId -> { spellId: remainingMs }
     this.statusEffects = new Map(); // playerId -> { slow, root, stun, shield, intangible, speedBoost }
     this.pendingHits = [];
+    this.pendingCasts = [];      // Deferred casts (channeled spells)
+    this._deferredResults = [];  // Spells spawned from completed channels
     this.chargeTracking = new Map();
     // Recall (Time Shift): position history ring buffers
     // Map: playerId -> Array of { x, y, tick }
@@ -178,6 +180,17 @@ export class ServerSpell {
     const handler = handlers[effectiveType];
     if (!handler) return null;
 
+    // Channeled spell: defer execution, root caster during windup
+    if (stats.castTime && stats.castTime > 0) {
+      this.applyStatusEffect(playerId, 'root', { until: Date.now() + stats.castTime });
+      this.pendingCasts.push({
+        playerId, spellId, stats, targetX, targetY,
+        originX, originY, effectiveType,
+        executeAt: Date.now() + stats.castTime,
+      });
+      return { channeling: true, playerId, spellId, duration: stats.castTime };
+    }
+
     const ctx = this._buildContext();
 
     // Route to handler — each handler has its own spawn signature
@@ -322,6 +335,42 @@ export class ServerSpell {
         delete effects.shield;
       }
     }
+
+    // --- Process deferred (channeled) casts ---
+    this.pendingCasts = this.pendingCasts.filter(pc => {
+      if (now >= pc.executeAt) {
+        // Channel complete — fire the spell using current position
+        const playerBody = this.physics.playerBodies.get(pc.playerId);
+        if (playerBody && !this.isEliminated(pc.playerId)) {
+          const castCtx = this._buildContext(now, deltaMs);
+          const originX = playerBody.position.x;
+          const originY = playerBody.position.y;
+          const h = handlers[pc.effectiveType];
+          if (h) {
+            let spell;
+            switch (pc.effectiveType) {
+              case SPELL_TYPES.ZONE:
+                spell = h.spawn(castCtx, pc.playerId, pc.spellId, pc.stats, pc.targetX, pc.targetY, originX, originY);
+                break;
+              case SPELL_TYPES.INSTANT:
+              case SPELL_TYPES.BUFF:
+              case SPELL_TYPES.RECALL:
+                spell = h.spawn(castCtx, pc.playerId, pc.spellId, pc.stats, originX, originY);
+                break;
+              default:
+                spell = h.spawn(castCtx, pc.playerId, pc.spellId, pc.stats, originX, originY, pc.targetX, pc.targetY);
+                break;
+            }
+            if (spell) {
+              const spells = Array.isArray(spell) ? spell : [spell];
+              this._deferredResults.push(...spells);
+            }
+          }
+        }
+        return false; // remove from pending
+      }
+      return true; // keep in pending
+    });
 
     // --- Update active spells (dispatch to handlers) ---
     for (let i = this.activeSpells.length - 1; i >= 0; i--) {
@@ -527,6 +576,17 @@ export class ServerSpell {
     }
   }
 
+  /**
+   * Drain deferred spell results from completed channels.
+   * Called by GameLoop to broadcast them to clients.
+   */
+  drainDeferredResults() {
+    if (this._deferredResults.length === 0) return [];
+    const results = this._deferredResults;
+    this._deferredResults = [];
+    return results;
+  }
+
   // ═══════════════════════════════════════════════════════
   // HOOK HELPERS
   // ═══════════════════════════════════════════════════════
@@ -553,6 +613,8 @@ export class ServerSpell {
   }
 
   clearAll() {
+    this.pendingCasts = [];
+    this._deferredResults = [];
     for (let i = this.activeSpells.length - 1; i >= 0; i--) {
       this._cleanupSpell(this.activeSpells[i]);
       this.removeSpell(i);

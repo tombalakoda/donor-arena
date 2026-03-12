@@ -320,6 +320,10 @@ export class GameScene extends Phaser.Scene {
       this.handleObstacleEvent(data);
     };
 
+    this.network.onChanneling = (data) => {
+      this._showChannelingEffect(data.playerId, data.spellId, data.duration);
+    };
+
     this.network.connect();
     // Wait for actual connection before joining (cloudflare can be slow)
     const tryJoin = () => {
@@ -889,6 +893,93 @@ export class GameScene extends Phaser.Scene {
     if (spellDef && (spellDef.type === SPELL_TYPES.BLINK || spellDef.type === SPELL_TYPES.SWAP)) {
       this.moveTarget = null;
     }
+  }
+
+  /**
+   * Show a channeling visual effect on a player (local or remote).
+   * Creates a pulsing electric circle that grows over the channel duration.
+   */
+  _showChannelingEffect(playerId, spellId, duration) {
+    // Find the sprite position — local or remote
+    let sprite = null;
+    if (playerId === this.localPlayerId) {
+      sprite = this.playerSprite;
+    } else {
+      const rp = this.remotePlayers.get(playerId);
+      if (rp) sprite = rp.sprite;
+    }
+    if (!sprite) return;
+
+    // Create a pulsing circle graphic under the character
+    const gfx = this.add.graphics();
+    gfx.setDepth(sprite.depth - 1);
+
+    // Create a thunder aura sprite on the character (if texture exists)
+    let auraSprite = null;
+    if (this.textures.exists('fx-thunder')) {
+      auraSprite = this.add.sprite(sprite.x, sprite.y, 'fx-thunder');
+      auraSprite.setDepth(sprite.depth + 1);
+      auraSprite.setScale(2.5);
+      auraSprite.setAlpha(0.7);
+      auraSprite.setTint(0xffff44);
+      if (this.anims.exists('fx-thunder-play')) {
+        auraSprite.play({ key: 'fx-thunder-play', repeat: -1 });
+      }
+    }
+
+    // Animate the channeling circle
+    const startTime = this.time.now;
+    const maxRadius = 50;  // max circle radius at full charge
+    const updateEvent = this.time.addEvent({
+      delay: 16,  // ~60fps
+      loop: true,
+      callback: () => {
+        const elapsed = this.time.now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Get current position of the target
+        let x, y;
+        if (playerId === this.localPlayerId && this.playerSprite) {
+          x = this.playerSprite.x;
+          y = this.playerSprite.y + 8;  // slightly below center
+        } else {
+          const rp = this.remotePlayers.get(playerId);
+          if (rp && rp.sprite && !rp.sprite.destroyed) {
+            x = rp.sprite.x;
+            y = rp.sprite.y + 8;
+          } else {
+            // Player gone, clean up
+            gfx.destroy();
+            if (auraSprite && !auraSprite.destroyed) auraSprite.destroy();
+            updateEvent.remove(false);
+            return;
+          }
+        }
+
+        // Draw expanding circle
+        gfx.clear();
+        const currentRadius = maxRadius * progress;
+        const pulseAlpha = 0.3 + 0.2 * Math.sin(elapsed * 0.015);  // pulsing
+        gfx.lineStyle(2, 0xffff44, pulseAlpha + 0.2);
+        gfx.strokeCircle(x, y, currentRadius);
+        // Inner filled circle
+        gfx.fillStyle(0xffff44, pulseAlpha * 0.3);
+        gfx.fillCircle(x, y, currentRadius);
+
+        // Move aura sprite
+        if (auraSprite && !auraSprite.destroyed) {
+          auraSprite.setPosition(x, y - 12);
+          auraSprite.setAlpha(0.5 + 0.3 * Math.sin(elapsed * 0.01));
+        }
+
+        // Done — clean up
+        if (progress >= 1) {
+          gfx.destroy();
+          if (auraSprite && !auraSprite.destroyed) auraSprite.destroy();
+          updateEvent.remove(false);
+        }
+      },
+    });
   }
 
   // --- Spectator Mode ---

@@ -3,6 +3,7 @@ import { PHASE } from './RoundManager.js';
 import { MSG } from '../../shared/messageTypes.js';
 import { getSpawnPositions } from './utils.js';
 import { applyDamage } from './damageUtils.js';
+import { ServerSpell } from './ServerSpell.js';
 
 const DUMMY_CHARACTERS = ['knight', 'ninja-green', 'demon-red', 'eskimo'];
 
@@ -53,6 +54,24 @@ export class GameLoop {
         // Update spells BEFORE physics step so forces (e.g. grappling pull)
         // are resolved in the same tick they're applied
         room.spells.update(PHYSICS.TICK_MS);
+
+        // Broadcast spells from completed channels (deferred casts)
+        const deferred = room.spells.drainDeferredResults();
+        for (const spell of deferred) {
+          const payload = ServerSpell.serializeForClient(spell);
+          for (const [id, p] of room.players) {
+            p.socket.emit(MSG.SERVER_SPELL_CAST, payload);
+          }
+          // Process instant hit damage from channeled spells
+          if (spell.hits) {
+            this.processSpellHits(spell.hits.map(h => ({
+              targetId: h.id,
+              attackerId: spell.ownerId,
+              damage: h.damage,
+              spellId: spell.type,
+            })));
+          }
+        }
       }
 
       // Step physics — resolves all forces from applyInput + spells.update

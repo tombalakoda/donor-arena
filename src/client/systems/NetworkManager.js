@@ -22,6 +22,7 @@ export class NetworkManager {
     this.onShopOpen = null;        // (data) => {}
     this.onShopUpdate = null;      // (data) => {} — progression state after purchase
     this.onObstacleEvent = null;   // (data) => {} — obstacle destruction events
+    this.onChanneling = null;      // (data) => {} — channeling start event
     this.onLobbyUpdate = null;     // (data) => {} — lobby player list / host change
     this.onLobbyError = null;      // (data) => {} — lobby error message
 
@@ -108,6 +109,11 @@ export class NetworkManager {
     // Obstacle destruction events
     this.socket.on(MSG.SERVER_OBSTACLE_EVENT, (data) => {
       if (this.onObstacleEvent) this.onObstacleEvent(data);
+    });
+
+    // Channeling start event
+    this.socket.on(MSG.SERVER_CHANNELING, (data) => {
+      if (this.onChanneling) this.onChanneling(data);
     });
 
     // Lobby events

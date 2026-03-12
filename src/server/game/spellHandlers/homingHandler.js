@@ -16,8 +16,8 @@ export const homingHandler = {
     const isSwarm = stats.isSwarm || missileCount > 1;
     const clampedSpeed = ctx.clampSpeed(stats.speed);
 
-    // Shared state for swarm KB diminishing returns
-    const swarmState = isSwarm ? { hitCounts: {} } : null;
+    // Shared state for swarm KB diminishing returns + distributed targeting
+    const swarmState = isSwarm ? { hitCounts: {}, targetAssignments: {} } : null;
 
     const spells = [];
     for (let i = 0; i < missileCount; i++) {
@@ -64,27 +64,73 @@ export const homingHandler = {
   },
 
   update(ctx, spell, i) {
-    // Find nearest target
-    let nearestDist = spell.trackingRange;
-    let nearestBody = null;
-    for (const [playerId, body] of ctx.physics.playerBodies) {
-      if (playerId === spell.ownerId) continue;
-      if (ctx.isEliminated(playerId)) continue;
-      const targetEffects = ctx.statusEffects.get(playerId);
-      if (targetEffects && targetEffects.intangible) continue;
-      const dx = body.position.x - spell.x;
-      const dy = body.position.y - spell.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearestBody = body;
+    // --- Target acquisition ---
+    let targetBody = null;
+
+    if (spell.swarmState) {
+      // Swarm: distributed targeting — spread missiles across all enemies in range
+      const validTargets = [];
+      for (const [playerId, body] of ctx.physics.playerBodies) {
+        if (playerId === spell.ownerId) continue;
+        if (ctx.isEliminated(playerId)) continue;
+        const targetEffects = ctx.statusEffects.get(playerId);
+        if (targetEffects && targetEffects.intangible) continue;
+        const dx = body.position.x - spell.x;
+        const dy = body.position.y - spell.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < spell.trackingRange) {
+          validTargets.push({ playerId, body, dist });
+        }
+      }
+
+      if (validTargets.length > 0) {
+        // Count how many swarm missiles are assigned to each target
+        const assignCounts = {};
+        for (const t of validTargets) assignCounts[t.playerId] = 0;
+        for (const [, tid] of Object.entries(spell.swarmState.targetAssignments)) {
+          if (assignCounts[tid] !== undefined) assignCounts[tid]++;
+        }
+        // Don't count this missile's own current assignment (it's re-evaluating)
+        const currentTarget = spell.swarmState.targetAssignments[spell.id];
+        if (currentTarget && assignCounts[currentTarget] !== undefined) {
+          assignCounts[currentTarget]--;
+        }
+
+        // Pick target with fewest assigned missiles (break ties by distance)
+        validTargets.sort((a, b) => {
+          const countDiff = (assignCounts[a.playerId] || 0) - (assignCounts[b.playerId] || 0);
+          if (countDiff !== 0) return countDiff;
+          return a.dist - b.dist;
+        });
+        const chosen = validTargets[0];
+        targetBody = chosen.body;
+        spell.swarmState.targetAssignments[spell.id] = chosen.playerId;
+      } else {
+        // No targets in range — clear assignment
+        delete spell.swarmState.targetAssignments[spell.id];
+      }
+    } else {
+      // Non-swarm (single homing missile): keep existing nearest-target behavior
+      let nearestDist = spell.trackingRange;
+      for (const [playerId, body] of ctx.physics.playerBodies) {
+        if (playerId === spell.ownerId) continue;
+        if (ctx.isEliminated(playerId)) continue;
+        const targetEffects = ctx.statusEffects.get(playerId);
+        if (targetEffects && targetEffects.intangible) continue;
+        const dx = body.position.x - spell.x;
+        const dy = body.position.y - spell.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          targetBody = body;
+        }
       }
     }
 
     // Steer toward target
-    if (nearestBody) {
-      const dx = nearestBody.position.x - spell.x;
-      const dy = nearestBody.position.y - spell.y;
+    if (targetBody) {
+      const dx = targetBody.position.x - spell.x;
+      const dy = targetBody.position.y - spell.y;
       const targetAngle = Math.atan2(dy, dx);
       let angleDiff = targetAngle - spell.angle;
       // Normalize to [-PI, PI]
@@ -113,6 +159,7 @@ export const homingHandler = {
           ctx.obstacleManager.queueDestroy(hitObs);
         }
       }
+      if (spell.swarmState) delete spell.swarmState.targetAssignments[spell.id];
       spell.active = false;
       ctx.removeSpell(i);
       return 'continue';
@@ -137,6 +184,7 @@ export const homingHandler = {
             damage: spell.damage,
             knockbackForce: spell.knockbackForce,
           };
+          if (spell.swarmState) delete spell.swarmState.targetAssignments[spell.id];
           spell.active = false;
           ctx.removeSpell(i);
           return 'break';
@@ -173,6 +221,7 @@ export const homingHandler = {
           ctx.handleExplosion(spell, body.position.x, body.position.y, playerId);
         }
 
+        if (spell.swarmState) delete spell.swarmState.targetAssignments[spell.id];
         spell.active = false;
         ctx.removeSpell(i);
         return 'break';

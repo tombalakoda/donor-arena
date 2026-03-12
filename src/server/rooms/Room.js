@@ -301,6 +301,18 @@ export class Room {
     const result = this.spells.processCast(playerId, spellId, data.targetX, data.targetY, progression);
     if (!result) return;
 
+    // Channeled spell: broadcast channeling start, actual spell fires later
+    if (result.channeling) {
+      for (const [id, p] of this.players) {
+        p.socket.emit(MSG.SERVER_CHANNELING, {
+          playerId: result.playerId,
+          spellId: result.spellId,
+          duration: result.duration,
+        });
+      }
+      return;
+    }
+
     // processCast returns an array for multi-projectile spells, single spell otherwise
     const spells = Array.isArray(result) ? result : [result];
 

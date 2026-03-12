@@ -294,7 +294,8 @@ export const SKILL_TREES = {
     base: {
       type: 'instant',
       damage: 3,
-      knockbackForce: 0.09,
+      knockbackForce: 0.15,
+      castTime: 750,            // 750ms channeling windup before firing
       cooldown: 8500,
       radius: 100,              // detection radius for nearest enemy
     },
@@ -308,11 +309,11 @@ export const SKILL_TREES = {
     base: {
       type: 'homing',
       damage: 3,
-      knockbackForce: 0.06,
-      cooldown: 10000,
-      speed: 5,
+      knockbackForce: 0.12,
+      cooldown: 15000,
+      speed: 3.5,
       radius: 7,
-      lifetime: 4000,
+      lifetime: 6000,
       turnRate: 0.08,           // radians per tick (how fast it steers)
       trackingRange: 400,       // max distance to acquire a target
     },
@@ -343,9 +344,9 @@ export const SKILL_TREES = {
     base: {
       type: 'homing',
       damage: 1,
-      knockbackForce: 0.02,
+      knockbackForce: 0.04,
       cooldown: 11000,
-      speed: 6,                   // slower → tighter turning radius (60 vs 133)
+      speed: 8,                   // faster missiles, more threatening
       radius: 5,
       lifetime: 4000,             // more time to find and chase targets
       turnRate: 0.10,             // sharp turns, can do near-180° corrections
@@ -370,7 +371,7 @@ export const SKILL_TREES = {
       range: 70,                // barely goes forward before returning
       radius: 8,
       lifetime: 4000,           // generous for short outbound + return + overshoot
-      overshootRange: 300,      // how far past the caster it travels (accelerates through)
+      overshootRange: 500,      // how far past the caster it travels (accelerates through)
     },
     tiers: [
       { cost: 3, name: 'Uzun Fırlatma', description: 'Daha uzak menzil, daha sert dönüş', mods: { range: 100, maxKnockbackForce: 0.02, lifetime: 2000 } },

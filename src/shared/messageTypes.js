@@ -39,6 +39,7 @@ export const MSG = {
   SERVER_SPELL_DENY: 's:spellNo',
   SERVER_PONG: 's:pong',
   SERVER_OBSTACLE_EVENT: 's:obstacleEvent',
+  SERVER_CHANNELING: 's:channeling',
 
   // Server -> Client (lobby)
   SERVER_ROOM_LIST: 's:roomList',
