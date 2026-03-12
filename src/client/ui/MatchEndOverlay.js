@@ -82,7 +82,7 @@ export class MatchEndOverlay {
     let y = PT + 26;
     const title = createText(s, CX, y, 'ATIŞMA BİTTİ', FONT.TITLE_SM, {
       fill: COLOR.ACCENT_GOLD, depth: D + 2,
-      stroke: '#000000', strokeThickness: 4,
+      stroke: '#000000', strokeThickness: 3,
     });
     this.elements.push(title);
     animateIn(s, title, { from: 'slideDown', delay: 150, duration: 250 });

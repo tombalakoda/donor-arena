@@ -353,8 +353,7 @@ export class MenuScene extends Phaser.Scene {
     animateIn(this, barFrame, { from: 'slideUp', delay: 430, duration: 250 });
 
     // "Mahlas:" label — pinned to left side with padding
-    const LABEL_FONT = { fontSize: '22px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
-    const label = createText(this, frameL + pad, y, 'Mahlas:', LABEL_FONT, {
+    const label = createText(this, frameL + pad, y, 'Mahlas:', { ...FONT.SMALL, fontStyle: 'bold' }, {
       fill: COLOR.TEXT_ICE, depth: 16, originX: 0,
       stroke: '#000000', strokeThickness: 3,
     });
@@ -375,7 +374,6 @@ export class MenuScene extends Phaser.Scene {
     this.nameInput = this.add.dom(frameL + pad + 120, y, inputElement).setDepth(17);
 
     // Action buttons — pinned to right side with same padding
-    const BTN_FONT = { fontSize: '22px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
     const btnW = 130, btnH = 36, btnGap = 8;
     const totalBtnsW = 3 * btnW + 2 * btnGap;
     const btnsStartX = frameR - pad - totalBtnsW + btnW / 2; // first btn center
@@ -389,7 +387,7 @@ export class MenuScene extends Phaser.Scene {
       const bx = btnsStartX + i * (btnW + btnGap);
       const { elements } = createButton(this, bx, y, b.label, {
         width: btnW, height: btnH, depth: 15,
-        fontToken: BTN_FONT, onClick: b.onClick,
+        fontToken: { ...FONT.SMALL, fontStyle: 'bold' }, onClick: b.onClick,
       });
       elements.forEach(el => animateIn(this, el, {
         from: 'slideUp', delay: 500 + i * 70, duration: 250,

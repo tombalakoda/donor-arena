@@ -407,7 +407,7 @@ export function createNinesliceButton(scene, x, y, label, opts = {}) {
     width: opts.width || 160,
     height: opts.height || 34,
     depth: opts.depth || 10,
-    fontToken: { fontSize: opts.fontSize || '16px', fontFamily: FONT.FAMILY, fontStyle: 'bold' },
+    fontToken: { fontSize: opts.fontSize || '20px', fontFamily: FONT.FAMILY, fontStyle: 'bold' },
     enabled: opts.enabled,
     onClick: opts.onClick,
     sfx: opts.sfx,

@@ -5,6 +5,7 @@ import { SPELLS, SPELL_TYPES } from '../../shared/spellData.js';
 import { computeSpellStats } from '../../shared/skillTreeData.js';
 import { NetworkManager } from '../systems/NetworkManager.js';
 import { UI_FONT } from '../config.js';
+import { FONT } from '../ui/UIConfig.js';
 import { ShopOverlay } from '../ui/ShopOverlay.js';
 import { PauseMenu } from '../ui/PauseMenu.js';
 import { MatchEndOverlay } from '../ui/MatchEndOverlay.js';
@@ -267,11 +268,10 @@ export class GameScene extends Phaser.Scene {
       // Show error and go back to menu
       const cam = this.cameras.main;
       const errorText = this.add.text(cam.width / 2, cam.height / 2, data.error, {
-        fontSize: '32px',
-        fontFamily: 'Alkhemikal',
+        ...FONT.TITLE_SM,
         fill: '#ff4444',
         stroke: '#000000',
-        strokeThickness: 3,
+        strokeThickness: 4,
       }).setOrigin(0.5).setScrollFactor(0).setDepth(999);
 
       this.time.delayedCall(2000, () => {
@@ -643,8 +643,7 @@ export class GameScene extends Phaser.Scene {
     const isDummy = playerId.startsWith('dummy-');
     const displayName = isDummy ? 'Kukla' : (playerName || playerId.slice(-4));
     const nameLabel = this.add.text(x, y - 32, displayName, {
-      fontSize: '22px',
-      fontFamily: UI_FONT,
+      ...FONT.SMALL,
       fill: isDummy ? '#ff8866' : '#dddddd',
       stroke: '#000000',
       strokeThickness: 4,

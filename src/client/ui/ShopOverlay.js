@@ -179,7 +179,7 @@ export class ShopOverlay {
     // Title
     const title = createText(s, CX, TITLE_Y, 'HÜNER DÜKKÂNI', FONT.TITLE_SM, {
       fill: COLOR.ACCENT_GOLD, depth: D + 3,
-      stroke: '#000000', strokeThickness: 4,
+      stroke: '#000000', strokeThickness: 3,
     });
     this.chrome.push(title);
     animateIn(s, title, { from: 'slideDown', delay: 50, duration: 250 });
@@ -547,7 +547,7 @@ export class ShopOverlay {
     if (!chosenSpellId) {
       const prompt = createText(s, CX, DETAIL_Y, 'Bir hüner seç', FONT.TITLE_SM, {
         fill: COLOR.TEXT_DISABLED, depth: D + 3,
-        stroke: '#000000', strokeThickness: 2,
+        stroke: '#000000', strokeThickness: 3,
       });
       this.content.push(prompt);
       animateIn(s, prompt, { from: 'fadeOnly', delay: 400, duration: 250 });

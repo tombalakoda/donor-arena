@@ -95,21 +95,21 @@ export class BootScene extends Phaser.Scene {
     // Shadow
     this.add.text(cx + 3, cy - 117, 'ÂŞIKLAR MEYDANE', {
       fontFamily: UI_FONT,
-      fontSize: '52px',
+      fontSize: '54px',
       fill: '#000000',
     }).setOrigin(0.5).setAlpha(0.3);
     // Main title
     this.add.text(cx, cy - 120, 'ÂŞIKLAR MEYDANE', {
       fontFamily: UI_FONT,
-      fontSize: '52px',
+      fontSize: '54px',
       fill: '#ffffff',
       stroke: '#2a1a0a',
-      strokeThickness: 6,
+      strokeThickness: 7,
     }).setOrigin(0.5);
 
     this.add.text(cx, cy - 70, 'Meydana hazırlan...', {
       fontFamily: UI_FONT,
-      fontSize: '18px',
+      fontSize: '22px',
       fill: '#b8e4f0',
     }).setOrigin(0.5);
 
@@ -131,14 +131,14 @@ export class BootScene extends Phaser.Scene {
 
     const percentText = this.add.text(cx, cy + 24, '0%', {
       fontFamily: UI_FONT,
-      fontSize: '18px',
+      fontSize: '22px',
       fill: '#b8e4f0',
     }).setOrigin(0.5);
 
     // --- Rotating Tips ---
     const tipText = this.add.text(cx, cy + 70, TIPS[0], {
       fontFamily: UI_FONT,
-      fontSize: '16px',
+      fontSize: '20px',
       fill: '#7a8e9c',
       fontStyle: 'italic',
     }).setOrigin(0.5);
