@@ -26,12 +26,11 @@ export const barrelHandler = {
       radius: stats.radius || 16,
       damage: stats.damage || 4,
       knockbackForce: stats.knockbackForce || 0.06,
-      range: stats.range || 350,
-      lifetime: stats.lifetime || 3500,
+      range: stats.range || 1050,
+      lifetime: stats.lifetime || 10500,
       elapsed: 0,
       active: true,
       speed: clampedSpeed,
-      pushSpeed: stats.pushSpeed || 4.5,
       hitIds: [],                          // damage dealt once per player
       destroysObstacles: stats.destroysObstacles || false,
     };
@@ -92,30 +91,25 @@ export const barrelHandler = {
       const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
 
       if (pDist < spell.radius + PLAYER.RADIUS) {
-        // First contact: deal damage + initial knockback for kill credit
+        // First contact: deal damage + set kill credit (no impulse — barrel drags, not throws)
         if (!spell.hitIds.includes(playerId)) {
-          const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
-          ctx.physics.applyKnockback(playerId,
-            dirX * spell.knockbackForce * kbMult,
-            dirY * spell.knockbackForce * kbMult,
-            ctx.getDamageTaken(playerId),
-            spell.ownerId,
-          );
           ctx.pendingHits.push({
             attackerId: spell.ownerId,
             targetId: playerId,
             damage: spell.damage,
             spellId: spell.type,
           });
+          // Set kill credit for ring-out tracking (without applying force impulse)
+          ctx.physics.lastKnockbackFrom.set(playerId, { attackerId: spell.ownerId, timestamp: ctx.now });
           spell.hitIds.push(playerId);
         }
 
-        // Continuous push: override velocity in barrel direction
+        // Continuous drag: override velocity to match barrel speed (player rides with barrel)
         Body.setVelocity(body, {
-          x: dirX * spell.pushSpeed,
-          y: dirY * spell.pushSpeed,
+          x: dirX * spell.speed,
+          y: dirY * spell.speed,
         });
-        // Block player input while being pushed
+        // Block player input while being dragged
         ctx.physics.knockbackUntil.set(playerId, ctx.now + PHYSICS.TICK_MS * 2);
       }
     }
