@@ -99,12 +99,12 @@ export class HUDManager {
       fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0.5,
     });
 
-    // --- Top-right: Round & timer ---
-    this.roundText = createText(scene, camW - SPACE.MD, SPACE.SM, 'Fasıl 0/20', FONT.BODY_BOLD, {
-      fill: COLOR.ACCENT_GOLD, depth: DEPTH.HUD, originX: 1, originY: 0,
+    // --- Top-left: Round & timer (below ping + player count) ---
+    this.roundText = createText(scene, SPACE.SM, SPACE.SM + 28, 'Fasıl 0/20', FONT.BODY_BOLD, {
+      fill: COLOR.ACCENT_GOLD, depth: DEPTH.HUD, originX: 0, originY: 0,
     });
-    this.timerText = createText(scene, camW - SPACE.MD, SPACE.SM + 16, '60s', FONT.BODY, {
-      fill: COLOR.ACCENT_INFO, depth: DEPTH.HUD, originX: 1, originY: 0,
+    this.timerText = createText(scene, SPACE.SM, SPACE.SM + 44, '60s', FONT.BODY, {
+      fill: COLOR.ACCENT_INFO, depth: DEPTH.HUD, originX: 0, originY: 0,
     });
     this.phaseText = createText(scene, SCREEN.CX, 40, '', FONT.SMALL, {
       fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD, originX: 0.5, originY: 0,
