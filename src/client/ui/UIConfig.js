@@ -64,8 +64,8 @@ export const FONT = {
   TITLE_SM: { fontSize: '30px', fontFamily: UI_FONT, fontStyle: 'bold' },
   BODY:     { fontSize: '20px', fontFamily: UI_FONT },
   BODY_BOLD:{ fontSize: '20px', fontFamily: UI_FONT, fontStyle: 'bold' },
-  SMALL:    { fontSize: '16px', fontFamily: UI_FONT },
-  TINY:     { fontSize: '14px', fontFamily: UI_FONT, fontStyle: 'bold' },
+  SMALL:    { fontSize: '18px', fontFamily: UI_FONT },
+  TINY:     { fontSize: '16px', fontFamily: UI_FONT, fontStyle: 'bold' },
   NUMBER_LG:{ fontSize: '40px', fontFamily: UI_FONT, fontStyle: 'bold' },
   DAMAGE:   { fontSize: '20px', fontFamily: UI_FONT, fontStyle: 'bold' },
 };
