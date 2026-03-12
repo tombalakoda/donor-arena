@@ -11,6 +11,7 @@ import { recallHandler } from './recallHandler.js';
 import { homingHandler } from './homingHandler.js';
 import { boomerangHandler } from './boomerangHandler.js';
 import { wallHandler } from './wallHandler.js';
+import { barrelHandler } from './barrelHandler.js';
 
 export const handlers = {
   [SPELL_TYPES.PROJECTILE]: projectileHandler,
@@ -25,4 +26,5 @@ export const handlers = {
   [SPELL_TYPES.HOMING]: homingHandler,
   [SPELL_TYPES.BOOMERANG]: boomerangHandler,
   [SPELL_TYPES.WALL]: wallHandler,
+  [SPELL_TYPES.BARREL]: barrelHandler,
 };

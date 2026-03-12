@@ -1811,6 +1811,9 @@ export class GameScene extends Phaser.Scene {
       case SPELL_TYPES.BOOMERANG:
         // Outbound distance before returning.
         return stats.range || 70;
+      case SPELL_TYPES.BARREL:
+        // Server: distFromOrigin > spell.range → despawn. range enforced.
+        return stats.range || 350;
       case SPELL_TYPES.INSTANT:
         // Detection radius around caster.
         return stats.radius || 100;
@@ -1868,7 +1871,8 @@ export class GameScene extends Phaser.Scene {
       case SPELL_TYPES.PROJECTILE:
       case SPELL_TYPES.SWAP:
       case SPELL_TYPES.HOOK:
-      case SPELL_TYPES.BOOMERANG: {
+      case SPELL_TYPES.BOOMERANG:
+      case SPELL_TYPES.BARREL: {
         const halfW = Math.max((stats.radius || 7) * 2, 8) / 2;
         const angle = Math.atan2(dy, dx);
         const perpX = -Math.sin(angle) * halfW;

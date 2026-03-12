@@ -378,6 +378,24 @@ export const SKILL_TREES = {
       { cost: 5, name: 'Tut ve Fırlat', description: 'Dönüşte de vurur, yakalayınca bekleme azalır', mods: { hitsOnReturn: true, cooldownOnCatch: -2000 } },
     ],
   },
+
+  'bade': {
+    base: {
+      type: 'barrel',
+      damage: 4,
+      knockbackForce: 0.06,
+      cooldown: 13000,
+      speed: 5,
+      range: 350,
+      radius: 16,
+      lifetime: 3500,
+      pushSpeed: 4.5,
+    },
+    tiers: [
+      { cost: 3, name: 'Ağır Varil', description: 'Daha geniş ve sert varil', mods: { radius: 4, pushSpeed: 0.5, knockbackForce: 0.02 } },
+      { cost: 5, name: 'Yıkım Topu', description: 'Daha hızlı, engelleri yıkar', mods: { speed: 1.5, cooldown: -2500, destroysObstacles: true } },
+    ],
+  },
 };
 
 /**

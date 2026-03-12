@@ -15,6 +15,7 @@ export const SPELL_TYPES = {
   RECALL: 'recall',
   HOMING: 'homing',
   BOOMERANG: 'boomerang',
+  BARREL: 'barrel',
 };
 
 // Which spells are available in each slot
@@ -22,7 +23,7 @@ export const SLOT_SPELLS = {
   Q: ['fireball-focus', 'fireball-speed', 'fireball-power'],
   W: ['blink', 'dash', 'flash', 'ghost', 'swap', 'timeshift', 'grappling'],
   E: ['frostbolt', 'blizzard', 'icewall', 'bouncer', 'shield'],
-  R: ['hook', 'lightning', 'homing', 'meteor', 'rocketswarm', 'boomerang'],
+  R: ['hook', 'lightning', 'homing', 'meteor', 'rocketswarm', 'boomerang', 'bade'],
 };
 
 // Reverse map: spell ID → slot
@@ -388,6 +389,22 @@ export const SPELLS = {
       glowColor: 0xaaaacc,
     },
     icon: 'spell-Counter',
+  },
+  'bade': {
+    id: 'bade',
+    name: 'Bade',
+    description: 'Varil yuvarla, yolundakileri it.',
+    type: SPELL_TYPES.BARREL,
+    slot: 'R',
+    fx: {
+      sprite: 'fx-canonball',
+      animKey: 'fx-canonball-play',
+      scale: 2.5,
+      sound: 'sfx-fireball',
+      color: 0x885522,
+      glowColor: 0xcc8844,
+    },
+    icon: 'spell-BookRock',
   },
 };
 

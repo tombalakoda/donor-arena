@@ -744,6 +744,56 @@ export class SpellVisualManager {
         break;
       }
 
+      case SPELL_TYPES.BARREL: {
+        const fx = def.fx || {};
+        const spriteKey = fx.sprite || 'fx-canonball';
+        const animKey = fx.animKey || 'fx-canonball-play';
+        const scale = fx.scale || 2.5;
+        const color = fx.color || 0x885522;
+        const glowColor = fx.glowColor || color;
+
+        const glow = scene.add.sprite(spell.x, spell.y, 'fx-aura');
+        glow.setDepth(14);
+        glow.setScale(1.8);
+        glow.setAlpha(0.3);
+        glow.setTint(glowColor);
+        if (scene.anims.exists('fx-aura-play')) {
+          glow.play({ key: 'fx-aura-play', repeat: -1 });
+        }
+
+        const sprite = scene.add.sprite(spell.x, spell.y, spriteKey);
+        sprite.setScale(scale);
+        sprite.setDepth(16);
+        sprite.setTint(color);
+        if (scene.anims.exists(animKey)) {
+          sprite.play({ key: animKey, repeat: -1 });
+        }
+
+        // Rock particle trail
+        const trail = scene.add.particles(0, 0, 'fx-particle-rock', {
+          follow: sprite,
+          frequency: 50,
+          lifespan: 300,
+          scale: { start: 0.6, end: 0 },
+          alpha: { start: 0.5, end: 0 },
+          blendMode: 'ADD',
+          depth: 14,
+        });
+
+        visual.sprite = sprite;
+        visual.glow = glow;
+        visual.trail = trail;
+        visual.glowColor = glowColor;
+        visual.vx = spell.vx || 0;
+        visual.vy = spell.vy || 0;
+        visual.serverX = spell.x;
+        visual.serverY = spell.y;
+        visual.isBarrel = true;
+
+        this._spawnBurst(spell.x, spell.y, glowColor);
+        break;
+      }
+
       default: {
         const color = (def.fx && def.fx.color) || 0xff00ff;
         const marker = scene.add.circle(spell.x, spell.y, spell.radius || 20, color, 0.6);
@@ -771,7 +821,7 @@ export class SpellVisualManager {
 
         // Death burst for moving spell types
         if (visual.sprite && !visual.sprite.destroyed) {
-          const movingTypes = [SPELL_TYPES.PROJECTILE, SPELL_TYPES.HOMING, SPELL_TYPES.SWAP, SPELL_TYPES.BOOMERANG];
+          const movingTypes = [SPELL_TYPES.PROJECTILE, SPELL_TYPES.HOMING, SPELL_TYPES.SWAP, SPELL_TYPES.BOOMERANG, SPELL_TYPES.BARREL];
           if (movingTypes.includes(visual.type) && visual.glowColor) {
             this._deathBurst(visual.sprite.x, visual.sprite.y, visual.glowColor);
           }
@@ -935,8 +985,8 @@ export class SpellVisualManager {
         }
       }
 
-      // SWAP, HOMING, BOOMERANG: snap to server + store velocity
-      if (visual.type === SPELL_TYPES.SWAP || visual.type === SPELL_TYPES.HOMING || visual.type === SPELL_TYPES.BOOMERANG) {
+      // SWAP, HOMING, BOOMERANG, BARREL: snap to server + store velocity
+      if (visual.type === SPELL_TYPES.SWAP || visual.type === SPELL_TYPES.HOMING || visual.type === SPELL_TYPES.BOOMERANG || visual.type === SPELL_TYPES.BARREL) {
         visual.serverX = spell.x;
         visual.serverY = spell.y;
         visual.vx = spell.vx || 0;
@@ -1134,7 +1184,7 @@ export class SpellVisualManager {
             visual.glow.setScale(scaleBreath);
           }
         }
-      } else if ((visual.type === SPELL_TYPES.SWAP || visual.type === SPELL_TYPES.HOMING || visual.type === SPELL_TYPES.BOOMERANG) && visual.sprite && !visual.sprite.destroyed) {
+      } else if ((visual.type === SPELL_TYPES.SWAP || visual.type === SPELL_TYPES.HOMING || visual.type === SPELL_TYPES.BOOMERANG || visual.type === SPELL_TYPES.BARREL) && visual.sprite && !visual.sprite.destroyed) {
         // Velocity extrapolation + drift correction
         const t = delta / 50;
         visual.sprite.x += visual.vx * t;
@@ -1160,7 +1210,10 @@ export class SpellVisualManager {
         }
 
         // Boomerang spins, homing/swap rotate to face direction
-        if (visual.isBoomerang) {
+        if (visual.isBarrel) {
+          // Barrel rolls continuously
+          visual.sprite.rotation += 0.15;
+        } else if (visual.isBoomerang) {
           // Spin scales with speed: slow at apex, fast when moving
           const spd = Math.sqrt(visual.vx * visual.vx + visual.vy * visual.vy);
           visual.sprite.rotation += Math.max(0.02, 0.15 * (spd / 7));
