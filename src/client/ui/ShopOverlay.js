@@ -25,16 +25,16 @@ const TITLE_Y      = 22;
 const SP_Y         = 46;
 const TAB_Y        = 76;
 const EQUIP_Y      = 112;
-const CHAR_Y       = 270;
-const STRIP_Y      = 440;
-const DETAIL_Y     = 530;
+const CHAR_Y       = 230;
+const STRIP_Y      = 380;
+const DETAIL_Y     = 490;
 const TIMER_BAR_Y  = 708;
 
 // Card dimensions
-const CARD_W       = 64;
-const CARD_CELL    = 58;
-const CARD_ICON    = 36;
-const CARD_GAP     = 12;
+const CARD_W       = 78;
+const CARD_CELL    = 68;
+const CARD_ICON    = 46;
+const CARD_GAP     = 10;
 
 // Equipped row
 const EQ_SIZE      = 30;
@@ -477,7 +477,7 @@ export class ShopOverlay {
       }
 
       // ── Spell name below card ──
-      const nameText = s.add.text(cx, STRIP_Y + 26, def.name, textStyle(FONT.TINY, {
+      const nameText = s.add.text(cx, STRIP_Y + 30, def.name, textStyle(FONT.SMALL, {
         fill: isChosen ? COLOR.ACCENT_GOLD : COLOR.TEXT_SECONDARY,
         fontStyle: isChosen ? 'bold' : 'normal',
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
@@ -577,11 +577,11 @@ export class ShopOverlay {
     animateIn(s, spellName, { from: 'slideUp', delay: 400, duration: 200 });
 
     // ── Description ──
-    y += 26;
+    y += 30;
     if (def.description) {
-      const desc = s.add.text(CX, y, def.description, textStyle(FONT.BODY, {
+      const desc = s.add.text(CX, y, def.description, textStyle(FONT.BODY_BOLD, {
         fill: COLOR.TEXT_SECONDARY,
-        wordWrap: { width: 550 },
+        wordWrap: { width: 600 },
         align: 'center',
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
       this.content.push(desc);
@@ -599,7 +599,7 @@ export class ShopOverlay {
 
     // Tier label
     const tierLabel = createText(s, CX - dotsW / 2 - 10, y + dotSize / 2,
-      `Pâye ${currentTier}/${maxTier}`, FONT.SMALL, {
+      `Pâye ${currentTier}/${maxTier}`, FONT.BODY_BOLD, {
         fill: COLOR.ACCENT_GOLD, depth: D + 3, originX: 1,
       });
     this.content.push(tierLabel);
@@ -622,12 +622,12 @@ export class ShopOverlay {
     const visibleStats = STAT_DEFS.filter(sd => stats[sd.key] != null && stats[sd.key] !== 0);
     if (visibleStats.length > 0) {
       const statParts = visibleStats.slice(0, 5).map(sd => `${sd.label}: ${sd.fmt(stats[sd.key])}`);
-      const statLine = s.add.text(CX, y, statParts.join('   '), textStyle(FONT.TINY, {
+      const statLine = s.add.text(CX, y, statParts.join('   '), textStyle(FONT.SMALL, {
         fill: COLOR.TEXT_SECONDARY,
         align: 'center',
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
       this.content.push(statLine);
-      y += 16;
+      y += 22;
     }
 
     // ── Next tier info + upgrade button ──
@@ -642,9 +642,9 @@ export class ShopOverlay {
         .join('  ');
 
       if (modText) {
-        const mods = s.add.text(CX, y, `Sonraki: ${modText}`, textStyle(FONT.TINY, {
+        const mods = s.add.text(CX, y, `Sonraki: ${modText}`, textStyle(FONT.SMALL, {
           fill: COLOR.ACCENT_INFO,
-          wordWrap: { width: 600 },
+          wordWrap: { width: 700 },
           align: 'center',
         })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
         this.content.push(mods);
