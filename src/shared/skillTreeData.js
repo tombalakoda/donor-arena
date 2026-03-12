@@ -297,7 +297,7 @@ export const SKILL_TREES = {
       knockbackForce: 0.15,
       castTime: 750,            // 750ms channeling windup before firing
       cooldown: 8500,
-      radius: 100,              // detection radius for nearest enemy
+      radius: 70,               // AoE radius around caster
     },
     tiers: [
       { cost: 3, name: 'Hamle', description: 'Daha geniş menzil, daha sert itme', mods: { radius: 40, knockbackForce: 0.03 } },

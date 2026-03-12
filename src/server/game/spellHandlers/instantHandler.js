@@ -24,17 +24,14 @@ export const instantHandler = {
     // Sort by distance (closest first)
     targets.sort((a, b) => a.dist - b.dist);
 
-    // Primary hit
-    const maxHits = 1 + chainCount;
-    for (let i = 0; i < Math.min(targets.length, maxHits); i++) {
-      const t = targets[i];
+    // Hit ALL targets in range at full power
+    const kbMult = ctx.getKnockbackMultiplier(playerId);
+    for (const t of targets) {
       const nx = t.dist > 0 ? t.dx / t.dist : 0;
       const ny = t.dist > 0 ? t.dy / t.dist : 1;
-      const kbMult = ctx.getKnockbackMultiplier(playerId);
-      const kbFactor = i === 0 ? 1 : chainKbFactor;
-      const force = (stats.knockbackForce || 0.03) * kbFactor * kbMult;
+      const force = (stats.knockbackForce || 0.03) * kbMult;
       ctx.physics.applyKnockback(t.id, nx * force, ny * force, ctx.getDamageTaken(t.id), playerId);
-      hits.push({ id: t.id, damage: (stats.damage || 3) * kbFactor });
+      hits.push({ id: t.id, damage: stats.damage || 3 });
     }
 
     const spell = {
