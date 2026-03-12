@@ -98,7 +98,11 @@ export class ServerPhysics {
       grace = Math.min(remaining + grace + comboExtend, comboMaxGrace);
     }
 
-    this.knockbackUntil.set(playerId, now + grace);
+    // Hard cap: never lock a player out of input for more than 2s total
+    const hardCap = 2000;
+    const currentUntilFinal = this.knockbackUntil.get(playerId) || 0;
+    const maxAllowed = Math.max(currentUntilFinal, now) + hardCap;
+    this.knockbackUntil.set(playerId, Math.min(now + grace, maxAllowed));
 
     // Track who knocked this player — used for ring-out kill credit (5s window)
     if (attackerId && attackerId !== playerId) {

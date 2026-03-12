@@ -53,12 +53,14 @@ io.on('connection', (socket) => {
 
     const { playerName, characterId, mode, roomId } = data || {};
 
-    // Sanitize playerName: type check, strip HTML/control chars, max 20 chars
+    // Sanitize playerName: type check, strip HTML/control chars/RTL overrides, max 20 chars
     let safeName = null;
     if (typeof playerName === 'string') {
       safeName = playerName
         .replace(/<[^>]*>/g, '')       // strip HTML tags
         .replace(/[\x00-\x1f]/g, '')   // strip control characters
+        .replace(/[\u202A-\u202E\u2066-\u2069\u200F\u200E\u061C]/g, '') // strip RTL/LTR override & bidi control chars
+        .replace(/[\uFFF0-\uFFFF]/g, '') // strip specials block (includes replacement char)
         .trim()
         .slice(0, 20);
       if (safeName.length === 0) safeName = null;

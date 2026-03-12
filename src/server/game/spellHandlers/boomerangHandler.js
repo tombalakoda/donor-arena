@@ -187,6 +187,13 @@ export const boomerangHandler = {
         spell.vx = (blendX / blendLen) * reducedSpeed;
         spell.vy = (blendY / blendLen) * reducedSpeed;
 
+        // Safety: deactivate spell if velocity became NaN
+        if (isNaN(spell.vx) || isNaN(spell.vy)) {
+          spell.active = false;
+          ctx.removeSpell(i);
+          return 'continue';
+        }
+
         // Deflect acts as the turning point — enter overshoot (coast & fade)
         // Only set overshoot origin on first hit; subsequent hits just deflect/slow
         if (!spell.passedCaster) {

@@ -430,7 +430,8 @@ export class GameScene extends Phaser.Scene {
     this.moveTarget = null;
     if (this.moveTargetMarker) this.moveTargetMarker.setVisible(false);
 
-    // Clear all spell visuals from previous round
+    // Clear all spell visuals and cached spell state from previous round
+    this.lastServerSpells = [];
     if (this.spellVisualManager) {
       this.spellVisualManager.clearAllVisuals();
     }
@@ -547,6 +548,7 @@ export class GameScene extends Phaser.Scene {
   handleShopUpdate(data) {
     this.progression = data;
     this._indicatorStatsCache = {};  // Invalidate cached spell stats on upgrade
+    this.aimingSlot = null;           // Clear aim state on spell changes
     if (this.shopOverlay && this.shopOverlay.visible) {
       this.shopOverlay.updateProgression(data);
     }
@@ -1817,7 +1819,10 @@ export class GameScene extends Phaser.Scene {
       case SPELL_TYPES.INSTANT:
         // Detection radius around caster.
         return stats.radius || 100;
-      default: // ZONE, WALL, BLINK
+      case SPELL_TYPES.DASH:
+        // Server: dashDist clamped to range. range enforced.
+        return stats.range || 140;
+      default: // ZONE, WALL, BLINK, RECALL
         return stats.range || 200;
     }
   }
@@ -1960,11 +1965,33 @@ export class GameScene extends Phaser.Scene {
         break;
       }
 
+      // ── Dash: line to destination + dot (like Blink) ──
+      case SPELL_TYPES.DASH: {
+        const dashDist = Math.min(dist, range);
+        const dashEndX = px + nx * dashDist;
+        const dashEndY = py + ny * dashDist;
+        g.lineStyle(2, color, 0.5);
+        g.beginPath();
+        g.moveTo(px, py);
+        g.lineTo(dashEndX, dashEndY);
+        g.strokePath();
+        g.fillStyle(color, 0.6);
+        g.fillCircle(dashEndX, dashEndY, 5);
+        break;
+      }
+
       // ── Instant: detection radius circle around player ──
       case SPELL_TYPES.INSTANT: {
         g.fillStyle(color, 0.06);
         g.fillCircle(px, py, range);
         g.lineStyle(1.5, color, 0.2);
+        g.strokeCircle(px, py, range);
+        break;
+      }
+
+      // ── Recall: departure AoE radius circle ──
+      case SPELL_TYPES.RECALL: {
+        g.lineStyle(2, color, 0.3);
         g.strokeCircle(px, py, range);
         break;
       }
@@ -2124,6 +2151,7 @@ export class GameScene extends Phaser.Scene {
   updateCamera() {
     const cam = this.cameras.main;
     const lerpFactor = 0.08;
+    const spectatorLerp = 0.12; // Faster for spectator — tracked players move unpredictably
 
     // Spectator mode: follow the spectated player
     if (this.spectateMode && this.spectateTargetId) {
@@ -2135,8 +2163,8 @@ export class GameScene extends Phaser.Scene {
           this.cycleSpectateTarget(1);
           return;
         }
-        cam.scrollX += (rp.x - cam.width / 2 - cam.scrollX) * lerpFactor;
-        cam.scrollY += (rp.y - cam.height / 2 - cam.scrollY) * lerpFactor;
+        cam.scrollX += (rp.x - cam.width / 2 - cam.scrollX) * spectatorLerp;
+        cam.scrollY += (rp.y - cam.height / 2 - cam.scrollY) * spectatorLerp;
         return;
       }
     }
@@ -2207,6 +2235,14 @@ export class GameScene extends Phaser.Scene {
 
     // Cleanup speed trail
     this.speedTrail = [];
+
+    // Cleanup keyboard listeners
+    if (this.input && this.input.keyboard) {
+      this.input.keyboard.removeAllListeners('keydown-ESC');
+      this.input.keyboard.removeAllListeners('keydown-B');
+      this.input.keyboard.removeAllListeners('keydown-TAB');
+      this.input.keyboard.removeAllListeners('keyup-TAB');
+    }
 
     // Cleanup spectator listeners
     this._cleanupSpectatorListeners();

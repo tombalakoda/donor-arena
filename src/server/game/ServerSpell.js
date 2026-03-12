@@ -205,7 +205,7 @@ export class ServerSpell {
       case SPELL_TYPES.WALL:
         return handler.spawn(ctx, playerId, spellId, stats, targetX, targetY, originX, originY);
       default:
-        // PROJECTILE, BLINK, DASH, HOOK, SWAP, HOMING, BOOMERANG
+        // PROJECTILE, BLINK, DASH, HOOK, SWAP, HOMING, BOOMERANG, BARREL
         return handler.spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY);
     }
   }
@@ -349,6 +349,7 @@ export class ServerSpell {
           if (h) {
             let spell;
             switch (pc.effectiveType) {
+              case SPELL_TYPES.WALL:
               case SPELL_TYPES.ZONE:
                 spell = h.spawn(castCtx, pc.playerId, pc.spellId, pc.stats, pc.targetX, pc.targetY, originX, originY);
                 break;
@@ -357,7 +358,9 @@ export class ServerSpell {
               case SPELL_TYPES.RECALL:
                 spell = h.spawn(castCtx, pc.playerId, pc.spellId, pc.stats, originX, originY);
                 break;
+              case SPELL_TYPES.BARREL:
               default:
+                // PROJECTILE, BLINK, DASH, HOOK, SWAP, HOMING, BOOMERANG, BARREL
                 spell = h.spawn(castCtx, pc.playerId, pc.spellId, pc.stats, originX, originY, pc.targetX, pc.targetY);
                 break;
             }
@@ -610,6 +613,19 @@ export class ServerSpell {
       World.remove(this.physics.engine.world, spell.body);
     }
     this.activeSpells.splice(index, 1);
+  }
+
+  /**
+   * When a player is eliminated mid-round, expire their active spells quickly
+   * (500ms grace for visual fade) and cancel pending channeled casts.
+   */
+  deactivatePlayerSpells(playerId) {
+    for (const spell of this.activeSpells) {
+      if (spell.ownerId === playerId && spell.active) {
+        spell.lifetime = Math.min(spell.lifetime, spell.elapsed + 500);
+      }
+    }
+    this.pendingCasts = this.pendingCasts.filter(pc => pc.playerId !== playerId);
   }
 
   clearAll() {

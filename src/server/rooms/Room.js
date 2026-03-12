@@ -258,6 +258,10 @@ export class Room {
     const player = this.players.get(playerId);
     if (!player) return;
     if (!input || typeof input !== 'object') return;
+    // Rate limit: max ~33 inputs/sec per player
+    const now = Date.now();
+    if (now - (player.lastMoveInput || 0) < 30) return;
+    player.lastMoveInput = now;
 
     // Only accept known fields with numeric validation
     if (input.targetX != null && input.targetY != null
@@ -277,13 +281,17 @@ export class Room {
     // Only allow spells during playing phase
     if (this.rounds.phase !== PHASE.PLAYING) return;
     // Validate spell data — client sends slot key (Q/W/E/R) or direct spellId
-    if (!data || !Number.isFinite(data.targetX) || !Number.isFinite(data.targetY)) return;
+    if (!data || !Number.isFinite(data.targetX) || !Number.isFinite(data.targetY)) {
+      console.warn(`[CAST] ${playerId}: invalid target coords`);
+      return;
+    }
     const MAX_COORD = ARENA.FLOOR_SIZE * 2;
     data.targetX = Math.max(-MAX_COORD, Math.min(MAX_COORD, data.targetX));
     data.targetY = Math.max(-MAX_COORD, Math.min(MAX_COORD, data.targetY));
 
     const now = Date.now();
-    if (now - (player.lastSpellCast || 0) < 150) return;
+    if (now - (player.lastSpellCast || 0) < 150) return; // rate limit — no log needed
+
     player.lastSpellCast = now;
 
     const progression = this.progressions.get(playerId);
@@ -293,13 +301,19 @@ export class Room {
     if (progression && data.slot) {
       spellId = progression.getSlotSpellId(data.slot);
     }
-    if (!spellId || typeof spellId !== 'string') return;
+    if (!spellId || typeof spellId !== 'string') {
+      console.warn(`[CAST] ${playerId}: invalid spellId (slot=${data?.slot})`);
+      return;
+    }
 
     // Check if player has this spell equipped
-    if (progression && !progression.canCastSpell(spellId)) return;
+    if (progression && !progression.canCastSpell(spellId)) {
+      console.warn(`[CAST] ${playerId}: cannot cast ${spellId} (not equipped or locked)`);
+      return;
+    }
 
     const result = this.spells.processCast(playerId, spellId, data.targetX, data.targetY, progression);
-    if (!result) return;
+    if (!result) return; // processCast logs its own failures
 
     // Channeled spell: broadcast channeling start, actual spell fires later
     if (result.channeling) {
@@ -358,8 +372,16 @@ export class Room {
 
   handleShopUnlockSlot(playerId, data) {
     if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
+    const player = this.players.get(playerId);
+    if (!player) return;
+    const now = Date.now();
+    if (now - (player.lastShopAction || 0) < 100) return;
+    player.lastShopAction = now;
     const VALID_SLOTS = new Set(['Q', 'W', 'E', 'R']);
-    if (!data || !VALID_SLOTS.has(data.slot)) return;
+    if (!data || !VALID_SLOTS.has(data.slot)) {
+      console.warn(`[SHOP] ${playerId}: unlockSlot invalid slot=${data?.slot}`);
+      return;
+    }
     const progression = this.progressions.get(playerId);
     if (!progression) return;
 
@@ -372,8 +394,16 @@ export class Room {
 
   handleShopChooseSpell(playerId, data) {
     if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
+    const player = this.players.get(playerId);
+    if (!player) return;
+    const now = Date.now();
+    if (now - (player.lastShopAction || 0) < 100) return;
+    player.lastShopAction = now;
     const VALID_SLOTS = new Set(['Q', 'W', 'E', 'R']);
-    if (!data || !VALID_SLOTS.has(data.slot) || typeof data.spellId !== 'string') return;
+    if (!data || !VALID_SLOTS.has(data.slot) || typeof data.spellId !== 'string') {
+      console.warn(`[SHOP] ${playerId}: chooseSpell invalid data (slot=${data?.slot}, spellId=${data?.spellId})`);
+      return;
+    }
     const progression = this.progressions.get(playerId);
     if (!progression) return;
 
@@ -386,8 +416,16 @@ export class Room {
 
   handleShopUpgradeTier(playerId, data) {
     if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
+    const player = this.players.get(playerId);
+    if (!player) return;
+    const now = Date.now();
+    if (now - (player.lastShopAction || 0) < 100) return;
+    player.lastShopAction = now;
     const VALID_SLOTS = new Set(['Q', 'W', 'E', 'R']);
-    if (!data || !VALID_SLOTS.has(data.slot)) return;
+    if (!data || !VALID_SLOTS.has(data.slot)) {
+      console.warn(`[SHOP] ${playerId}: upgradeTier invalid slot=${data?.slot}`);
+      return;
+    }
     const progression = this.progressions.get(playerId);
     if (!progression) return;
 
@@ -436,6 +474,9 @@ export class Room {
   }
 
   onPlayerEliminated(eliminatedId, eliminatorId, method) {
+    // Expire eliminated player's active spells (500ms grace for visual fade)
+    this.spells.deactivatePlayerSpells(eliminatedId);
+
     // Track kill for SP
     this.trackKill(eliminatorId, method);
 

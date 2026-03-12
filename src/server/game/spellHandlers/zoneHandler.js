@@ -52,10 +52,22 @@ export const zoneHandler = {
         for (const [playerId, body] of ctx.physics.playerBodies) {
           if (playerId === spell.ownerId) continue;
           if (ctx.isEliminated(playerId)) continue;
+          const targetEffects = ctx.statusEffects.get(playerId);
+          if (targetEffects && targetEffects.intangible) continue;
           const dx = body.position.x - spell.x;
           const dy = body.position.y - spell.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < spell.radius + PLAYER.RADIUS) {
+            // Shield absorption
+            if (targetEffects && targetEffects.shield && targetEffects.shield.hitsRemaining > 0) {
+              targetEffects.shield.hitsRemaining--;
+              targetEffects.shield.lastHitData = {
+                attackerId: spell.ownerId,
+                damage: spell.damage,
+                knockbackForce: spell.knockbackForce,
+              };
+              continue;
+            }
             const nx = dist > 0 ? dx / dist : 0;
             const ny = dist > 0 ? dy / dist : 1;
             const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
@@ -82,11 +94,23 @@ export const zoneHandler = {
     for (const [playerId, body] of ctx.physics.playerBodies) {
       if (playerId === spell.ownerId) continue;
       if (ctx.isEliminated(playerId)) continue;
+      const targetEffects = ctx.statusEffects.get(playerId);
+      if (targetEffects && targetEffects.intangible) continue;
       const dx = body.position.x - spell.x;
       const dy = body.position.y - spell.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < spell.radius) {
+        // Shield absorption — absorb one zone tick
+        if (targetEffects && targetEffects.shield && targetEffects.shield.hitsRemaining > 0) {
+          targetEffects.shield.hitsRemaining--;
+          targetEffects.shield.lastHitData = {
+            attackerId: spell.ownerId,
+            damage: spell.isBurning ? 1 : spell.damage,
+            knockbackForce: spell.knockbackForce || 0,
+          };
+          continue;
+        }
         // Apply slow
         const slowAmt = spell.isBurning ? (spell.burnSlowAmount || 0) : spell.slowAmount;
         if (slowAmt > 0) {

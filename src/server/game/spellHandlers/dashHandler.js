@@ -48,6 +48,8 @@ export const dashHandler = {
     for (const [id, body] of ctx.physics.playerBodies) {
       if (id === playerId) continue;
       if (ctx.isEliminated(id)) continue;
+      const targetEffects = ctx.statusEffects.get(id);
+      if (targetEffects && targetEffects.intangible) continue;
 
       const px = body.position.x - originX;
       const py = body.position.y - originY;
@@ -59,6 +61,16 @@ export const dashHandler = {
       const distToPath = Math.sqrt(ddx * ddx + ddy * ddy);
 
       if (distToPath < dashWidth + PLAYER.RADIUS) {
+        // Shield absorption
+        if (targetEffects && targetEffects.shield && targetEffects.shield.hitsRemaining > 0) {
+          targetEffects.shield.hitsRemaining--;
+          targetEffects.shield.lastHitData = {
+            attackerId: playerId,
+            damage: stats.dashDamage || 3,
+            knockbackForce: stats.dashKnockback || 0.02,
+          };
+          continue;
+        }
         const knockback = (stats.dashKnockback || 0.02) * ctx.getKnockbackMultiplier(playerId);
         const hitNx = ddx / (distToPath || 1);
         const hitNy = ddy / (distToPath || 1);

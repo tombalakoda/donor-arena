@@ -72,10 +72,11 @@ export const swapHandler = {
           Body.setVelocity(casterBody, { x: 0, y: 0 });
           Body.setVelocity(body, { x: 0, y: 0 });
 
-          // Stun the swapped enemy (T2)
-          if (spell.swapStunDuration > 0) {
+          // Stun the swapped enemy (T2) — clamped to 3s max
+          const stunDur = Math.min(spell.swapStunDuration || 0, 3000);
+          if (stunDur > 0) {
             ctx.applyStatusEffect(playerId, 'stun', {
-              until: now + spell.swapStunDuration,
+              until: now + stunDur,
             });
           }
         }

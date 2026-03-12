@@ -89,7 +89,11 @@ export const hookHandler = {
       const casterBody = ctx.physics.playerBodies.get(spell.ownerId);
 
       if (!hookedBody || !casterBody) {
-        // Target or caster disconnected — clean up
+        // Target or caster disconnected — clear stun and clean up
+        if (spell.hookedPlayerId) {
+          const effects = ctx.statusEffects.get(spell.hookedPlayerId);
+          if (effects && effects.stun) delete effects.stun;
+        }
         spell.phase = 'done';
         spell.released = true;
         spell.lifetime = spell.elapsed + 100;
