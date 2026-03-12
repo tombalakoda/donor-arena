@@ -81,11 +81,19 @@ export class HUDManager {
     const scene = this.scene;
     const camW = SCREEN.W;
 
-    // --- Top-left: Ping & player count ---
-    this.pingText = createText(scene, SPACE.SM, SPACE.SM, 'Ping: --', FONT.SMALL, {
+    // --- Top-left: Round & timer (primary info on top) ---
+    this.roundText = createText(scene, SPACE.SM, SPACE.SM, 'Fasıl 0/20', FONT.BODY_BOLD, {
+      fill: COLOR.ACCENT_GOLD, depth: DEPTH.HUD, originX: 0, originY: 0,
+    });
+    this.timerText = createText(scene, SPACE.SM, SPACE.SM + 16, '60s', FONT.BODY, {
+      fill: COLOR.ACCENT_INFO, depth: DEPTH.HUD, originX: 0, originY: 0,
+    });
+
+    // --- Top-left: Ping & player count (below round info) ---
+    this.pingText = createText(scene, SPACE.SM, SPACE.SM + 32, 'Ping: --', FONT.SMALL, {
       fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD, originX: 0, originY: 0,
     });
-    this.playerCountText = createText(scene, SPACE.SM, SPACE.SM + 14, 'Âşıklar: 0', FONT.SMALL, {
+    this.playerCountText = createText(scene, SPACE.SM, SPACE.SM + 46, 'Âşıklar: 0', FONT.SMALL, {
       fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD, originX: 0, originY: 0,
     });
 
@@ -97,14 +105,6 @@ export class HUDManager {
     });
     this.hpText = createText(scene, SCREEN.CX + 128, barY, '100 Nefes', FONT.SMALL, {
       fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0.5,
-    });
-
-    // --- Top-left: Round & timer (below ping + player count) ---
-    this.roundText = createText(scene, SPACE.SM, SPACE.SM + 28, 'Fasıl 0/20', FONT.BODY_BOLD, {
-      fill: COLOR.ACCENT_GOLD, depth: DEPTH.HUD, originX: 0, originY: 0,
-    });
-    this.timerText = createText(scene, SPACE.SM, SPACE.SM + 44, '60s', FONT.BODY, {
-      fill: COLOR.ACCENT_INFO, depth: DEPTH.HUD, originX: 0, originY: 0,
     });
     this.phaseText = createText(scene, SCREEN.CX, 40, '', FONT.SMALL, {
       fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD, originX: 0.5, originY: 0,
@@ -124,7 +124,7 @@ export class HUDManager {
     const scene = this.scene;
     const isMuted = scene.sound.mute;
     const x = SCREEN.W - 20;
-    const y = 46;
+    const y = 18;
 
     const { elements, icon, cell } = createIconButton(scene, x, y,
       isMuted ? 'icon-sound-off' : 'icon-sound-on', {
@@ -142,7 +142,7 @@ export class HUDManager {
   createScoreboardToggle() {
     const scene = this.scene;
     const x = SCREEN.W - 20;
-    const y = 74;
+    const y = 46;
 
     const { elements, icon, cell } = createIconButton(scene, x, y, 'icon-scoreboard', {
       size: 18, depth: DEPTH.HUD,
