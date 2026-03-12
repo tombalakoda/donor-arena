@@ -224,7 +224,10 @@ export const hookHandler = {
           const launchDist = Math.sqrt(launchDx * launchDx + launchDy * launchDy) || 1;
           const launchNx = launchDx / launchDist;
           const launchNy = launchDy / launchDist;
-          const launchSpeed = Math.min(spell.pullSpeed + (spell.launchSpeedBonus || 0) + 2, 10);
+          // Distance ratio: 0 (point-blank) → 1 (max range hook) — farther hook = more powerful throw
+          const distRatio = Math.min(1, spell.travelDist / (spell.range || 320));
+          const maxLaunchSpeed = Math.min(spell.pullSpeed + (spell.launchSpeedBonus || 0) + 2, 10);
+          const launchSpeed = maxLaunchSpeed * (0.3 + 0.7 * distRatio);
 
           Body.setVelocity(casterBody, { x: launchNx * launchSpeed, y: launchNy * launchSpeed });
           ctx.physics.knockbackUntil.set(spell.ownerId, now + spell.flightDuration + 500);

@@ -1750,12 +1750,16 @@ export class GameScene extends Phaser.Scene {
       // Check if spell slot is locked
       if (this.progression && this.progression.slots[key] === 'locked') continue;
 
-      // If mid-grapple and pressing R, this is a release, not a new cast
-      if (key === 'R' && this.grapplingActive) {
-        if (Phaser.Input.Keyboard.JustDown(keyObj)) {
-          this.network.sendHookRelease();
+      // If mid-grapple and pressing the grappling slot key, this is a release, not a new cast
+      if (this.grapplingActive) {
+        const slotSpellId = this.getSlotSpellId(key);
+        const slotSpellDef = slotSpellId && SPELLS[slotSpellId];
+        if (slotSpellDef && slotSpellDef.type === SPELL_TYPES.HOOK) {
+          if (Phaser.Input.Keyboard.JustDown(keyObj)) {
+            this.network.sendHookRelease();
+          }
+          continue;
         }
-        continue;
       }
 
       const spellId = this.getSlotSpellId(key);
