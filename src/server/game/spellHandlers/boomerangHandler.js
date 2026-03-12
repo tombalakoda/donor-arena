@@ -100,8 +100,8 @@ export const boomerangHandler = {
       spell.vx = (cx / cDist) * currentSpeed;
       spell.vy = (cy / cDist) * currentSpeed;
 
-      // Check if reached origin — pass through, don't stop
-      if (cDist < spell.radius + 4) {
+      // Check if reached origin or will pass through this tick — don't overshoot
+      if (cDist < spell.radius + 4 || cDist <= currentSpeed) {
         spell.passedCaster = true;
         spell.casterPassX = spell.originX;
         spell.casterPassY = spell.originY;
@@ -188,10 +188,13 @@ export const boomerangHandler = {
         spell.vy = (blendY / blendLen) * reducedSpeed;
 
         // Deflect acts as the turning point — enter overshoot (coast & fade)
-        spell.returning = true;
-        spell.passedCaster = true;
-        spell.casterPassX = spell.x;
-        spell.casterPassY = spell.y;
+        // Only set overshoot origin on first hit; subsequent hits just deflect/slow
+        if (!spell.passedCaster) {
+          spell.returning = true;
+          spell.passedCaster = true;
+          spell.casterPassX = spell.x;
+          spell.casterPassY = spell.y;
+        }
       }
     }
   },
