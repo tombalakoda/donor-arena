@@ -1,5 +1,6 @@
 import { PLAYER } from '../../shared/constants.js';
 import { SPELLS, SPELL_TYPES } from '../../shared/spellData.js';
+import { getSfxVolume } from '../config.js';
 
 export class SpellVisualManager {
   constructor(scene) {
@@ -83,7 +84,7 @@ export class SpellVisualManager {
     // Play cast sound from spell definition
     const castFx = def.fx || {};
     if (castFx.sound && scene.cache.audio.exists(castFx.sound)) {
-      scene.sound.play(castFx.sound, { volume: 0.15 });
+      scene.sound.play(castFx.sound, { volume: 0.15 * getSfxVolume() });
     }
 
     const visual = {
@@ -476,7 +477,7 @@ export class SpellVisualManager {
           }
           // Shield activation sound
           if (scene.sound && scene.cache.audio.exists('sfx-shield')) {
-            scene.sound.play('sfx-shield', { volume: 0.4 });
+            scene.sound.play('sfx-shield', { volume: 0.4 * getSfxVolume() });
           }
         } else if (buffType === 'ghost') {
           let ghostGlow;

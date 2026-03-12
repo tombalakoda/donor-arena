@@ -149,6 +149,11 @@ export class GameScene extends Phaser.Scene {
     this.aimingSlot = null;
     this.indicatorGraphics = null;
     this._indicatorStatsCache = {};
+    this._shuttingDown = false;
+    if (this.spectatorOverlay && !this.spectatorOverlay.destroyed) {
+      this.spectatorOverlay.destroy();
+    }
+    this.spectatorOverlay = null;
   }
 
   create() {
@@ -179,9 +184,8 @@ export class GameScene extends Phaser.Scene {
     // Show lobby immediately (phase starts as 'waiting')
     this.lobbyOverlay.show();
 
-    // ESC key to toggle pause menu
+    // ESC key to toggle pause menu (works during shop phase too)
     this.input.keyboard.on('keydown-ESC', () => {
-      if (this.shopOverlay && this.shopOverlay.visible) return;
       // Don't allow pause if match-end is showing
       if (this.matchEndOverlay && this.matchEndOverlay.visible) return;
       if (this.pauseMenu) this.pauseMenu.toggle();
@@ -264,7 +268,7 @@ export class GameScene extends Phaser.Scene {
       const cam = this.cameras.main;
       const errorText = this.add.text(cam.width / 2, cam.height / 2, data.error, {
         fontSize: '32px',
-        fontFamily: 'KiwiSoda',
+        fontFamily: 'Alkhemikal',
         fill: '#ff4444',
         stroke: '#000000',
         strokeThickness: 3,
@@ -424,6 +428,7 @@ export class GameScene extends Phaser.Scene {
     this.spectateTargetIndex = -1;
     this._cleanupSpectatorListeners();
     this.hudManager._hideSpectateHUD();
+    if (this.spectatorOverlay) this.spectatorOverlay.setVisible(false);
     if (this.playerSprite) this.playerSprite.setAlpha(1);
 
     // Clear move target on new round
@@ -661,6 +666,7 @@ export class GameScene extends Phaser.Scene {
       kbUntil: 0,
       _inKnockbackAnim: false,
       _lastHpRatio: null,
+      eliminated: false,
     });
   }
 
@@ -715,8 +721,9 @@ export class GameScene extends Phaser.Scene {
       this.hudManager.showDamageNumber(rp.targetX, rp.targetY, prevHp - rp.hp);
     }
 
-    // Track intangible state (ghost buff)
+    // Track intangible and eliminated state
     rp.intangible = serverState.intangible || false;
+    rp.eliminated = serverState.eliminated || false;
 
     // Update name from server if provided
     if (serverState.name && !rp.name) {
@@ -890,9 +897,14 @@ export class GameScene extends Phaser.Scene {
 
     this.network.sendSpellCast(slotKey, spellId, worldPoint.x, worldPoint.y);
 
-    // Blink/Swap: clear movement target so player doesn't auto-walk to old click position
+    // Movement spells: clear movement target so player doesn't auto-walk to old position
     const spellDef = SPELLS[spellId];
-    if (spellDef && (spellDef.type === SPELL_TYPES.BLINK || spellDef.type === SPELL_TYPES.SWAP)) {
+    if (spellDef && (
+      spellDef.type === SPELL_TYPES.BLINK ||
+      spellDef.type === SPELL_TYPES.SWAP ||
+      spellDef.type === SPELL_TYPES.DASH ||
+      spellDef.type === SPELL_TYPES.RECALL
+    )) {
       this.moveTarget = null;
     }
   }
@@ -1005,6 +1017,14 @@ export class GameScene extends Phaser.Scene {
     this.spectateMode = true;
     this.cycleSpectateTarget(1);
 
+    // Greyed-out spectator overlay
+    if (!this.spectatorOverlay) {
+      this.spectatorOverlay = this.add.rectangle(
+        640, 360, 1280, 720, 0x112233, 0.3
+      ).setScrollFactor(0).setDepth(95);
+    }
+    this.spectatorOverlay.setVisible(true);
+
     // Listen for left-click and arrow keys to cycle target
     this._spectateClickHandler = (pointer) => {
       if (this.spectateMode && pointer.button === 0) this.cycleSpectateTarget(1);
@@ -1024,7 +1044,7 @@ export class GameScene extends Phaser.Scene {
     // Build list of alive remote players
     const alivePlayers = [];
     for (const [id, rp] of this.remotePlayers) {
-      if (rp.sprite && rp.sprite.alpha > 0.35) {
+      if (rp.sprite && !rp.eliminated) {
         alivePlayers.push(id);
       }
     }
@@ -2158,7 +2178,7 @@ export class GameScene extends Phaser.Scene {
       const rp = this.remotePlayers.get(this.spectateTargetId);
       if (rp) {
         // Check if spectated player is still alive
-        if (rp.sprite && rp.sprite.alpha <= 0.35) {
+        if (rp.eliminated) {
           // Spectated player died — cycle to next alive player
           this.cycleSpectateTarget(1);
           return;
@@ -2177,6 +2197,10 @@ export class GameScene extends Phaser.Scene {
 
 
   shutdown() {
+    // Guard against double-shutdown
+    if (this._shuttingDown) return;
+    this._shuttingDown = true;
+
     // Cleanup obstacle sprites
     if (this.obstacleSprites) {
       for (const obs of this.obstacleSprites) {
@@ -2244,8 +2268,12 @@ export class GameScene extends Phaser.Scene {
       this.input.keyboard.removeAllListeners('keyup-TAB');
     }
 
-    // Cleanup spectator listeners
+    // Cleanup spectator listeners and overlay
     this._cleanupSpectatorListeners();
+    if (this.spectatorOverlay && !this.spectatorOverlay.destroyed) {
+      this.spectatorOverlay.destroy();
+    }
+    this.spectatorOverlay = null;
 
     // Cleanup aim indicator graphics
     if (this.indicatorGraphics && !this.indicatorGraphics.destroyed) {
@@ -2256,9 +2284,9 @@ export class GameScene extends Phaser.Scene {
     // Clear tryJoin timeout
     if (this._tryJoinTimeout) { clearTimeout(this._tryJoinTimeout); this._tryJoinTimeout = null; }
 
-    // Disconnect network
-    if (this.network) {
-      this.network.disconnect();
-    }
+    // Disconnect network (may already be disconnected by PauseMenu/MatchEnd)
+    try {
+      if (this.network) this.network.disconnect();
+    } catch (_) { /* already disconnected */ }
   }
 }

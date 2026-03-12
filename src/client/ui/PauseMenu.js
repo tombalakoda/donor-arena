@@ -8,6 +8,7 @@
 
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle } from './UIConfig.js';
 import { createButton, createPanel, createDimmer, createText, animateIn } from './UIHelpers.js';
+import { getSfxVolume } from '../config.js';
 
 // ─── Constants ───────────────────────────────────────────
 const D = DEPTH.OVERLAY_DIM + 100;   // higher than other overlays
@@ -55,7 +56,7 @@ export class PauseMenu {
   }
 
   playSfx(key) {
-    try { this.scene.sound.play(key, { volume: 0.5 }); } catch (_) { /* */ }
+    try { this.scene.sound.play(key, { volume: 0.5 * getSfxVolume() }); } catch (_) { /* */ }
   }
 
   // ═══════════════════════════════════════════════════════
@@ -159,9 +160,19 @@ export class PauseMenu {
     if (scene.network) scene.network.disconnect();
     window.__networkConnected = false;
     scene.sound.stopAll();
+
+    // Reset camera effects before fade (shake can prevent fadeOut completion)
+    scene.cameras.main.resetFX();
     scene.cameras.main.fadeOut(400, 0, 0, 0);
-    scene.cameras.main.once('camerafadeoutcomplete', () => {
+
+    let transitioned = false;
+    const doTransition = () => {
+      if (transitioned) return;
+      transitioned = true;
       scene.scene.start('MenuScene');
-    });
+    };
+    scene.cameras.main.once('camerafadeoutcomplete', doTransition);
+    // Safety: force transition if fade event never fires
+    setTimeout(doTransition, 600);
   }
 }

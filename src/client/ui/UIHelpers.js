@@ -5,6 +5,7 @@
  */
 
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, textStyle } from './UIConfig.js';
+import { getSfxVolume } from '../config.js';
 
 // ─── Icy color constants ─────────────────────────────────────
 const BTN_FILL    = 0x8ad4e8;
@@ -76,7 +77,7 @@ export function createButton(scene, x, y, label, opts = {}) {
   hitArea.on('pointerover', () => {
     drawBtn(BTN_HOVER, 0.95);
     text.setY(y - 1);
-    if (sfx) try { scene.sound.play('sfx-move', { volume: 0.4 }); } catch (_) { /* */ }
+    if (sfx) try { scene.sound.play('sfx-move', { volume: 0.4 * getSfxVolume() }); } catch (_) { /* */ }
   });
 
   hitArea.on('pointerout', () => {
@@ -137,7 +138,7 @@ export function createIconButton(scene, x, y, iconKey, opts = {}) {
     isOver = true;
     icon.setScale(icon.scaleX * 1.1, icon.scaleY * 1.1);
     cell.setAlpha(ALPHA.SUBTLE);
-    if (sfx) try { scene.sound.play('sfx-move', { volume: 0.3 }); } catch (_) { /* */ }
+    if (sfx) try { scene.sound.play('sfx-move', { volume: 0.3 * getSfxVolume() }); } catch (_) { /* */ }
   });
   cell.on('pointerout', () => {
     isOver = false;

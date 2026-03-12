@@ -3,8 +3,18 @@ import { BootScene } from './scenes/BootScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
 import { GameScene } from './scenes/GameScene.js';
 
-/** Shared font family string — KiwiSoda pixel font with monospace fallback */
-export const UI_FONT = "'KiwiSoda', monospace";
+/** Shared font family string — Alkhemikal font with monospace fallback */
+export const UI_FONT = "'Alkhemikal', monospace";
+
+/** Audio volume helpers — read from localStorage with sensible defaults */
+export function getMusicVolume() {
+  if (localStorage.getItem('soundMuted') === 'true') return 0;
+  return parseFloat(localStorage.getItem('musicVolume') ?? '0.35');
+}
+export function getSfxVolume() {
+  if (localStorage.getItem('soundMuted') === 'true') return 0;
+  return parseFloat(localStorage.getItem('sfxVolume') ?? '0.5');
+}
 
 export const TIPS = [
   'Sağ tıkla buzda yürü',

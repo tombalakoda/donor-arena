@@ -6,6 +6,7 @@ import {
   getHpTint, textStyle,
 } from '../ui/UIConfig.js';
 import { createButton, createIconButton, createPanel, createBar, createSeparator, createText } from '../ui/UIHelpers.js';
+import { getSfxVolume } from '../config.js';
 
 export class HUDManager {
   constructor(scene) {
@@ -363,6 +364,11 @@ export class HUDManager {
         const danger = 1 - distToEdge / 80;
         this.edgeVignette.setAlpha(danger * 0.13);
       } else if (distToEdge <= 0) {
+        // Stop all ring damage effects after player dies
+        if (scene.localEliminated) {
+          this.edgeVignette.setAlpha(0);
+          return;
+        }
         const overshoot = Math.abs(distToEdge);
         const intensity = Math.min(overshoot / 100, 1);
         const pulse = 0.2 + 0.15 * Math.sin(scene.time.now * 0.008);
@@ -372,7 +378,7 @@ export class HUDManager {
         const now = performance.now();
         if (now - this._lastRingBurnSoundTime > 400) {
           this._lastRingBurnSoundTime = now;
-          scene.sound.play('sfx-ring-burn', { volume: 0.15 + intensity * 0.35, rate: 0.8 + intensity * 0.4 });
+          scene.sound.play('sfx-ring-burn', { volume: (0.15 + intensity * 0.35) * getSfxVolume(), rate: 0.8 + intensity * 0.4 });
         }
 
         if (Math.random() < 0.3 + intensity * 0.5) {
@@ -499,9 +505,12 @@ export class HUDManager {
       let timerStr = '';
       let timerFill = COLOR.ACCENT_INFO;
       if (scene.phase === 'playing') {
-        const seconds = Math.ceil(scene.timeRemaining);
-        timerStr = `${seconds}s`;
-        timerFill = seconds <= 10 ? COLOR.ACCENT_DANGER : COLOR.ACCENT_INFO;
+        // timeRemaining is now elapsed seconds (no countdown)
+        const elapsed = Math.floor(scene.timeRemaining);
+        const minutes = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        timerStr = minutes > 0 ? `${minutes}:${String(secs).padStart(2, '0')}` : `${secs}s`;
+        timerFill = COLOR.ACCENT_INFO;
       } else if (scene.phase === 'shop') {
         const seconds = Math.ceil(scene.shopTimeRemaining);
         timerStr = `Dükkân: ${seconds}s`;

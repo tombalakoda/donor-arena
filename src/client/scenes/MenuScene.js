@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { CHARACTERS } from './BootScene.js';
 import { getPassive } from '../../shared/characterPassives.js';
 import { MSG } from '../../shared/messageTypes.js';
-import { TIPS } from '../config.js';
+import { TIPS, getMusicVolume, getSfxVolume } from '../config.js';
 import {
   COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle,
 } from '../ui/UIConfig.js';
@@ -65,7 +65,7 @@ export class MenuScene extends Phaser.Scene {
     this._createFaceStrip();
     this._createBottomBar();
     this._createBottomTip();
-    this._createSoundToggle();
+    this._createSoundControls();
     this._createKeyboardNav();
 
     this._selectCharacter(0, true);
@@ -367,7 +367,7 @@ export class MenuScene extends Phaser.Scene {
     inputElement.value = 'Âşık';
     inputElement.maxLength = 16;
     inputElement.style.cssText = `
-      font-size: 16px; font-family: 'KiwiSoda', monospace;
+      font-size: 16px; font-family: 'Alkhemikal', monospace;
       padding: 4px 8px; width: 140px;
       background: transparent; color: #ffffff;
       border: none; outline: none; caret-color: #b8e4f0;
@@ -429,16 +429,74 @@ export class MenuScene extends Phaser.Scene {
     });
   }
 
-  _createSoundToggle() {
-    const isMuted = this.sound.mute;
-    createIconButton(this, SCREEN.W - 28, 28,
-      isMuted ? 'icon-sound-off' : 'icon-sound-on', {
-        size: 22, depth: 20,
-        onClick: () => {
-          this.sound.mute = !this.sound.mute;
-          localStorage.setItem('soundMuted', this.sound.mute);
-        },
+  _createSoundControls() {
+    const d = 20;
+    const sliderW = 100;
+    const sliderH = 6;
+    const baseX = SCREEN.W - sliderW - 28;
+    const musicY = 18;
+    const sfxY = 42;
+
+    // Helper: build one slider
+    const buildSlider = (x, y, label, storageKey, defaultVal, onChange) => {
+      const val = parseFloat(localStorage.getItem(storageKey) ?? String(defaultVal));
+      const lbl = createText(this, x - 6, y, label, FONT.TINY, {
+        fill: COLOR.TEXT_SECONDARY, depth: d, originX: 1, originY: 0.5,
       });
+      this._soundElements = this._soundElements || [];
+      this._soundElements.push(lbl);
+
+      const g = this.add.graphics().setDepth(d).setScrollFactor(0);
+      this._soundElements.push(g);
+
+      // Track background
+      g.fillStyle(0x334455, 0.6);
+      g.fillRoundedRect(x, y - sliderH / 2, sliderW, sliderH, 3);
+
+      // Fill bar
+      const fill = this.add.graphics().setDepth(d + 1).setScrollFactor(0);
+      this._soundElements.push(fill);
+
+      const drawFill = (v) => {
+        fill.clear();
+        fill.fillStyle(0x88ccff, 0.8);
+        fill.fillRoundedRect(x, y - sliderH / 2, sliderW * v, sliderH, 3);
+      };
+      drawFill(val);
+
+      // Invisible drag zone
+      const zone = this.add.zone(x + sliderW / 2, y, sliderW + 20, 24)
+        .setOrigin(0.5).setDepth(d + 2).setScrollFactor(0).setInteractive({ useHandCursor: true });
+      this._soundElements.push(zone);
+
+      zone.on('pointerdown', (pointer) => {
+        const pct = Phaser.Math.Clamp((pointer.x - x) / sliderW, 0, 1);
+        localStorage.setItem(storageKey, pct.toFixed(2));
+        drawFill(pct);
+        onChange(pct);
+      });
+      zone.on('pointermove', (pointer) => {
+        if (!pointer.isDown) return;
+        const pct = Phaser.Math.Clamp((pointer.x - x) / sliderW, 0, 1);
+        localStorage.setItem(storageKey, pct.toFixed(2));
+        drawFill(pct);
+        onChange(pct);
+      });
+
+      return val;
+    };
+
+    // Music slider
+    buildSlider(baseX, musicY, 'Ezgi', 'musicVolume', 0.35, (v) => {
+      if (this.menuMusic && this.menuMusic.isPlaying) {
+        this.menuMusic.volume = v;
+      }
+    });
+
+    // SFX slider
+    buildSlider(baseX, sfxY, 'Efekt', 'sfxVolume', 0.5, (_v) => {
+      // SFX volume is read per-call via getSfxVolume(); nothing to update live
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -766,12 +824,13 @@ export class MenuScene extends Phaser.Scene {
 
   _startMenuMusic() {
     if (this.menuMusic && this.menuMusic.isPlaying) return;
+    const vol = getMusicVolume();
     if (this.sound.get('music-menu')) {
       this.menuMusic = this.sound.get('music-menu');
-      if (!this.menuMusic.isPlaying) this.menuMusic.play({ loop: true, volume: 0.35 });
+      if (!this.menuMusic.isPlaying) this.menuMusic.play({ loop: true, volume: vol });
     } else {
       try {
-        this.menuMusic = this.sound.add('music-menu', { loop: true, volume: 0.35 });
+        this.menuMusic = this.sound.add('music-menu', { loop: true, volume: vol });
         this.menuMusic.play();
       } catch (e) { /* Audio not available */ }
     }
@@ -802,6 +861,6 @@ export class MenuScene extends Phaser.Scene {
   }
 
   _playSfx(key) {
-    try { this.sound.play(key, { volume: 0.5 }); } catch (e) { /* */ }
+    try { this.sound.play(key, { volume: 0.5 * getSfxVolume() }); } catch (e) { /* */ }
   }
 }

@@ -8,6 +8,7 @@
 
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle } from './UIConfig.js';
 import { createButton, createPanel, createDimmer, createSeparator, createText, animateIn } from './UIHelpers.js';
+import { getSfxVolume } from '../config.js';
 
 // ─── Constants ───────────────────────────────────────────
 const D = DEPTH.OVERLAY_DIM;
@@ -54,7 +55,7 @@ export class MatchEndOverlay {
   }
 
   playSfx(key) {
-    try { this.scene.sound.play(key, { volume: 0.6 }); } catch (_) { /* */ }
+    try { this.scene.sound.play(key, { volume: 0.6 * getSfxVolume() }); } catch (_) { /* */ }
   }
 
   // ═══════════════════════════════════════════════════════
@@ -256,10 +257,17 @@ export class MatchEndOverlay {
     if (scene.network) scene.network.disconnect();
     window.__networkConnected = false;
     scene.sound.stopAll();
+    scene.cameras.main.resetFX();
     scene.cameras.main.fadeOut(400, 0, 0, 0);
-    scene.cameras.main.once('camerafadeoutcomplete', () => {
+
+    let transitioned = false;
+    const doTransition = () => {
+      if (transitioned) return;
+      transitioned = true;
       scene.scene.start('MenuScene');
-    });
+    };
+    scene.cameras.main.once('camerafadeoutcomplete', doTransition);
+    setTimeout(doTransition, 600);
   }
 
   playAgain() {
@@ -267,13 +275,20 @@ export class MatchEndOverlay {
     if (scene.network) scene.network.disconnect();
     window.__networkConnected = false;
     scene.sound.stopAll();
+    scene.cameras.main.resetFX();
     scene.cameras.main.fadeOut(400, 0, 0, 0);
-    scene.cameras.main.once('camerafadeoutcomplete', () => {
+
+    let transitioned = false;
+    const doTransition = () => {
+      if (transitioned) return;
+      transitioned = true;
       scene.scene.start('GameScene', {
         characterId: scene.characterId,
         playerName: scene.playerName,
         mode: scene.gameMode,
       });
-    });
+    };
+    scene.cameras.main.once('camerafadeoutcomplete', doTransition);
+    setTimeout(doTransition, 600);
   }
 }

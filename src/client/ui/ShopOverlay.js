@@ -11,6 +11,7 @@ import { SPELLS, SLOT_SPELLS } from '../../shared/spellData.js';
 import { SP } from '../../shared/constants.js';
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SLOT_COLOR, SCREEN, textStyle } from './UIConfig.js';
 import { createButton, createBar, createPanel, createDimmer, createSeparator, createText, animateIn } from './UIHelpers.js';
+import { getSfxVolume } from '../config.js';
 
 // ─── Constants ───────────────────────────────────────────
 const D = DEPTH.OVERLAY_DIM;
@@ -749,7 +750,7 @@ export class ShopOverlay {
   }
 
   _playSfx(key) {
-    try { this.scene.sound.play(key, { volume: 0.5 }); } catch (_) { /* */ }
+    try { this.scene.sound.play(key, { volume: 0.5 * getSfxVolume() }); } catch (_) { /* */ }
   }
 
   _rebuildAll() {

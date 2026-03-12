@@ -6,7 +6,7 @@
  */
 
 // Font defined here (NOT imported from config.js to avoid circular dependency)
-const UI_FONT = "'KiwiSoda', monospace";
+const UI_FONT = "'Alkhemikal', monospace";
 
 // ─── Color Palette ───────────────────────────────────────────
 export const COLOR = {

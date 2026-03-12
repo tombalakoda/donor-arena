@@ -35,7 +35,7 @@ export const ARENA = {
   FLOOR_SIZE: 1200,               // Total floor area (square)
   RING_SHRINK_BASE: 2.0,          // Base shrink per second (was 1.5 — faster pressure)
   RING_SHRINK_SCALE: 0.5,         // Additional shrink per round number (was 0.3)
-  MIN_RING_RADIUS: 60,            // Ring never shrinks below this — tighter endgame for smaller players
+  MIN_RING_RADIUS: 0,             // Ring collapses fully — rounds end by elimination only
 };
 
 export const ROUND = {

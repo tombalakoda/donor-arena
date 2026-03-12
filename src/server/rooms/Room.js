@@ -331,8 +331,11 @@ export class Room {
     const spells = Array.isArray(result) ? result : [result];
 
     for (const spell of spells) {
-      // Blink/Swap: clear movement target so player doesn't auto-walk to old position
-      if (spell.spellType === SPELL_TYPES.BLINK || spell.spellType === SPELL_TYPES.SWAP) {
+      // Movement spells: clear movement target so player doesn't auto-walk to old position
+      if (spell.spellType === SPELL_TYPES.BLINK ||
+          spell.spellType === SPELL_TYPES.SWAP ||
+          spell.spellType === SPELL_TYPES.DASH ||
+          spell.spellType === SPELL_TYPES.RECALL) {
         player.input = null;
       }
 

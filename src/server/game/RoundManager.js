@@ -97,13 +97,14 @@ export class RoundManager {
 
         // Check round end conditions
         const elapsed = this.phaseTimer / 1000;
-        const duration = this.sandboxMode ? SANDBOX.ROUND_DURATION : ROUND.DURATION;
-        // In sandbox, don't end on elimination (dummies dying shouldn't end round)
+        // Sandbox: use time limit (effectively infinite at 600s)
+        const sandboxTimeUp = this.sandboxMode && elapsed >= SANDBOX.ROUND_DURATION;
+        // Normal: round ends only when 1 player remains (no time limit)
         const eliminationEnd = !this.sandboxMode && totalPlayers >= 2 && alivePlayers <= 1;
-        if (elapsed >= duration || eliminationEnd) {
+        if (sandboxTimeUp || eliminationEnd) {
           this.phase = PHASE.ROUND_END;
           this.phaseTimer = 0;
-          return { event: 'roundEnd', round: this.currentRound, timeUp: elapsed >= duration };
+          return { event: 'roundEnd', round: this.currentRound, timeUp: false };
         }
         break;
       }
@@ -159,8 +160,8 @@ export class RoundManager {
 
   getRoundTimeRemaining() {
     if (this.phase !== PHASE.PLAYING) return 0;
-    const duration = this.sandboxMode ? SANDBOX.ROUND_DURATION : ROUND.DURATION;
-    return Math.max(0, duration - this.phaseTimer / 1000);
+    // Return elapsed seconds (no time limit — rounds end by elimination)
+    return Math.floor(this.phaseTimer / 1000);
   }
 
   getCountdownRemaining() {
