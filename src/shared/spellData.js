@@ -126,7 +126,7 @@ export const SPELLS = {
       color: 0xff8844,
       glowColor: 0xffaa66,
     },
-    icon: 'spell-Cut',
+    icon: 'icon-kosma',
   },
   'flash': {
     id: 'flash',
@@ -142,7 +142,7 @@ export const SPELLS = {
       color: 0xffdd00,
       glowColor: 0xffee44,
     },
-    icon: 'spell-Upgrade',
+    icon: 'icon-segirtme',
   },
   'ghost': {
     id: 'ghost',
@@ -158,7 +158,7 @@ export const SPELLS = {
       color: 0xaabbff,
       glowColor: 0xccddff,
     },
-    icon: 'spell-Necromancy',
+    icon: 'icon-gayb',
   },
   'swap': {
     id: 'swap',
@@ -174,7 +174,7 @@ export const SPELLS = {
       color: 0xcc44ff,
       glowColor: 0xdd88ff,
     },
-    icon: 'spell-Mist',
+    icon: 'icon-celme',
   },
   'timeshift': {
     id: 'timeshift',
@@ -293,7 +293,7 @@ export const SPELLS = {
       color: 0x886644,
       chainColor: 0xaaaaaa,
     },
-    icon: 'spell-BookDarkness',
+    icon: 'icon-baglama',
   },
   'grappling': {
     id: 'grappling',
@@ -324,7 +324,7 @@ export const SPELLS = {
       color: 0xffff44,
       glowColor: 0xffffaa,
     },
-    icon: 'spell-AttackUpgrade',
+    icon: 'icon-sitem',
   },
   'homing': {
     id: 'homing',
@@ -340,7 +340,7 @@ export const SPELLS = {
       color: 0xaa44ff,
       glowColor: 0xcc88ff,
     },
-    icon: 'spell-MagicWeapon',
+    icon: 'icon-hasret',
   },
   'meteor': {
     id: 'meteor',
@@ -356,7 +356,7 @@ export const SPELLS = {
       color: 0xff6600,
       glowColor: 0xff8800,
     },
-    icon: 'spell-Death',
+    icon: 'icon-nazar',
   },
   'rocketswarm': {
     id: 'rocketswarm',
@@ -372,7 +372,7 @@ export const SPELLS = {
       color: 0x88cc44,
       glowColor: 0xaaee66,
     },
-    icon: 'spell-Camouflage',
+    icon: 'icon-giybet',
   },
   'boomerang': {
     id: 'boomerang',
@@ -388,7 +388,7 @@ export const SPELLS = {
       color: 0x888899,
       glowColor: 0xaaaacc,
     },
-    icon: 'spell-Counter',
+    icon: 'icon-beddua',
   },
   'bade': {
     id: 'bade',
@@ -404,7 +404,7 @@ export const SPELLS = {
       color: 0x885522,
       glowColor: 0xcc8844,
     },
-    icon: 'spell-BookRock',
+    icon: 'icon-bade',
   },
 };
 
