@@ -1920,12 +1920,22 @@ export class GameScene extends Phaser.Scene {
         this._inKnockbackAnim = true;
       }
     } else if (this.isMoving) {
-      // Normal movement: update facing direction from velocity (like remote players)
-      const ax = Math.abs(vel.x);
-      const ay = Math.abs(vel.y);
+      // Normal movement: determine facing direction
+      let dx, dy;
+      if (this.moveTarget) {
+        // Active target: face toward click destination (responsive, matches intent)
+        dx = this.moveTarget.x - pos.x;
+        dy = this.moveTarget.y - pos.y;
+      } else {
+        // Coasting (no target): face velocity direction
+        dx = vel.x;
+        dy = vel.y;
+      }
+      const ax = Math.abs(dx);
+      const ay = Math.abs(dy);
       const newDir = ax >= ay
-        ? (vel.x > 0 ? 'right' : 'left')
-        : (vel.y > 0 ? 'down' : 'up');
+        ? (dx > 0 ? 'right' : 'left')
+        : (dy > 0 ? 'down' : 'up');
       const dirChanged = newDir !== this.facingDir;
       if (dirChanged) this.facingDir = newDir;
       // Play walk animation on transition or direction change
