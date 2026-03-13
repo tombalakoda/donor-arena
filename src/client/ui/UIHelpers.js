@@ -410,9 +410,11 @@ export function createTexturedButton(scene, x, y, label, textureKey, opts = {}) 
   const enabled = opts.enabled !== false;
   const onClick = opts.onClick || (() => {});
   const sfx     = opts.sfx !== false;
+  const frame   = opts.frame  ?? 0;     // spritesheet frame index
   const elements = [];
 
-  const bg = scene.add.image(x, y, textureKey)
+  // Use sprite instead of image to support spritesheet frames
+  const bg = scene.add.sprite(x, y, textureKey, frame)
     .setDisplaySize(w, h)
     .setScrollFactor(0).setDepth(depth);
 
@@ -438,12 +440,14 @@ export function createTexturedButton(scene, x, y, label, textureKey, opts = {}) 
   const origSY = bg.scaleY;
 
   hitArea.on('pointerover', () => {
+    bg.setFrame(1);  // active/hover frame
     bg.setScale(origSX * 1.05, origSY * 1.05);
     text.setY(y - 1);
     if (sfx) try { scene.sound.play('sfx-move', { volume: 0.4 * getSfxVolume() }); } catch (_) { /* */ }
   });
 
   hitArea.on('pointerout', () => {
+    bg.setFrame(frame);  // restore original frame
     bg.setScale(origSX, origSY);
     text.setY(y);
   });

@@ -263,8 +263,10 @@ export class BootScene extends Phaser.Scene {
 
     // --- Shop panel assets ---
     this.load.image('ui-shop-panel', 'assets/ui/panel1.png');
-    this.load.image('ui-shop-tab',   'assets/ui/button1.png');
-    this.load.image('ui-shop-btn',   'assets/ui/button2.png');
+    this.load.image('ui-shop-card',  'assets/ui/cardasset.png');
+    this.load.spritesheet('ui-shop-btn', 'assets/ui/buttonssheet.png', {
+      frameWidth: 173, frameHeight: 76,
+    });
 
     // --- Load UI (Ninja Adventure – Theme Wood kit) ---
     this.load.image('ui-panel',           'assets/ui/theme-wood/nine_path_panel.png');
