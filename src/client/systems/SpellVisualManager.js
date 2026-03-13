@@ -284,10 +284,10 @@ export class SpellVisualManager {
         const zoneRadius = spell.radius || 35;
 
         if (spell.isMeteor) {
-          // Meteor: start with pulsing warning circle, explode on impact
-          const warning = scene.add.circle(spell.x, spell.y, 5, 0xff2200, 0.15);
+          // Meteor (Nazar): start with pulsing warning circle, explode on impact
+          const warning = scene.add.circle(spell.x, spell.y, 5, 0x7722cc, 0.15);
           warning.setDepth(5);
-          warning.setStrokeStyle(2, 0xff4400, 0.6);
+          warning.setStrokeStyle(2, 0xaa66ff, 0.6);
           visual.zone = warning;
           visual.sprite = warning; // placeholder for cleanup
           visual.isMeteor = true;
@@ -1141,11 +1141,11 @@ export class SpellVisualManager {
           // On impact: replace warning with explosion sprite
           if (progress >= 1 && !visual.impactTriggered) {
             visual.impactTriggered = true;
-            visual.zone.setStrokeStyle(3, 0xff6600, 0.8);
-            visual.zone.setFillStyle(0xff4400, 0.3);
-            // Add explosion sprite on top
-            const explosionKey = 'fx-explosion';
-            const explosionAnim = 'fx-explosion-play';
+            visual.zone.setStrokeStyle(3, 0xcc88ff, 0.8);
+            visual.zone.setFillStyle(0xaa66ff, 0.3);
+            // Add puf sprite on top
+            const explosionKey = 'fx-puf';
+            const explosionAnim = 'fx-puf-play';
             if (scene.anims.exists(explosionAnim)) {
               const explSprite = scene.add.sprite(visual.zone.x, visual.zone.y, explosionKey);
               explSprite.setScale((visual.meteorRadius / 20) * 1.5);

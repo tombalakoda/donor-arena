@@ -438,6 +438,12 @@ export class MenuScene extends Phaser.Scene {
       if (document.activeElement === this.nameInput?.node) return;
       this._startGame('normal');
     });
+    this.input.keyboard.on('keydown-ESC', () => {
+      // Close room list overlay if open
+      if (this.roomListElements && this.roomListElements.length > 0) {
+        this._destroyRoomList();
+      }
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════

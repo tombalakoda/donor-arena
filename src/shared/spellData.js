@@ -352,7 +352,7 @@ export const SPELLS = {
       sprite: 'fx-puf',
       animKey: 'fx-puf-play',
       scale: 2.0,
-      sound: 'sfx-fireball',
+      sound: 'sfx-meteor',
       color: 0xaa66ff,
       glowColor: 0xcc88ff,
     },
