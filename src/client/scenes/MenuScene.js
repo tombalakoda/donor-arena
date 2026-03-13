@@ -70,7 +70,11 @@ export class MenuScene extends Phaser.Scene {
     this._selectCharacter(0, true);
     this._startMenuMusic();
 
-    this.events.once('shutdown', () => this._destroyRoomList(), this);
+    this._soundSettingsElements = [];
+    this.events.once('shutdown', () => {
+      this._destroyRoomList();
+      this._destroySoundSettings();
+    }, this);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -442,6 +446,13 @@ export class MenuScene extends Phaser.Scene {
       // Close room list overlay if open
       if (this.roomListElements && this.roomListElements.length > 0) {
         this._destroyRoomList();
+        return;
+      }
+      // Toggle sound settings
+      if (this._soundSettingsElements && this._soundSettingsElements.length > 0) {
+        this._destroySoundSettings();
+      } else {
+        this._showSoundSettings();
       }
     });
   }
@@ -718,6 +729,129 @@ export class MenuScene extends Phaser.Scene {
     }
     this.roomListLoading = null;
     this.selectedRoomId = null;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // SOUND SETTINGS — ESC overlay
+  // ═══════════════════════════════════════════════════════════════
+
+  _showSoundSettings() {
+    if (this._soundSettingsElements && this._soundSettingsElements.length > 0) return;
+    this._soundSettingsElements = [];
+
+    const DPT = DEPTH.OVERLAY_DIM;
+    const s = this;
+
+    // Dimmer
+    const dimmer = createDimmer(s, { depth: DPT, alpha: 0.6 });
+    dimmer.setInteractive();
+    dimmer.on('pointerdown', () => this._destroySoundSettings());
+    this._soundSettingsElements.push(dimmer);
+
+    // Panel
+    const pw = 340, ph = 200;
+    const panel = createPanel(s, CX, CY, pw, ph, { depth: DPT + 1 });
+    this._soundSettingsElements.push(panel);
+    animateIn(s, panel, { from: 'scale', duration: 200 });
+
+    // Title
+    const title = createText(s, CX, CY - ph / 2 + 32, 'SES AYARLARI', FONT.TITLE_SM, {
+      fill: COLOR.ACCENT_GOLD, depth: DPT + 2,
+      stroke: '#000000', strokeThickness: 3,
+    });
+    this._soundSettingsElements.push(title);
+    animateIn(s, title, { from: 'slideDown', delay: 80, duration: 200 });
+
+    // Sound sliders
+    this._buildMenuSoundSliders(s, DPT, CY - 16);
+
+    // Close button
+    const { elements: closeEls } = createButton(s, CX, CY + ph / 2 - 36, 'KAPAT', {
+      width: 160, height: 38, depth: DPT + 2,
+      onClick: () => {
+        this._playSfx('sfx-accept');
+        this._destroySoundSettings();
+      },
+    });
+    this._soundSettingsElements.push(...closeEls);
+    closeEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 120, duration: 200 }));
+  }
+
+  _buildMenuSoundSliders(s, DPT, baseY) {
+    const sliderW = 140;
+    const sliderH = 8;
+    const trackX = CX - 20;
+    const labelX = trackX - 12;
+    const clamp01 = (v) => Math.max(0, Math.min(1, v));
+
+    const buildSlider = (y, label, storageKey, defaultVal, onChange) => {
+      const val = parseFloat(localStorage.getItem(storageKey) ?? String(defaultVal));
+
+      const lbl = createText(s, labelX, y, label, FONT.SMALL, {
+        fill: COLOR.TEXT_SECONDARY, depth: DPT + 3, originX: 1, originY: 0.5,
+      });
+      this._soundSettingsElements.push(lbl);
+
+      const trackBg = s.add.graphics().setDepth(DPT + 2).setScrollFactor(0);
+      trackBg.fillStyle(0x334455, 0.6);
+      trackBg.fillRoundedRect(trackX, y - sliderH / 2, sliderW, sliderH, 3);
+      this._soundSettingsElements.push(trackBg);
+
+      const fill = s.add.graphics().setDepth(DPT + 3).setScrollFactor(0);
+      const drawFill = (v) => {
+        fill.clear();
+        fill.fillStyle(0x88ccff, 0.8);
+        fill.fillRoundedRect(trackX, y - sliderH / 2, sliderW * v, sliderH, 3);
+      };
+      drawFill(val);
+      this._soundSettingsElements.push(fill);
+
+      const zone = s.add.zone(trackX + sliderW / 2, y, sliderW + 20, 26)
+        .setOrigin(0.5).setDepth(DPT + 4).setScrollFactor(0).setInteractive({ useHandCursor: true });
+      this._soundSettingsElements.push(zone);
+
+      zone.on('pointerdown', (pointer) => {
+        const pct = clamp01((pointer.x - trackX) / sliderW);
+        localStorage.setItem(storageKey, pct.toFixed(2));
+        drawFill(pct);
+        onChange(pct);
+      });
+      zone.on('pointermove', (pointer) => {
+        if (!pointer.isDown) return;
+        const pct = clamp01((pointer.x - trackX) / sliderW);
+        localStorage.setItem(storageKey, pct.toFixed(2));
+        drawFill(pct);
+        onChange(pct);
+      });
+    };
+
+    // Music slider
+    buildSlider(baseY, 'Ezgi', 'musicVolume', 0.35, (v) => {
+      try {
+        (s.sound.sounds || []).forEach(snd => {
+          if (snd.key && snd.key.startsWith('music-') && snd.isPlaying) {
+            snd.volume = v;
+          }
+        });
+      } catch (_) { /* */ }
+    });
+
+    // SFX slider
+    buildSlider(baseY + 38, 'Efekt', 'sfxVolume', 0.5, (_v) => {
+      // SFX volume is read per-call via getSfxVolume()
+    });
+  }
+
+  _destroySoundSettings() {
+    if (this._soundSettingsElements) {
+      for (const el of this._soundSettingsElements) {
+        if (el && !el.destroyed) {
+          if (el.removeAllListeners) el.removeAllListeners();
+          el.destroy();
+        }
+      }
+      this._soundSettingsElements = [];
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
