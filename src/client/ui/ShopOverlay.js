@@ -1,16 +1,16 @@
 /**
- * ShopOverlay.js — Scene-based floating spell shop.
+ * ShopOverlay.js — Scene-based spell shop with icy panel.
  *
- * No big panels. Character stands center-stage. Spell options float
- * as horizontal cards. Arena visible behind a very light dimmer.
- * Matches the MenuScene "Arena Entrance" aesthetic.
+ * Character FX displayed center-stage inside a decorative icy panel.
+ * Spell options shown as scrollable carousel with arrow navigation.
+ * Textured buttons for tabs and actions.
  */
 
 import { SKILL_TREES, computeSpellStats, getNextTierInfo, getMaxTier } from '../../shared/skillTreeData.js';
 import { SPELLS, SLOT_SPELLS } from '../../shared/spellData.js';
 import { SP } from '../../shared/constants.js';
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SLOT_COLOR, SCREEN, textStyle } from './UIConfig.js';
-import { createButton, createBar, createPanel, createDimmer, createSeparator, createText, animateIn } from './UIHelpers.js';
+import { createButton, createBar, createPanel, createDimmer, createSeparator, createText, createTexturedButton, animateIn } from './UIHelpers.js';
 import { getSfxVolume } from '../config.js';
 
 // ─── Constants ───────────────────────────────────────────
@@ -20,21 +20,22 @@ const CY = SCREEN.CY;
 const SLOTS = ['Q', 'W', 'E', 'R'];
 const SLOT_NAMES = { Q: 'SÖZ', W: 'EL', E: 'DİL', R: 'BEL' };
 
-// Layout Y positions
-const TITLE_Y      = 22;
-const SP_Y         = 50;
-const TAB_Y        = 82;
-const EQUIP_Y      = 118;
-const CHAR_Y       = 230;
-const STRIP_Y      = 370;
-const DETAIL_Y     = 478;
-const TIMER_BAR_Y  = 708;
+// Layout Y positions (panel-centered)
+const TITLE_Y      = 108;
+const SP_Y         = 134;
+const TAB_Y        = 166;
+const EQUIP_Y      = 200;
+const CHAR_Y       = 280;
+const STRIP_Y      = 390;
+const DETAIL_Y     = 460;
+const TIMER_BAR_Y  = 625;
 
-// Card dimensions
-const CARD_W       = 86;
-const CARD_CELL    = 74;
-const CARD_ICON    = 50;
-const CARD_GAP     = 8;
+// Card dimensions (carousel-ready)
+const CARD_W       = 74;
+const CARD_CELL    = 62;
+const CARD_ICON    = 44;
+const CARD_GAP     = 6;
+const VISIBLE_CARDS = 4;
 
 // Equipped row
 const EQ_SIZE      = 30;
@@ -98,13 +99,14 @@ export class ShopOverlay {
     this.shopTimer = 0;
     this.shopDuration = 20;
     this.activeSlot = 'Q';
-    this.chrome = [];    // persistent: dimmer, top bar, tabs, character, timer bar
+    this.chrome = [];    // persistent: dimmer, panel, top bar, tabs, equipped row, timer bar
     this.content = [];   // rebuilt on tab switch / progression update
     this.previewSpellId = null;  // spell being previewed (not yet committed)
     this._timerText = null;
     this._spText = null;
     this._timerBar = null;
     this._equipCells = [];
+    this._stripOffset = 0;  // carousel scroll index
   }
 
   // ═══════════════════════════════════════════════════════
@@ -117,6 +119,7 @@ export class ShopOverlay {
     this.shopDuration = shopDuration || 20;
     this.shopTimer = this.shopDuration;
     this.activeSlot = this._pickDefaultSlot();
+    this._stripOffset = 0;
     this._build();
   }
 
@@ -156,6 +159,7 @@ export class ShopOverlay {
   // ═══════════════════════════════════════════════════════
   _build() {
     this._buildDimmer();
+    this._buildPanel();
     this._buildTopBar();
     this._buildSlotTabs();
     this._buildEquippedRow();
@@ -164,16 +168,26 @@ export class ShopOverlay {
   }
 
   // ═══════════════════════════════════════════════════════
-  //  DIMMER — very light, arena stays visible
+  //  DIMMER — darker so icy panel pops
   // ═══════════════════════════════════════════════════════
   _buildDimmer() {
-    const dimmer = createDimmer(this.scene, { depth: D, alpha: 0.25 });
+    const dimmer = createDimmer(this.scene, { depth: D, alpha: 0.40 });
     dimmer.setInteractive();
     this.chrome.push(dimmer);
   }
 
   // ═══════════════════════════════════════════════════════
-  //  TOP BAR — floating text, no panel background
+  //  PANEL — centered icy panel background
+  // ═══════════════════════════════════════════════════════
+  _buildPanel() {
+    const s = this.scene;
+    const panel = s.add.image(CX, CY, 'ui-shop-panel')
+      .setScrollFactor(0).setDepth(D + 1);
+    this.chrome.push(panel);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  TOP BAR — title, SP counter, timer within panel
   // ═══════════════════════════════════════════════════════
   _buildTopBar() {
     const s = this.scene;
@@ -195,8 +209,8 @@ export class ShopOverlay {
     this.chrome.push(this._spText);
     animateIn(s, this._spText, { from: 'slideDown', delay: 80, duration: 250 });
 
-    // Timer (right side)
-    this._timerText = createText(s, SCREEN.W - 40, TITLE_Y, `${Math.ceil(this.shopTimer)}s`, FONT.TITLE_SM, {
+    // Timer (right side within panel)
+    this._timerText = createText(s, CX + 190, TITLE_Y, `${Math.ceil(this.shopTimer)}s`, FONT.TITLE_SM, {
       fill: COLOR.TEXT_ICE, depth: D + 3, originX: 1,
       stroke: '#000000', strokeThickness: 3,
     });
@@ -205,28 +219,33 @@ export class ShopOverlay {
   }
 
   // ═══════════════════════════════════════════════════════
-  //  SLOT TABS — 4 floating pill buttons
+  //  SLOT TABS — 4 icy textured tab buttons
   // ═══════════════════════════════════════════════════════
   _buildSlotTabs() {
     const s = this.scene;
-    const tabW = 125, tabH = 36, tabGap = 10;
+    const tabW = 108, tabH = 36, tabGap = 6;
     const totalW = SLOTS.length * tabW + (SLOTS.length - 1) * tabGap;
-    const startX = CX - totalW / 2;
+    const startX = CX - totalW / 2 + tabW / 2;
 
     for (let i = 0; i < SLOTS.length; i++) {
       const slot = SLOTS[i];
-      const cx = startX + i * (tabW + tabGap) + tabW / 2;
+      const cx = startX + i * (tabW + tabGap);
       const isActive = slot === this.activeSlot;
       const isLocked = this._isSlotLocked(slot);
 
-      // Tab background (icy Graphics-drawn)
-      const bg = s.add.graphics().setScrollFactor(0).setDepth(D + 2);
-      const tabColor = isLocked ? 0x607880 : (isActive ? SLOT_COLOR[slot].tint : 0x8ad4e8);
-      const tabAlpha = isActive ? 0.85 : (isLocked ? 0.35 : 0.50);
-      bg.fillStyle(tabColor, tabAlpha);
-      bg.fillRoundedRect(cx - tabW / 2, TAB_Y - tabH / 2, tabW, tabH, 4);
-      bg.lineStyle(1.5, 0xd0eef6, isActive ? 0.6 : 0.25);
-      bg.strokeRoundedRect(cx - tabW / 2, TAB_Y - tabH / 2, tabW, tabH, 4);
+      // Tab background (textured button1.png)
+      const bg = s.add.image(cx, TAB_Y, 'ui-shop-tab')
+        .setDisplaySize(tabW, tabH).setScrollFactor(0).setDepth(D + 2);
+
+      if (isActive) {
+        bg.setTint(SLOT_COLOR[slot].tint);
+        bg.setAlpha(1);
+      } else if (isLocked) {
+        bg.setTint(0x607880);
+        bg.setAlpha(0.35);
+      } else {
+        bg.setAlpha(0.6);
+      }
       this.chrome.push(bg);
 
       // Tab label
@@ -247,6 +266,7 @@ export class ShopOverlay {
           this._playSfx('sfx-move');
           this.activeSlot = slot;
           this.previewSpellId = null;  // clear preview on tab switch
+          this._stripOffset = 0;       // reset carousel on tab switch
           this._rebuildAll();
         }
       });
@@ -338,7 +358,7 @@ export class ShopOverlay {
   }
 
   // ═══════════════════════════════════════════════════════
-  //  CENTER SPELL — hero FX sprite at center with glow
+  //  CENTER SPELL — hero FX sprite with glow
   // ═══════════════════════════════════════════════════════
   _buildCenterSpell() {
     const s = this.scene;
@@ -348,15 +368,15 @@ export class ShopOverlay {
     const chosenId = spellState ? spellState.chosenSpell : null;
     const def = chosenId ? SPELLS[chosenId] : null;
 
-    // Glow ellipse beneath spell
-    const glow = s.add.graphics().setDepth(D + 1).setScrollFactor(0);
+    // Glow ellipse beneath spell (proportionally smaller for panel)
+    const glow = s.add.graphics().setDepth(D + 2).setScrollFactor(0);
     const glowColor = (def && def.fx) ? def.fx.color || slotColor.tint : slotColor.tint;
     glow.fillStyle(0x000000, 0.25);
-    glow.fillEllipse(CX, CHAR_Y + 36, 60, 14);
+    glow.fillEllipse(CX, CHAR_Y + 28, 48, 12);
     glow.fillStyle(glowColor, 0.10);
-    glow.fillEllipse(CX, CHAR_Y + 32, 110, 28);
+    glow.fillEllipse(CX, CHAR_Y + 24, 88, 22);
     glow.fillStyle(glowColor, 0.18);
-    glow.fillEllipse(CX, CHAR_Y + 34, 70, 18);
+    glow.fillEllipse(CX, CHAR_Y + 26, 56, 14);
     this.content.push(glow);
 
     if (def && def.fx && def.fx.sprite && s.textures.exists(def.fx.sprite)) {
@@ -367,8 +387,8 @@ export class ShopOverlay {
         ? def.fx.displayAnimKey : def.fx.animKey;
 
       const fxSprite = s.add.sprite(CX, CHAR_Y, dispSprite, 0)
-        .setScale(def.fx.scale ? def.fx.scale * 5.5 : 5.5)
-        .setDepth(D + 2).setScrollFactor(0);
+        .setScale(def.fx.scale ? def.fx.scale * 4.0 : 4.0)
+        .setDepth(D + 3).setScrollFactor(0);
       if (dispAnim && s.anims.exists(dispAnim)) {
         fxSprite.play(dispAnim);
       }
@@ -379,7 +399,7 @@ export class ShopOverlay {
       const placeholder = createText(s, CX, CHAR_Y, slot, {
         fontSize: '72px', fontFamily: FONT.FAMILY, fontStyle: 'bold',
       }, {
-        fill: slotColor.hex, depth: D + 2,
+        fill: slotColor.hex, depth: D + 3,
         stroke: '#000000', strokeThickness: 4,
         alpha: 0.3,
       });
@@ -389,11 +409,11 @@ export class ShopOverlay {
   }
 
   // ═══════════════════════════════════════════════════════
-  //  TIMER BAR — thin progress bar at bottom
+  //  TIMER BAR — thin progress bar at panel bottom
   // ═══════════════════════════════════════════════════════
   _buildTimerBar() {
     const s = this.scene;
-    const barW = 1000;
+    const barW = 450;
     const barX = CX - barW / 2;
     const bar = createBar(s, barX, TIMER_BAR_Y, barW, 4, {
       depth: D + 2,
@@ -420,7 +440,7 @@ export class ShopOverlay {
   }
 
   // ═══════════════════════════════════════════════════════
-  //  SPELL STRIP — horizontal spell cards
+  //  SPELL STRIP — scrollable carousel with arrows
   // ═══════════════════════════════════════════════════════
   _buildSpellStrip() {
     const s = this.scene;
@@ -431,17 +451,88 @@ export class ShopOverlay {
     const isAutoEquipped = spellState ? spellState.autoEquipped : false;
     const isFirstChoice = chosenSpellId === null || isAutoEquipped;
     const availableSpells = SLOT_SPELLS[slot] || [];
+    const total = availableSpells.length;
+    const needsCarousel = total > VISIBLE_CARDS;
 
-    // Calculate strip positioning
-    const totalW = availableSpells.length * CARD_W + (availableSpells.length - 1) * CARD_GAP;
-    const startX = CX - totalW / 2 + CARD_W / 2;
+    // Clamp strip offset
+    if (needsCarousel) {
+      this._stripOffset = Math.max(0, Math.min(this._stripOffset, total - VISIBLE_CARDS));
+    } else {
+      this._stripOffset = 0;
+    }
 
-    for (let i = 0; i < availableSpells.length; i++) {
+    const visibleCount = Math.min(total, VISIBLE_CARDS);
+    const stripW = visibleCount * CARD_W + (visibleCount - 1) * CARD_GAP;
+    const stripStartX = CX - stripW / 2 + CARD_W / 2;
+
+    // ── Carousel arrows ──
+    if (needsCarousel) {
+      const arrowY = STRIP_Y - 6;
+      const arrowLeftX = CX - 190;
+      const arrowRightX = CX + 190;
+      const canGoLeft = this._stripOffset > 0;
+      const canGoRight = this._stripOffset < total - VISIBLE_CARDS;
+
+      // Left arrow
+      const leftArrow = s.add.image(arrowLeftX, arrowY, 'ui-arrow-left')
+        .setScrollFactor(0).setDepth(D + 4)
+        .setAlpha(canGoLeft ? 0.8 : 0.25)
+        .setScale(0.8);
+      if (canGoLeft) {
+        leftArrow.setInteractive({ useHandCursor: true });
+        leftArrow.on('pointerover', () => {
+          if (s.textures.exists('ui-arrow-left-hover')) leftArrow.setTexture('ui-arrow-left-hover');
+          leftArrow.setAlpha(1);
+        });
+        leftArrow.on('pointerout', () => {
+          leftArrow.setTexture('ui-arrow-left');
+          leftArrow.setAlpha(0.8);
+        });
+        leftArrow.on('pointerdown', () => {
+          this._playSfx('sfx-move');
+          this._stripOffset = Math.max(0, this._stripOffset - 1);
+          this._destroyContent();
+          this._buildContent();
+        });
+      }
+      this.content.push(leftArrow);
+
+      // Right arrow
+      const rightArrow = s.add.image(arrowRightX, arrowY, 'ui-arrow-right')
+        .setScrollFactor(0).setDepth(D + 4)
+        .setAlpha(canGoRight ? 0.8 : 0.25)
+        .setScale(0.8);
+      if (canGoRight) {
+        rightArrow.setInteractive({ useHandCursor: true });
+        rightArrow.on('pointerover', () => {
+          if (s.textures.exists('ui-arrow-right-hover')) rightArrow.setTexture('ui-arrow-right-hover');
+          rightArrow.setAlpha(1);
+        });
+        rightArrow.on('pointerout', () => {
+          rightArrow.setTexture('ui-arrow-right');
+          rightArrow.setAlpha(0.8);
+        });
+        rightArrow.on('pointerdown', () => {
+          this._playSfx('sfx-move');
+          this._stripOffset = Math.min(total - VISIBLE_CARDS, this._stripOffset + 1);
+          this._destroyContent();
+          this._buildContent();
+        });
+      }
+      this.content.push(rightArrow);
+    }
+
+    // ── Render visible cards ──
+    const startIdx = this._stripOffset;
+    const endIdx = Math.min(startIdx + VISIBLE_CARDS, total);
+
+    for (let vi = 0; vi < endIdx - startIdx; vi++) {
+      const i = startIdx + vi;
       const spellId = availableSpells[i];
       const def = SPELLS[spellId];
       if (!def) continue;
 
-      const cx = startX + i * (CARD_W + CARD_GAP);
+      const cx = stripStartX + vi * (CARD_W + CARD_GAP);
       const isChosen = chosenSpellId === spellId;
       const isPreviewing = this.previewSpellId === spellId && !isChosen;
       const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
@@ -481,13 +572,6 @@ export class ShopOverlay {
         this.content.push(icon);
       }
 
-      // ── Spell name below card ──
-      const nameText = s.add.text(cx, STRIP_Y + 34, def.name, textStyle(FONT.SMALL, {
-        fill: isChosen ? COLOR.ACCENT_GOLD : (isPreviewing ? COLOR.ACCENT_INFO : COLOR.TEXT_SECONDARY),
-        fontStyle: (isChosen || isPreviewing) ? 'bold' : 'normal',
-      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
-      this.content.push(nameText);
-
       // ── Cost badge for unchosen first-choice spells ──
       if (!isChosen && isFirstChoice) {
         const costBadge = s.add.text(cx + CARD_CELL / 2 - 2, STRIP_Y - CARD_CELL / 2 - 4,
@@ -509,12 +593,10 @@ export class ShopOverlay {
         hit.on('pointerover', () => {
           cell.setTint(COLOR.TINT_HOVER);
           s.tweens.add({ targets: cell, scaleX: 1.08, scaleY: 1.08, duration: 100 });
-          nameText.setFill(COLOR.TEXT_PRIMARY);
         });
         hit.on('pointerout', () => {
           if (!isPreviewing) cell.clearTint();
           s.tweens.add({ targets: cell, scaleX: 1, scaleY: 1, duration: 100 });
-          if (!isPreviewing) nameText.setFill(COLOR.TEXT_SECONDARY);
         });
         hit.on('pointerdown', () => {
           this._playSfx('sfx-move');
@@ -542,13 +624,12 @@ export class ShopOverlay {
       }
 
       // Entrance animation — staggered
-      animateIn(s, cell, { from: 'slideUp', delay: 200 + i * 50, duration: 250 });
-      animateIn(s, nameText, { from: 'slideUp', delay: 220 + i * 50, duration: 250 });
+      animateIn(s, cell, { from: 'slideUp', delay: 200 + vi * 50, duration: 250 });
     }
   }
 
   // ═══════════════════════════════════════════════════════
-  //  DETAIL ZONE — contextual tier/upgrade info
+  //  DETAIL ZONE — compact tier/upgrade info within panel
   // ═══════════════════════════════════════════════════════
   _buildDetailZone() {
     const s = this.scene;
@@ -567,14 +648,14 @@ export class ShopOverlay {
 
     // No spell chosen and nothing previewed — show prompt
     if (!displaySpellId) {
-      const prompt = createText(s, CX, DETAIL_Y, 'Bir hüner seç', FONT.TITLE_SM, {
+      const prompt = createText(s, CX, DETAIL_Y, 'Bir hüner seç', FONT.BODY_BOLD, {
         fill: COLOR.TEXT_DISABLED, depth: D + 3,
-        stroke: '#000000', strokeThickness: 3,
+        stroke: '#000000', strokeThickness: 2,
       });
       this.content.push(prompt);
       animateIn(s, prompt, { from: 'fadeOnly', delay: 400, duration: 250 });
 
-      const costHint = createText(s, CX, DETAIL_Y + 26, `(${SP.SPELL_CHOICE_COST} İlham)`, FONT.BODY, {
+      const costHint = createText(s, CX, DETAIL_Y + 22, `(${SP.SPELL_CHOICE_COST} İlham)`, FONT.SMALL, {
         fill: COLOR.TEXT_DISABLED, depth: D + 3,
       });
       this.content.push(costHint);
@@ -592,26 +673,26 @@ export class ShopOverlay {
     const maxTier = getMaxTier(displaySpellId);
     let y = DETAIL_Y;
 
-    // ── Spell name (slot color for chosen, info color for preview) ──
+    // ── Spell name (compact BODY_BOLD instead of TITLE_SM) ──
     const nameColor = isPreviewingDifferent ? COLOR.ACCENT_INFO : SLOT_COLOR[slot].hex;
-    const spellName = createText(s, CX, y, def.name, FONT.TITLE_SM, {
+    const spellName = createText(s, CX, y, def.name, FONT.BODY_BOLD, {
       fill: nameColor, depth: D + 3,
-      stroke: '#000000', strokeThickness: 3,
+      stroke: '#000000', strokeThickness: 2,
     });
     this.content.push(spellName);
     animateIn(s, spellName, { from: 'slideUp', delay: 400, duration: 200 });
 
     // ── Description ──
-    y += 34;
+    y += 24;
     if (def.description) {
-      const desc = s.add.text(CX, y, def.description, textStyle(FONT.BODY_BOLD, {
+      const desc = s.add.text(CX, y, def.description, textStyle(FONT.SMALL, {
         fill: COLOR.TEXT_SECONDARY,
-        wordWrap: { width: 600 },
+        wordWrap: { width: 440 },
         align: 'center',
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
       this.content.push(desc);
       animateIn(s, desc, { from: 'fadeOnly', delay: 420, duration: 200 });
-      y += desc.height + 8;
+      y += desc.height + 6;
     } else {
       y += 4;
     }
@@ -620,12 +701,13 @@ export class ShopOverlay {
     const visibleStats = STAT_DEFS.filter(sd => stats[sd.key] != null && stats[sd.key] !== 0);
     if (visibleStats.length > 0) {
       const statParts = visibleStats.slice(0, 5).map(sd => `${sd.label}: ${sd.fmt(stats[sd.key])}`);
-      const statLine = s.add.text(CX, y, statParts.join('   '), textStyle(FONT.SMALL, {
+      const statLine = s.add.text(CX, y, statParts.join('   '), textStyle(FONT.TINY, {
         fill: COLOR.TEXT_SECONDARY,
         align: 'center',
+        wordWrap: { width: 440 },
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
       this.content.push(statLine);
-      y += 28;
+      y += statLine.height + 6;
     }
 
     // ═══ PREVIEW MODE: show "Choose" button ═══
@@ -633,8 +715,8 @@ export class ShopOverlay {
       const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
       const costLabel = isFirstChoice ? ` (${SP.SPELL_CHOICE_COST}◆)` : '';
       const warnLabel = (!isFirstChoice && currentTier > 0) ? '  ⚠ pâye sıfırlanır' : '';
-      const { elements: chooseBtnEls } = createButton(s, CX, y + 14, `Seç${costLabel}`, {
-        width: 200, height: 40, depth: D + 4, enabled: canAfford,
+      const { elements: chooseBtnEls } = createTexturedButton(s, CX, y + 12, `Seç${costLabel}`, 'ui-shop-btn', {
+        width: 150, height: 38, depth: D + 4, enabled: canAfford,
         onClick: () => {
           this._playSfx('sfx-accept');
           if (s.network && s.network.connected) {
@@ -647,7 +729,7 @@ export class ShopOverlay {
 
       // Warning that switching resets tier
       if (warnLabel) {
-        const warn = createText(s, CX, y + 42, warnLabel, FONT.SMALL, {
+        const warn = createText(s, CX, y + 36, warnLabel, FONT.TINY, {
           fill: COLOR.ACCENT_DANGER, depth: D + 3,
         });
         this.content.push(warn);
@@ -656,15 +738,15 @@ export class ShopOverlay {
     }
 
     // ═══ CHOSEN MODE: show tier dots + upgrade ═══
-    // ── Tier dots ──
-    const dotSize = 18;
-    const dotGap = 8;
+    // ── Tier dots (compact) ──
+    const dotSize = 14;
+    const dotGap = 6;
     const dotsW = maxTier * dotSize + (maxTier - 1) * dotGap;
     const dotStartX = CX - dotsW / 2 + dotSize / 2;
 
     // Tier label
-    const tierLabel = createText(s, CX - dotsW / 2 - 10, y + dotSize / 2,
-      `Pâye ${currentTier}/${maxTier}`, FONT.BODY_BOLD, {
+    const tierLabel = createText(s, CX - dotsW / 2 - 8, y + dotSize / 2,
+      `Pâye ${currentTier}/${maxTier}`, FONT.SMALL, {
         fill: COLOR.ACCENT_GOLD, depth: D + 3, originX: 1,
       });
     this.content.push(tierLabel);
@@ -673,7 +755,7 @@ export class ShopOverlay {
       const filled = t < currentTier;
       const dx = dotStartX + t * (dotSize + dotGap);
       const dot = s.add.nineslice(
-        dx + dotsW / 2 + 20, y + dotSize / 2,
+        dx + dotsW / 2 + 16, y + dotSize / 2,
         filled ? 'ui-focus' : 'ui-inventory-cell', null,
         dotSize, dotSize, ...(filled ? [2, 2, 2, 2] : NINE.CELL)
       ).setScrollFactor(0).setDepth(D + 3);
@@ -681,7 +763,7 @@ export class ShopOverlay {
       this.content.push(dot);
     }
 
-    y += dotSize + 10;
+    y += dotSize + 8;
 
     // ── Next tier info + upgrade button ──
     const nextTier = getNextTierInfo(chosenSpellId, currentTier);
@@ -695,20 +777,20 @@ export class ShopOverlay {
         .join('  ');
 
       if (modText) {
-        const mods = s.add.text(CX, y, `Sonraki: ${modText}`, textStyle(FONT.SMALL, {
+        const mods = s.add.text(CX, y, `Sonraki: ${modText}`, textStyle(FONT.TINY, {
           fill: COLOR.ACCENT_INFO,
-          wordWrap: { width: 700 },
+          wordWrap: { width: 440 },
           align: 'center',
         })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
         this.content.push(mods);
-        y += mods.height + 8;
+        y += mods.height + 6;
       }
 
-      // Upgrade button
+      // Upgrade button (textured)
       const cost = nextTier.cost;
       const canUpgrade = prog && prog.sp >= cost;
-      const { elements: btnEls } = createButton(s, CX, y + 14, `Pişir (${cost}◆)`, {
-        width: 200, height: 40, depth: D + 4, enabled: canUpgrade,
+      const { elements: btnEls } = createTexturedButton(s, CX, y + 12, `Pişir (${cost}◆)`, 'ui-shop-btn', {
+        width: 150, height: 38, depth: D + 4, enabled: canUpgrade,
         onClick: () => {
           this._playSfx('sfx-accept');
           if (s.network && s.network.connected) {
@@ -720,7 +802,7 @@ export class ShopOverlay {
       btnEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 450, duration: 200 }));
     } else {
       // Max tier badge
-      const badge = createText(s, CX, y, '★ EN ÜST PÂYE ★', FONT.BODY_BOLD, {
+      const badge = createText(s, CX, y, '★ EN ÜST PÂYE ★', FONT.SMALL, {
         fill: COLOR.ACCENT_GOLD, depth: D + 3,
         stroke: '#000000', strokeThickness: 2,
       });
@@ -744,8 +826,8 @@ export class ShopOverlay {
     const slot = this.activeSlot;
     const prog = this.progression;
 
-    // Lock icon
-    const lockY = 400;
+    // Lock icon — positioned within panel
+    const lockY = STRIP_Y;
     if (s.textures.exists('spell-BookDarkness-off')) {
       const lockIcon = s.add.image(CX, lockY - 30, 'spell-BookDarkness-off')
         .setDisplaySize(40, 40).setScrollFactor(0).setDepth(D + 3);
@@ -753,23 +835,23 @@ export class ShopOverlay {
       animateIn(s, lockIcon, { from: 'scale', delay: 200, duration: 250 });
     }
 
-    const label = createText(s, CX, lockY + 10, `${SLOT_NAMES[slot]} — KİLİTLİ`, FONT.TITLE_SM, {
+    const label = createText(s, CX, lockY + 10, `${SLOT_NAMES[slot]} — KİLİTLİ`, FONT.BODY_BOLD, {
       fill: COLOR.TEXT_DISABLED, depth: D + 3,
-      stroke: '#000000', strokeThickness: 3,
+      stroke: '#000000', strokeThickness: 2,
     });
     this.content.push(label);
     animateIn(s, label, { from: 'slideUp', delay: 250, duration: 250 });
 
-    const costLabel = createText(s, CX, lockY + 38, `Açmak için ${SP.SLOT_UNLOCK_COST} İlham gerekir`, FONT.BODY, {
+    const costLabel = createText(s, CX, lockY + 34, `Açmak için ${SP.SLOT_UNLOCK_COST} İlham gerekir`, FONT.SMALL, {
       fill: COLOR.TEXT_SECONDARY, depth: D + 3,
     });
     this.content.push(costLabel);
     animateIn(s, costLabel, { from: 'fadeOnly', delay: 300, duration: 250 });
 
-    // Unlock button
+    // Unlock button (textured)
     const canUnlock = prog && prog.sp >= SP.SLOT_UNLOCK_COST;
-    const { elements: btnEls } = createButton(s, CX, lockY + 74, `Kilidi Aç (${SP.SLOT_UNLOCK_COST}◆)`, {
-      width: 220, height: 42, depth: D + 4, enabled: canUnlock,
+    const { elements: btnEls } = createTexturedButton(s, CX, lockY + 68, `Kilidi Aç (${SP.SLOT_UNLOCK_COST}◆)`, 'ui-shop-btn', {
+      width: 158, height: 38, depth: D + 4, enabled: canUnlock,
       onClick: () => {
         this._playSfx('sfx-accept');
         if (s.network && s.network.connected) {

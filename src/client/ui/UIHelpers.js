@@ -397,6 +397,72 @@ export function animateIn(scene, target, opts = {}) {
   }
 }
 
+// ─── Textured Button ────────────────────────────────────────
+/**
+ * Create a button using an image texture as background.
+ * Used for shop buttons with custom icy art.
+ */
+export function createTexturedButton(scene, x, y, label, textureKey, opts = {}) {
+  const w       = opts.width  || 158;
+  const h       = opts.height || 42;
+  const depth   = opts.depth  ?? DEPTH.OVERLAY_UI;
+  const token   = opts.fontToken || FONT.BODY_BOLD;
+  const enabled = opts.enabled !== false;
+  const onClick = opts.onClick || (() => {});
+  const sfx     = opts.sfx !== false;
+  const elements = [];
+
+  const bg = scene.add.image(x, y, textureKey)
+    .setDisplaySize(w, h)
+    .setScrollFactor(0).setDepth(depth);
+
+  if (!enabled) {
+    bg.setTint(0x607880).setAlpha(0.6);
+    const text = scene.add.text(x, y, label, textStyle(token, {
+      fill: COLOR.TEXT_DISABLED,
+    })).setScrollFactor(0).setDepth(depth + 1).setOrigin(0.5);
+    elements.push(bg, text);
+    return { elements, bg, text };
+  }
+
+  const text = scene.add.text(x, y, label, textStyle(token, {
+    fill: '#ffffff',
+    stroke: '#1a3a4a', strokeThickness: 3,
+  })).setScrollFactor(0).setDepth(depth + 1).setOrigin(0.5);
+
+  const hitArea = scene.add.rectangle(x, y, w + 2, h + 2)
+    .setScrollFactor(0).setDepth(depth + 2).setAlpha(0.001)
+    .setInteractive({ useHandCursor: true });
+
+  const origSX = bg.scaleX;
+  const origSY = bg.scaleY;
+
+  hitArea.on('pointerover', () => {
+    bg.setScale(origSX * 1.05, origSY * 1.05);
+    text.setY(y - 1);
+    if (sfx) try { scene.sound.play('sfx-move', { volume: 0.4 * getSfxVolume() }); } catch (_) { /* */ }
+  });
+
+  hitArea.on('pointerout', () => {
+    bg.setScale(origSX, origSY);
+    text.setY(y);
+  });
+
+  hitArea.on('pointerdown', () => {
+    bg.setScale(origSX * 0.95, origSY * 0.95);
+    text.setY(y + 1);
+  });
+
+  hitArea.on('pointerup', () => {
+    bg.setScale(origSX * 1.05, origSY * 1.05);
+    text.setY(y - 1);
+    onClick();
+  });
+
+  elements.push(bg, text, hitArea);
+  return { elements, bg, text };
+}
+
 // ─── Legacy Compat ───────────────────────────────────────────
 /**
  * Backward-compatible wrapper for code that still calls createNinesliceButton.

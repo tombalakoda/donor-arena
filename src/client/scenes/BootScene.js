@@ -261,6 +261,11 @@ export class BootScene extends Phaser.Scene {
     // Fallback default map
     this.load.json('arena-map', 'assets/maps/arena-default.json');
 
+    // --- Shop panel assets ---
+    this.load.image('ui-shop-panel', 'assets/ui/panel1.png');
+    this.load.image('ui-shop-tab',   'assets/ui/button1.png');
+    this.load.image('ui-shop-btn',   'assets/ui/button2.png');
+
     // --- Load UI (Ninja Adventure – Theme Wood kit) ---
     this.load.image('ui-panel',           'assets/ui/theme-wood/nine_path_panel.png');
     this.load.image('ui-button',          'assets/ui/theme-wood/button_normal.png');
