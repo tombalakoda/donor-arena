@@ -258,8 +258,9 @@ export class BootScene extends Phaser.Scene {
     });
 
     // --- Load Arena Maps (hand-designed in editor.html) ---
-    // Load all map variants for per-round rotation (map1..map29)
-    for (let i = 1; i <= 29; i++) {
+    // Load only maps that exist (map24 is missing)
+    const mapIds = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,25,26,27,28,29];
+    for (const i of mapIds) {
       this.load.json(`arena-map-${i}`, `assets/maps/map${i}.json`);
     }
     // Fallback default map
