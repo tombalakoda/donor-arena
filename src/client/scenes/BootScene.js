@@ -323,6 +323,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-icon-heart',      'assets/ui/receptacle/IconHeart.png');
     this.load.image('menu-bg', 'assets/ui/menu-bg.png');
     this.load.image('ui-logo', 'assets/ui/logo.png');
+    this.load.image('ui-panel0', 'assets/ui/panel0.png');
 
     // --- Load Spell Icons ---
     const spellIcons = [
