@@ -742,6 +742,7 @@ export class ShopOverlay {
     const canUnlock = prog && prog.sp >= SP.SLOT_UNLOCK_COST;
     const { elements: btnEls } = createTexturedButton(s, CX, COL_Y + 90, `Kilidi Aç (${SP.SLOT_UNLOCK_COST}◆)`, 'ui-shop-btn-wide', {
       width: 250, height: 50, depth: D + 4, enabled: canUnlock,
+      fontToken: { fontSize: '10px', fontFamily: SHOP_FONT },
       onClick: () => {
         this._playSfx('sfx-accept');
         if (s.network && s.network.connected) {
