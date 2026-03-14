@@ -95,6 +95,16 @@ export class HUDManager {
       fill: WHITE, depth: DEPTH.HUD, originX: 0, originY: 0,
       stroke: '#000000', strokeThickness: 2, alpha: 0.6,
     });
+    this.playerCountText = createText(scene, SPACE.SM, SPACE.SM + 38, 'Âşıklar: 1', { fontSize: '8px', fontFamily: PS2P }, {
+      fill: WHITE, depth: DEPTH.HUD, originX: 0, originY: 0,
+      stroke: '#000000', strokeThickness: 2, alpha: 0.6,
+    });
+
+    // --- Top-right: Timer ---
+    this.timerText = createText(scene, camW - SPACE.SM, SPACE.SM, '', { fontSize: '10px', fontFamily: PS2P }, {
+      fill: WHITE, depth: DEPTH.HUD, originX: 1, originY: 0,
+      stroke: '#000000', strokeThickness: 2,
+    });
 
     // --- Center-top: HP bar ---
     const barX = SCREEN.CX - 120; // left edge
