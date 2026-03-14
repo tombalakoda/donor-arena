@@ -436,7 +436,7 @@ export class ShopOverlay {
     // ── BOTTOM ZONE: Tier info + action button ──
     let y = panelTop + 200;
 
-    // If no spell chosen yet, show prompt
+    // If no spell chosen yet, show prompt (but continue to build button below)
     if (!chosenSpellId) {
       const prompt = createText(s, LEFT_X, y, 'Bir hüner seç', { fontSize: '12px', fontFamily: SHOP_FONT }, {
         fill: SHOP_WHITE, depth: D + 3,
@@ -447,64 +447,65 @@ export class ShopOverlay {
         fill: SHOP_WHITE, depth: D + 3,
       });
       this.content.push(hint);
-      return;
     }
 
-    // (spell name shown in center + right panels only)
-
-    // Tier progress label
-    const maxTier = getMaxTier(chosenSpellId);
-    const tierLabel = createText(s, LEFT_X, y, `Pâye ${currentTier}/${maxTier}`, { fontSize: '10px', fontFamily: SHOP_FONT }, {
-      fill: SHOP_WHITE, depth: D + 3,
-      stroke: '#000000', strokeThickness: 2,
-    });
-    this.content.push(tierLabel);
-    y += 20;
-
-    // Tier dots
-    const dotSize = 10;
-    const dotGap = 6;
-    const dotsW = maxTier * dotSize + (maxTier - 1) * dotGap;
-    const dotStartX = LEFT_X - dotsW / 2 + dotSize / 2;
-    for (let t = 0; t < maxTier; t++) {
-      const filled = t < currentTier;
-      const dx = dotStartX + t * (dotSize + dotGap);
-      const dot = s.add.graphics().setDepth(D + 3).setScrollFactor(0);
-      dot.fillStyle(filled ? slotColor.tint : 0x334455, filled ? 0.9 : 0.5);
-      dot.fillCircle(dx, y, dotSize / 2);
-      if (filled) {
-        dot.lineStyle(1, 0xffffff, 0.3);
-        dot.strokeCircle(dx, y, dotSize / 2);
-      }
-      this.content.push(dot);
-    }
-    y += 22;
-
-    // Next tier mods
-    const nextTier = getNextTierInfo(chosenSpellId, currentTier);
-    if (nextTier) {
-      const modEntries = Object.entries(nextTier.mods);
-      const modLines = modEntries.slice(0, 4).map(([k, v]) =>
-        typeof v === 'boolean'
-          ? `${MOD_LABELS[k] || k}: ${v ? 'evet' : 'hayır'}`
-          : `${MOD_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v}`
-      );
-      for (const line of modLines) {
-        const modText = s.add.text(LEFT_X, y, line, textStyle({ fontSize: '10px', fontFamily: SHOP_FONT }, {
-          fill: SHOP_WHITE,
-          strokeThickness: 2,
-        })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
-        this.content.push(modText);
-        y += 18;
-      }
-    } else if (currentTier >= maxTier) {
-      const badge = createText(s, LEFT_X, y, '★ EN ÜST PÂYE ★', { fontSize: '10px', fontFamily: SHOP_FONT }, {
+    // Tier info only shown when a spell is already chosen
+    let nextTier = null;
+    if (chosenSpellId) {
+      // Tier progress label
+      const maxTier = getMaxTier(chosenSpellId);
+      const tierLabel = createText(s, LEFT_X, y, `Pâye ${currentTier}/${maxTier}`, { fontSize: '10px', fontFamily: SHOP_FONT }, {
         fill: SHOP_WHITE, depth: D + 3,
         stroke: '#000000', strokeThickness: 2,
       });
-      this.content.push(badge);
-      s.tweens.add({ targets: badge, alpha: { from: 0.6, to: 1 }, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      this.content.push(tierLabel);
+      y += 20;
+
+      // Tier dots
+      const dotSize = 10;
+      const dotGap = 6;
+      const dotsW = maxTier * dotSize + (maxTier - 1) * dotGap;
+      const dotStartX = LEFT_X - dotsW / 2 + dotSize / 2;
+      for (let t = 0; t < maxTier; t++) {
+        const filled = t < currentTier;
+        const dx = dotStartX + t * (dotSize + dotGap);
+        const dot = s.add.graphics().setDepth(D + 3).setScrollFactor(0);
+        dot.fillStyle(filled ? slotColor.tint : 0x334455, filled ? 0.9 : 0.5);
+        dot.fillCircle(dx, y, dotSize / 2);
+        if (filled) {
+          dot.lineStyle(1, 0xffffff, 0.3);
+          dot.strokeCircle(dx, y, dotSize / 2);
+        }
+        this.content.push(dot);
+      }
       y += 22;
+
+      // Next tier mods
+      nextTier = getNextTierInfo(chosenSpellId, currentTier);
+      if (nextTier) {
+        const modEntries = Object.entries(nextTier.mods);
+        const modLines = modEntries.slice(0, 4).map(([k, v]) =>
+          typeof v === 'boolean'
+            ? `${MOD_LABELS[k] || k}: ${v ? 'evet' : 'hayır'}`
+            : `${MOD_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v}`
+        );
+        for (const line of modLines) {
+          const modText = s.add.text(LEFT_X, y, line, textStyle({ fontSize: '10px', fontFamily: SHOP_FONT }, {
+            fill: SHOP_WHITE,
+            strokeThickness: 2,
+          })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
+          this.content.push(modText);
+          y += 18;
+        }
+      } else if (currentTier >= maxTier) {
+        const badge = createText(s, LEFT_X, y, '★ EN ÜST PÂYE ★', { fontSize: '10px', fontFamily: SHOP_FONT }, {
+          fill: SHOP_WHITE, depth: D + 3,
+          stroke: '#000000', strokeThickness: 2,
+        });
+        this.content.push(badge);
+        s.tweens.add({ targets: badge, alpha: { from: 0.6, to: 1 }, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        y += 22;
+      }
     }
 
     // ── Action Button (bottom of left panel) ──
