@@ -740,8 +740,8 @@ export class ShopOverlay {
     animateIn(s, costLabel, { from: 'fadeOnly', delay: 300, duration: 250 });
 
     const canUnlock = prog && prog.sp >= SP.SLOT_UNLOCK_COST;
-    const { elements: btnEls } = createTexturedButton(s, CX, COL_Y + 90, `Kilidi Aç (${SP.SLOT_UNLOCK_COST}◆)`, 'ui-shop-btn', {
-      width: 220, height: 40, depth: D + 4, enabled: canUnlock,
+    const { elements: btnEls } = createTexturedButton(s, CX, COL_Y + 90, `Kilidi Aç (${SP.SLOT_UNLOCK_COST}◆)`, 'ui-shop-btn-wide', {
+      width: 250, height: 50, depth: D + 4, enabled: canUnlock,
       onClick: () => {
         this._playSfx('sfx-accept');
         if (s.network && s.network.connected) {

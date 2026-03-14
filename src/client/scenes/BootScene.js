@@ -269,6 +269,7 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet('ui-shop-btn', 'assets/ui/buttonssheet.png', {
       frameWidth: 173, frameHeight: 76,
     });
+    this.load.image('ui-shop-btn-wide', 'assets/ui/buton3.png');
     // New icy shop assets
     this.load.image('ui-panel2', 'assets/ui/panel2.png');
     this.load.spritesheet('ui-frame-icy', 'assets/ui/frames.png', {

@@ -413,10 +413,12 @@ export function createTexturedButton(scene, x, y, label, textureKey, opts = {}) 
   const frame   = opts.frame  ?? 0;     // spritesheet frame index
   const elements = [];
 
-  // Use sprite instead of image to support spritesheet frames
-  const bg = scene.add.sprite(x, y, textureKey, frame)
-    .setDisplaySize(w, h)
-    .setScrollFactor(0).setDepth(depth);
+  // Use sprite for spritesheets (multiple frames), image for single-frame textures
+  const texture = scene.textures.get(textureKey);
+  const isMultiFrame = texture && texture.frameTotal > 2; // >2 because __BASE counts as one
+  const bg = isMultiFrame
+    ? scene.add.sprite(x, y, textureKey, frame).setDisplaySize(w, h).setScrollFactor(0).setDepth(depth)
+    : scene.add.image(x, y, textureKey).setDisplaySize(w, h).setScrollFactor(0).setDepth(depth);
 
   if (!enabled) {
     bg.setTint(0x607880).setAlpha(0.6);
@@ -440,14 +442,16 @@ export function createTexturedButton(scene, x, y, label, textureKey, opts = {}) 
   const origSY = bg.scaleY;
 
   hitArea.on('pointerover', () => {
-    bg.setFrame(1);  // active/hover frame
+    if (isMultiFrame) bg.setFrame(1);  // active/hover frame
+    else bg.setTint(0xd0ecff);         // subtle bright tint for single-frame
     bg.setScale(origSX * 1.05, origSY * 1.05);
     text.setY(y - 1);
     if (sfx) try { scene.sound.play('sfx-move', { volume: 0.4 * getSfxVolume() }); } catch (_) { /* */ }
   });
 
   hitArea.on('pointerout', () => {
-    bg.setFrame(frame);  // restore original frame
+    if (isMultiFrame) bg.setFrame(frame);  // restore original frame
+    else bg.clearTint();
     bg.setScale(origSX, origSY);
     text.setY(y);
   });
