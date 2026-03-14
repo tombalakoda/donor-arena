@@ -1054,15 +1054,15 @@ export class GameScene extends Phaser.Scene {
   // --- Spectator Mode ---
 
   _cleanupSpectatorListeners() {
-    if (this._spectateClickHandler) {
+    if (this._spectateClickHandler && this.input) {
       this.input.off('pointerdown', this._spectateClickHandler);
       this._spectateClickHandler = null;
     }
-    if (this._spectateLeftHandler) {
+    if (this._spectateLeftHandler && this.input && this.input.keyboard) {
       this.input.keyboard.off('keydown-LEFT', this._spectateLeftHandler);
       this._spectateLeftHandler = null;
     }
-    if (this._spectateRightHandler) {
+    if (this._spectateRightHandler && this.input && this.input.keyboard) {
       this.input.keyboard.off('keydown-RIGHT', this._spectateRightHandler);
       this._spectateRightHandler = null;
     }
@@ -2256,6 +2256,10 @@ export class GameScene extends Phaser.Scene {
     if (this._shuttingDown) return;
     this._shuttingDown = true;
 
+    try { this._doShutdown(); } catch (e) { console.warn('[GameScene] Shutdown error (non-fatal):', e.message); }
+  }
+
+  _doShutdown() {
     // Cleanup obstacle sprites
     if (this.obstacleSprites) {
       for (const obs of this.obstacleSprites) {
@@ -2267,7 +2271,7 @@ export class GameScene extends Phaser.Scene {
 
     // Cleanup local player physics body and sprites
     if (this.playerBody) {
-      this.matter.world.remove(this.playerBody);
+      try { if (this.matter && this.matter.world) this.matter.world.remove(this.playerBody); } catch (_) { /* already torn down */ }
       this.playerBody = null;
     }
     if (this.playerSprite && !this.playerSprite.destroyed) {
