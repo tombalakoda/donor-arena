@@ -3,7 +3,7 @@
  *
  * Compact panel with winner highlight, scoreboard table, and action buttons.
  * Entrance animations for a polished feel.
- * All visuals use Ninja Adventure nineslice/sprite assets.
+ * Text: Press Start 2P, white, black stroke.
  */
 
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle } from './UIConfig.js';
@@ -20,7 +20,9 @@ const PT = CY - PH / 2;
 const PB = CY + PH / 2;
 const PL = CX - PW / 2;
 
-const RANK_COLORS = [COLOR.ACCENT_GOLD, '#cccccc', '#cc8844'];
+// Consistent style
+const PS2P = FONT.FAMILY_HEADING;
+const WHITE = '#FFFFFF';
 
 // ─── MatchEndOverlay Class ───────────────────────────────
 export class MatchEndOverlay {
@@ -80,8 +82,8 @@ export class MatchEndOverlay {
 
     // ── Title ──
     let y = PT + 26;
-    const title = createText(s, CX, y, 'ATIŞMA BİTTİ', FONT.TITLE_SM, {
-      fill: COLOR.ACCENT_GOLD, depth: D + 2,
+    const title = createText(s, CX, y, 'ATIŞMA BİTTİ', FONT.H2, {
+      fill: WHITE, depth: D + 2,
       stroke: '#000000', strokeThickness: 3,
     });
     this.elements.push(title);
@@ -105,16 +107,17 @@ export class MatchEndOverlay {
 
       // Winner name
       const winnerName = winner.name || winner.id.slice(-4);
-      const name = createText(s, CX, y, winnerName, FONT.TITLE_SM, {
-        fill: COLOR.ACCENT_GOLD, depth: D + 3,
+      const name = createText(s, CX, y, winnerName, { fontSize: '16px', fontFamily: PS2P }, {
+        fill: WHITE, depth: D + 3,
         stroke: '#000000', strokeThickness: 3,
       });
       this.elements.push(name);
       animateIn(s, name, { from: 'slideUp', delay: 350, duration: 250 });
 
       y += 18;
-      const badge = createText(s, CX, y, '★ KAZANAN ★', FONT.SMALL, {
-        fill: COLOR.ACCENT_GOLD, depth: D + 3,
+      const badge = createText(s, CX, y, '★ KAZANAN ★', { fontSize: '12px', fontFamily: PS2P }, {
+        fill: WHITE, depth: D + 3,
+        stroke: '#000000', strokeThickness: 2,
       });
       this.elements.push(badge);
 
@@ -142,7 +145,7 @@ export class MatchEndOverlay {
     const winsX = PL + 500;
 
     // Header row
-    const hdrStyle = textStyle(FONT.TINY, { fill: COLOR.TEXT_SECONDARY });
+    const hdrStyle = textStyle({ fontSize: '10px', fontFamily: PS2P }, { fill: WHITE, alpha: 0.6, stroke: '#000000', strokeThickness: 2 });
     const hdrEls = [
       s.add.text(rankX, y, '#', hdrStyle).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0.5),
       s.add.text(nameX, y, 'Âşık', hdrStyle).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0.5),
@@ -166,8 +169,6 @@ export class MatchEndOverlay {
       const p = scores[i];
       const ry = y + i * rowH;
       const isLocal = p.id === localPlayerId;
-      const rankColor = RANK_COLORS[i] || COLOR.TEXT_SECONDARY;
-      const nameColor = isLocal ? COLOR.TEXT_ICE : COLOR.TEXT_PRIMARY;
 
       // Alternating row bg (icy tint)
       if (i % 2 === 0) {
@@ -185,8 +186,9 @@ export class MatchEndOverlay {
       }
 
       // Rank
-      const rankText = s.add.text(rankX + 8, ry, `${i + 1}`, textStyle(FONT.SMALL, {
-        fill: rankColor, fontStyle: 'bold',
+      const rankText = s.add.text(rankX + 8, ry, `${i + 1}`, textStyle({ fontSize: '10px', fontFamily: PS2P }, {
+        fill: WHITE,
+        stroke: '#000000', strokeThickness: 2,
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0.5);
       this.elements.push(rankText);
 
@@ -201,26 +203,30 @@ export class MatchEndOverlay {
 
       // Name
       const dispName = p.name || p.id.slice(-4);
-      const nt = s.add.text(nameX, ry, dispName, textStyle(FONT.SMALL, {
-        fill: nameColor, fontStyle: isLocal ? 'bold' : 'normal',
+      const nt = s.add.text(nameX, ry, dispName, textStyle({ fontSize: '10px', fontFamily: PS2P }, {
+        fill: WHITE, fontStyle: isLocal ? 'bold' : 'normal',
+        stroke: '#000000', strokeThickness: 2,
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0.5);
       this.elements.push(nt);
 
       // Points
-      const pt = s.add.text(ptsX, ry, `${p.points ?? 0}`, textStyle(FONT.SMALL, {
-        fill: COLOR.ACCENT_GOLD,
+      const pt = s.add.text(ptsX, ry, `${p.points ?? 0}`, textStyle({ fontSize: '10px', fontFamily: PS2P }, {
+        fill: WHITE,
+        stroke: '#000000', strokeThickness: 2,
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0.5);
       this.elements.push(pt);
 
       // Eliminations
-      const el = s.add.text(elimX, ry, `${p.eliminations ?? 0}`, textStyle(FONT.SMALL, {
-        fill: COLOR.ACCENT_DANGER,
+      const el = s.add.text(elimX, ry, `${p.eliminations ?? 0}`, textStyle({ fontSize: '10px', fontFamily: PS2P }, {
+        fill: WHITE,
+        stroke: '#000000', strokeThickness: 2,
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0.5);
       this.elements.push(el);
 
       // Rounds won
-      const rw = s.add.text(winsX, ry, `${p.roundsWon ?? 0}`, textStyle(FONT.SMALL, {
-        fill: COLOR.ACCENT_SUCCESS,
+      const rw = s.add.text(winsX, ry, `${p.roundsWon ?? 0}`, textStyle({ fontSize: '10px', fontFamily: PS2P }, {
+        fill: WHITE,
+        stroke: '#000000', strokeThickness: 2,
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0.5);
       this.elements.push(rw);
 

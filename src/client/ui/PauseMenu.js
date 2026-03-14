@@ -1,9 +1,9 @@
 /**
  * PauseMenu.js — ESC key overlay during gameplay.
  *
- * Compact panel with Resume / Exit buttons and confirmation dialog.
- * Smooth entrance animations.
- * All visuals use Ninja Adventure nineslice/sprite assets.
+ * Compact panel with Resume / Exit buttons, sound sliders,
+ * and confirmation dialog. Smooth entrance animations.
+ * Text: Press Start 2P, white, black stroke.
  */
 
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle } from './UIConfig.js';
@@ -14,6 +14,10 @@ import { getMusicVolume, getSfxVolume } from '../config.js';
 const D = DEPTH.OVERLAY_DIM + 100;   // higher than other overlays
 const CX = SCREEN.CX;
 const CY = SCREEN.CY;
+
+// Consistent style
+const PS2P = FONT.FAMILY_HEADING;
+const WHITE = '#FFFFFF';
 
 // ─── PauseMenu Class ────────────────────────────────────
 export class PauseMenu {
@@ -78,8 +82,8 @@ export class PauseMenu {
     animateIn(s, panel, { from: 'scale', duration: 200 });
 
     // Title
-    const title = createText(s, CX, CY - ph / 2 + 36, 'ARA', FONT.TITLE_SM, {
-      fill: COLOR.ACCENT_GOLD, depth: D + 2,
+    const title = createText(s, CX, CY - ph / 2 + 36, 'ARA', FONT.H2, {
+      fill: WHITE, depth: D + 2,
       stroke: '#000000', strokeThickness: 3,
     });
     this.elements.push(title);
@@ -118,9 +122,10 @@ export class PauseMenu {
     const buildSlider = (y, label, storageKey, defaultVal, onChange) => {
       const val = parseFloat(localStorage.getItem(storageKey) ?? String(defaultVal));
 
-      // Label
-      const lbl = createText(s, labelX, y, label, FONT.SMALL, {
-        fill: COLOR.TEXT_SECONDARY, depth: D + 3, originX: 1, originY: 0.5,
+      // Label — Press Start 2P, white
+      const lbl = createText(s, labelX, y, label, { fontSize: '10px', fontFamily: PS2P }, {
+        fill: WHITE, depth: D + 3, originX: 1, originY: 0.5,
+        stroke: '#000000', strokeThickness: 2,
       });
       this.elements.push(lbl);
 
@@ -162,7 +167,6 @@ export class PauseMenu {
 
     // Music slider
     buildSlider(CY - 54, 'Ezgi', 'musicVolume', 0.35, (v) => {
-      // Update all playing music tracks in real-time
       try {
         (s.sound.sounds || []).forEach(snd => {
           if (snd.key && snd.key.startsWith('music-') && snd.isPlaying) {
@@ -201,8 +205,8 @@ export class PauseMenu {
     animateIn(s, cpanel, { from: 'scale', duration: 200 });
 
     // Message
-    const msg = createText(s, CX, CY - 30, 'Atışmadan ayrılacak mısın?', FONT.BODY_BOLD, {
-      fill: COLOR.ACCENT_GOLD, depth: CD + 2,
+    const msg = createText(s, CX, CY - 30, 'Atışmadan ayrılacak mısın?', { fontSize: '12px', fontFamily: PS2P }, {
+      fill: WHITE, depth: CD + 2,
       stroke: '#000000', strokeThickness: 2,
     });
     this.elements.push(msg);

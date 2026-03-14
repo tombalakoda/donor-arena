@@ -3,8 +3,8 @@ import { BootScene } from './scenes/BootScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
 import { GameScene } from './scenes/GameScene.js';
 
-/** Shared font family string — Alkhemikal font with monospace fallback */
-export const UI_FONT = "'Alkhemikal', monospace";
+/** Shared font family string — Press Start 2P across all UI */
+export const UI_FONT = "'Press Start 2P', cursive";
 
 /** Audio volume helpers — read from localStorage with sensible defaults */
 export function getMusicVolume() {

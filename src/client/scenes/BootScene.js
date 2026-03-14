@@ -1,5 +1,8 @@
 import Phaser from 'phaser';
-import { UI_FONT, TIPS } from '../config.js';
+import { TIPS } from '../config.js';
+
+const PS2P = "'Press Start 2P', cursive";
+const WHITE = '#ffffff';
 
 // Character IDs and their folder names
 export const CHARACTERS = [
@@ -91,27 +94,25 @@ export class BootScene extends Phaser.Scene {
     // Dark background
     cam.setBackgroundColor('#0d1520');
 
-    // --- Title ---
-    // Shadow
-    this.add.text(cx + 3, cy - 117, 'ÂŞIKLAR MEYDANE', {
-      fontFamily: UI_FONT,
-      fontSize: '54px',
-      fill: '#000000',
-    }).setOrigin(0.5).setAlpha(0.3);
-    // Main title
-    this.add.text(cx, cy - 120, 'ÂŞIKLAR MEYDANE', {
-      fontFamily: UI_FONT,
-      fontSize: '54px',
-      fill: '#ffffff',
-      stroke: '#2a1a0a',
-      strokeThickness: 7,
-    }).setOrigin(0.5);
+    // --- Logo ---
+    // Logo is loaded inline (before other assets) so it shows during loading
+    this.load.image('ui-logo', 'assets/ui/logo.png');
+    this.load.once('filecomplete-image-ui-logo', () => {
+      // Native: 1270x649, display at ~450px wide (keeps aspect ratio)
+      const logoW = 450;
+      const logoH = Math.round(logoW * (649 / 1270));
+      this.add.image(cx, cy - 110, 'ui-logo')
+        .setDisplaySize(logoW, logoH).setOrigin(0.5);
+    });
+    this.load.start(); // kick off logo load immediately
 
-    this.add.text(cx, cy - 70, 'Meydana hazırlan...', {
-      fontFamily: UI_FONT,
-      fontSize: '22px',
-      fill: '#b8e4f0',
-    }).setOrigin(0.5);
+    this.add.text(cx, cy - 55, 'Meydana hazırlan...', {
+      fontFamily: PS2P,
+      fontSize: '10px',
+      fill: WHITE,
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setAlpha(0.7);
 
     // --- Progress Bar ---
     const barW = 340;
@@ -130,18 +131,21 @@ export class BootScene extends Phaser.Scene {
     const progressBar = this.add.graphics();
 
     const percentText = this.add.text(cx, cy + 24, '0%', {
-      fontFamily: UI_FONT,
-      fontSize: '22px',
-      fill: '#b8e4f0',
+      fontFamily: PS2P,
+      fontSize: '10px',
+      fill: WHITE,
+      stroke: '#000000',
+      strokeThickness: 2,
     }).setOrigin(0.5);
 
     // --- Rotating Tips ---
     const tipText = this.add.text(cx, cy + 70, TIPS[0], {
-      fontFamily: UI_FONT,
-      fontSize: '20px',
-      fill: '#7a8e9c',
-      fontStyle: 'italic',
-    }).setOrigin(0.5);
+      fontFamily: PS2P,
+      fontSize: '8px',
+      fill: WHITE,
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setAlpha(0.5);
 
     let tipIndex = 0;
     const tipTimer = setInterval(() => {
@@ -267,6 +271,14 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet('ui-shop-btn', 'assets/ui/buttonssheet.png', {
       frameWidth: 173, frameHeight: 76,
     });
+    // New icy shop assets
+    this.load.image('ui-panel2', 'assets/ui/panel2.png');
+    this.load.spritesheet('ui-frame-icy', 'assets/ui/frames.png', {
+      frameWidth: 111, frameHeight: 138,
+    });
+    this.load.spritesheet('ui-frame-icy2', 'assets/ui/frames2.png', {
+      frameWidth: 111, frameHeight: 138,
+    });
 
     // --- Load UI (Ninja Adventure – Theme Wood kit) ---
     this.load.image('ui-panel',           'assets/ui/theme-wood/nine_path_panel.png');
@@ -311,6 +323,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image('ui-dialog-info',     'assets/ui/dialog/DialogInfo.png');
     this.load.image('ui-icon-heart',      'assets/ui/receptacle/IconHeart.png');
     this.load.image('menu-bg', 'assets/ui/menu-bg.png');
+    this.load.image('ui-logo', 'assets/ui/logo.png');
 
     // --- Load Spell Icons ---
     const spellIcons = [

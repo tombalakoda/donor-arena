@@ -1,22 +1,20 @@
 /**
- * ShopOverlay.js — Vertical-stack spell shop with single-spell carousel.
+ * ShopOverlay.js — Three-column sprite-based spell shop.
  *
- * Panel layout (499×556, centered at 640,360):
- *   HEADER   — title + SP + timer
- *   TABS     — 4 slot tabs
- *   ZONE 1   — FX display sprite (hero, big)
- *   ZONE 2   — Spell name + description + stats
- *   ZONE 3   — Single spell card with < > arrows
- *   ZONE 4   — Countdown progress bar
- *   ZONE 5   — Upgrade / tier info
- *   ZONE 6   — Action button (Seç / Pişir / Kilidi Aç)
+ * Layout (1280×720):
+ *   HEADER     — title + SP counter + timer (no tabs)
+ *   LEFT COL   — panel2: Spell animation on top + Tier / Upgrade below
+ *   CENTER COL — Q/W/E/R slot buttons + Spell carousel (icy frame + name) + arrows
+ *   RIGHT COL  — panel2: Spell info (name + desc + stats)
+ *
+ * All UI built from sprite assets — no Graphics-drawn rectangles.
  */
 
 import { SKILL_TREES, computeSpellStats, getNextTierInfo, getMaxTier } from '../../shared/skillTreeData.js';
 import { SPELLS, SLOT_SPELLS } from '../../shared/spellData.js';
 import { SP } from '../../shared/constants.js';
-import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SLOT_COLOR, SCREEN, textStyle } from './UIConfig.js';
-import { createButton, createBar, createDimmer, createText, createTexturedButton, animateIn } from './UIHelpers.js';
+import { COLOR, FONT, SPACE, DEPTH, ALPHA, SLOT_COLOR, SCREEN, textStyle } from './UIConfig.js';
+import { createBar, createDimmer, createText, createTexturedButton, animateIn } from './UIHelpers.js';
 import { getSfxVolume } from '../config.js';
 
 // ─── Constants ───────────────────────────────────────────
@@ -26,48 +24,46 @@ const CY = SCREEN.CY;               // 360
 const SLOTS = ['Q', 'W', 'E', 'R'];
 const SLOT_NAMES = { Q: 'SÖZ', W: 'EL', E: 'DİL', R: 'BEL' };
 
-// ─── Panel zone coordinates ──────────────────────────────
-const PX = CX;
-const PY = CY;
-const PW = 499;
-const PH = 556;
-const PT = PY - PH / 2;             // panel top ≈ 82
+// Shop uses Press Start 2P everywhere, white text
+const SHOP_FONT = FONT.FAMILY_HEADING;
+const SHOP_WHITE = '#FFFFFF';
 
-// Full-width content area
-const CONTENT_W = 440;
+// ─── Layout coordinates ─────────────────────────────────
+// Header (just title + SP + timer, no tabs)
+const HEADER_Y = 36;
+const HEADER_W = 800;
 
-// Header
-const HEADER_Y = PT + 42;
-const HEADER_W = 420;
+// Three columns — panel2 native size: 229×329
+const PANEL_W  = 229;
+const PANEL_H  = 329;
+const COL_Y    = 385;              // vertical center of content area
 
-// Tabs
-const TAB_Y    = PT + 84;
-const TAB_W    = 104;
-const TAB_H    = 28;
-const TAB_GAP  = 6;
+// Left column (Spell display + Tier)
+const LEFT_X   = 190;
 
-// Zone 1 — FX sprite
-const SPRITE_Y = PT + 160;          // center of sprite
+// Center column (Tabs + Carousel)
+const MID_X    = CX;              // 640
 
-// Zone 2 — Explanations
-const INFO_Y   = PT + 228;          // top of info zone
+// Center: Slot tab buttons
+const SLOT_BTN_Y = 185;           // Y for Q/W/E/R buttons in center
+const SLOT_BTN_W = 120;
+const SLOT_BTN_H = 34;
+const SLOT_BTN_GAP = 10;
 
-// Zone 3 — Single spell card
-const SPELL_Y  = PT + 338;          // center of spell card
-const CARD_W   = 300;
-const CARD_H   = 48;
+// Right column (Spell Info)
+const RIGHT_X  = 1070;
 
-// Zone 4 — Timer bar
-const TBAR_Y   = PT + 378;
-const TBAR_W   = CONTENT_W;
+// Icy frame native: 111×138 per frame (2 frames in spritesheet)
+const FRAME_W  = 111;
+const FRAME_H  = 138;
 
-// Zone 5 — Upgrade info
-const UPGRADE_Y = PT + 405;
+// Arrow button sizes (ui-shop-btn rotated 90°)
+const ARROW_W  = 76;
+const ARROW_H  = 38;
 
-// Zone 6 — Action button
-const BTN_Y    = PT + 458;
-const BTN_W    = 200;
-const BTN_H    = 40;
+// Countdown bar (bottom of screen)
+const TBAR_Y   = 690;
+const TBAR_W   = 700;
 
 // Stat display definitions
 const STAT_DEFS = [
@@ -127,17 +123,17 @@ export class ShopOverlay {
     this.shopTimer = 0;
     this.shopDuration = 20;
     this.activeSlot = 'Q';
-    this.chrome = [];     // persistent: dimmer, panel, header, tabs
+    this.chrome = [];     // persistent: dimmer, header
     this.content = [];    // rebuilt on tab switch / spell change
     this.previewSpellId = null;
     this._timerText = null;
     this._spText = null;
     this._timerBar = null;
-    this._scrollOffset = 0;  // index into SLOT_SPELLS[slot]
+    this._scrollOffset = 0;
   }
 
   // ═══════════════════════════════════════════════════════
-  //  PUBLIC API
+  //  PUBLIC API (same contract as before)
   // ═══════════════════════════════════════════════════════
   show(progression, shopDuration) {
     if (this.visible) this.destroy();
@@ -170,7 +166,13 @@ export class ShopOverlay {
     if (this._timerText && !this._timerText.destroyed) {
       const t = Math.ceil(remaining);
       this._timerText.setText(`${t}s`);
-      this._timerText.setFill(t <= 5 ? COLOR.ACCENT_DANGER : COLOR.TEXT_ICE);
+      this._timerText.setFill('#FFFFFF');
+      // Pulse effect when low time
+      if (t <= 5 && this.scene.tweens) {
+        this.scene.tweens.addCounter({ from: 1.3, to: 1, duration: 200, ease: 'Sine.easeOut',
+          onUpdate: (tw) => { if (this._timerText && !this._timerText.destroyed) this._timerText.setScale(tw.getValue()); }
+        });
+      }
     }
     if (this._timerBar && this._timerBar.setValue) {
       const ratio = Math.max(0, remaining / this.shopDuration);
@@ -184,9 +186,8 @@ export class ShopOverlay {
   // ═══════════════════════════════════════════════════════
   _build() {
     this._buildDimmer();
-    this._buildPanel();
     this._buildHeader();
-    this._buildSlotTabs();
+    this._buildCountdownBar();
     this._buildContent();
   }
 
@@ -194,32 +195,22 @@ export class ShopOverlay {
   //  DIMMER
   // ═══════════════════════════════════════════════════════
   _buildDimmer() {
-    const dimmer = createDimmer(this.scene, { depth: D, alpha: 0.45 });
+    const dimmer = createDimmer(this.scene, { depth: D, alpha: 0.85 });
     dimmer.setInteractive();
     this.chrome.push(dimmer);
   }
 
   // ═══════════════════════════════════════════════════════
-  //  PANEL — centered panel1.png
-  // ═══════════════════════════════════════════════════════
-  _buildPanel() {
-    const s = this.scene;
-    const panel = s.add.image(PX, PY, 'ui-shop-panel')
-      .setScrollFactor(0).setDepth(D + 1);
-    this.chrome.push(panel);
-  }
-
-  // ═══════════════════════════════════════════════════════
-  //  HEADER — title + SP + timer
+  //  HEADER — title + SP + timer (no tabs here)
   // ═══════════════════════════════════════════════════════
   _buildHeader() {
     const s = this.scene;
-    const leftEdge = PX - HEADER_W / 2;
-    const rightEdge = PX + HEADER_W / 2;
+    const leftEdge = CX - HEADER_W / 2;
+    const rightEdge = CX + HEADER_W / 2;
 
-    // Title (centered)
-    const title = createText(s, PX, HEADER_Y, 'HÜNER DÜKKÂNI', FONT.BODY_BOLD, {
-      fill: COLOR.ACCENT_GOLD, depth: D + 3,
+    // Title (centered, pixel font)
+    const title = createText(s, CX, HEADER_Y, 'HÜNER DÜKKÂNI', FONT.H2, {
+      fill: SHOP_WHITE, depth: D + 3,
       stroke: '#000000', strokeThickness: 3,
     });
     this.chrome.push(title);
@@ -227,16 +218,16 @@ export class ShopOverlay {
 
     // SP counter (left)
     const sp = this.progression ? this.progression.sp : 0;
-    this._spText = createText(s, leftEdge + 10, HEADER_Y, `◆ ${sp}`, FONT.SMALL, {
-      fill: COLOR.TEXT_ICE, depth: D + 3, originX: 0,
+    this._spText = createText(s, leftEdge + 10, HEADER_Y, `◆ ${sp}`, FONT.H3, {
+      fill: SHOP_WHITE, depth: D + 3, originX: 0,
       stroke: '#000000', strokeThickness: 2,
     });
     this.chrome.push(this._spText);
     animateIn(s, this._spText, { from: 'slideDown', delay: 80, duration: 250 });
 
     // Timer (right)
-    this._timerText = createText(s, rightEdge - 10, HEADER_Y, `${Math.ceil(this.shopTimer)}s`, FONT.SMALL, {
-      fill: COLOR.TEXT_ICE, depth: D + 3, originX: 1,
+    this._timerText = createText(s, rightEdge - 10, HEADER_Y, `${Math.ceil(this.shopTimer)}s`, FONT.H3, {
+      fill: SHOP_WHITE, depth: D + 3, originX: 1,
       stroke: '#000000', strokeThickness: 2,
     });
     this.chrome.push(this._timerText);
@@ -244,36 +235,72 @@ export class ShopOverlay {
   }
 
   // ═══════════════════════════════════════════════════════
-  //  SLOT TABS
+  //  COUNTDOWN BAR — bottom of screen (persistent chrome)
+  // ═══════════════════════════════════════════════════════
+  _buildCountdownBar() {
+    const s = this.scene;
+    const barX = CX - TBAR_W / 2;
+    const ratio = Math.max(0, this.shopTimer / this.shopDuration);
+    const bar = createBar(s, barX, TBAR_Y, TBAR_W, 6, {
+      depth: D + 2,
+      tint: this.shopTimer <= 5 ? COLOR.TINT_DANGER : COLOR.TINT_INFO,
+      value: ratio,
+    });
+    this._timerBar = bar;
+    this.chrome.push(...bar.elements);
+    bar.elements.forEach(el => animateIn(s, el, { from: 'fadeOnly', delay: 300, duration: 250 }));
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  CONTENT — rebuilt on tab switch / spell change
+  // ═══════════════════════════════════════════════════════
+  _buildContent() {
+    // Always build center slot tabs (they're content, rebuilt on switch)
+    this._buildSlotTabs();
+
+    const slot = this.activeSlot;
+    if (this._isSlotLocked(slot)) {
+      this._buildLockedContent();
+      return;
+    }
+    this._buildLeftColumn();
+    this._buildCenterCarousel();
+    this._buildRightColumn();
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  CENTER: SLOT TABS — Q/W/E/R as sprite buttons
   // ═══════════════════════════════════════════════════════
   _buildSlotTabs() {
     const s = this.scene;
-    const totalW = SLOTS.length * TAB_W + (SLOTS.length - 1) * TAB_GAP;
-    const startX = PX - totalW / 2 + TAB_W / 2;
+    const totalW = SLOTS.length * SLOT_BTN_W + (SLOTS.length - 1) * SLOT_BTN_GAP;
+    const startX = MID_X - totalW / 2 + SLOT_BTN_W / 2;
 
     for (let i = 0; i < SLOTS.length; i++) {
       const slot = SLOTS[i];
-      const cx = startX + i * (TAB_W + TAB_GAP);
+      const cx = startX + i * (SLOT_BTN_W + SLOT_BTN_GAP);
       const isActive = slot === this.activeSlot;
       const isLocked = this._isSlotLocked(slot);
 
+      // Button sprite background
       const frame = isActive ? 1 : 0;
-      const bg = s.add.sprite(cx, TAB_Y, 'ui-shop-btn', frame)
-        .setDisplaySize(TAB_W, TAB_H).setScrollFactor(0).setDepth(D + 2);
+      const bg = s.add.sprite(cx, SLOT_BTN_Y, 'ui-shop-btn', frame)
+        .setDisplaySize(SLOT_BTN_W, SLOT_BTN_H).setScrollFactor(0).setDepth(D + 2);
       if (isActive) bg.setTint(SLOT_COLOR[slot].tint);
       else if (isLocked) { bg.setTint(0x607880); bg.setAlpha(0.35); }
-      else bg.setAlpha(0.6);
-      this.chrome.push(bg);
+      else bg.setAlpha(0.65);
+      this.content.push(bg);
 
-      const label = s.add.text(cx, TAB_Y, `${slot} ${SLOT_NAMES[slot]}`, textStyle(FONT.TINY, {
-        fill: isActive ? COLOR.TEXT_LIGHT : (isLocked ? COLOR.TEXT_DISABLED : COLOR.TEXT_SECONDARY),
-        fontStyle: 'bold',
-        stroke: isActive ? '#000000' : undefined,
-        strokeThickness: isActive ? 2 : 0,
+      // Label text
+      const label = s.add.text(cx, SLOT_BTN_Y, `${slot}  ${SLOT_NAMES[slot]}`, textStyle({ fontSize: '12px', fontFamily: SHOP_FONT }, {
+        fill: isActive ? SHOP_WHITE : (isLocked ? '#888888' : '#CCCCCC'),
+        stroke: '#000000',
+        strokeThickness: isActive ? 3 : 2,
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5);
-      this.chrome.push(label);
+      this.content.push(label);
 
-      const hit = s.add.rectangle(cx, TAB_Y, TAB_W, TAB_H)
+      // Hit area
+      const hit = s.add.rectangle(cx, SLOT_BTN_Y, SLOT_BTN_W, SLOT_BTN_H)
         .setScrollFactor(0).setDepth(D + 4).setAlpha(0.001)
         .setInteractive({ useHandCursor: !isLocked });
       hit.on('pointerdown', () => {
@@ -285,7 +312,7 @@ export class ShopOverlay {
           this._rebuildAll();
         }
       });
-      this.chrome.push(hit);
+      this.content.push(hit);
 
       animateIn(s, bg, { from: 'scale', delay: 100 + i * 40, duration: 200 });
       animateIn(s, label, { from: 'scale', delay: 100 + i * 40, duration: 200 });
@@ -293,75 +320,307 @@ export class ShopOverlay {
   }
 
   // ═══════════════════════════════════════════════════════
-  //  CONTENT — rebuilt on tab switch / spell change
+  //  LEFT COLUMN — Spell Animation + Tier / Upgrade (panel2)
   // ═══════════════════════════════════════════════════════
-  _buildContent() {
+  //  LEFT COLUMN — Icy Frame Carousel + Tier / Upgrade (panel2)
+  // ═══════════════════════════════════════════════════════
+  _buildLeftColumn() {
+    const s = this.scene;
     const slot = this.activeSlot;
-    if (this._isSlotLocked(slot)) {
-      this._buildLockedContent();
+    const slotColor = SLOT_COLOR[slot] || SLOT_COLOR.Q;
+    const prog = this.progression;
+    const spellState = prog ? prog.spells[slot] : null;
+    const chosenSpellId = spellState ? spellState.chosenSpell : null;
+    const currentTier = spellState ? spellState.tier : 0;
+    const isAutoEquipped = spellState ? spellState.autoEquipped : false;
+    const isFirstChoice = chosenSpellId === null || isAutoEquipped;
+
+    const availableSpells = SLOT_SPELLS[slot] || [];
+    const total = availableSpells.length;
+    this._scrollOffset = Math.max(0, Math.min(this._scrollOffset, total - 1));
+    const spellId = total > 0 ? availableSpells[this._scrollOffset] : null;
+    const browseDef = spellId ? SPELLS[spellId] : null;
+    const isChosen = chosenSpellId === spellId;
+
+    // Panel background sprite
+    const panel = s.add.image(LEFT_X, COL_Y, 'ui-panel2')
+      .setScrollFactor(0).setDepth(D + 1);
+    this.content.push(panel);
+    animateIn(s, panel, { from: 'scale', delay: 50, duration: 300 });
+
+    const panelTop = COL_Y - PANEL_H / 2;
+    const panelBot = COL_Y + PANEL_H / 2;
+
+    // ── TOP ZONE: Icy frame with spell icon + name ──
+    const frameY = panelTop + 80;
+    const LEFT_FRAME_SCALE = 1.3;
+    const LEFT_ICON_SIZE = 110; // icon display size
+
+    if (browseDef) {
+      const frameIdx = isChosen ? 1 : 0;
+
+      // Spell icon first (behind frame overlay) — 160×160 display
+      const iconKey = browseDef.icon;
+      if (iconKey && s.textures.exists(iconKey)) {
+        const icon = s.add.image(LEFT_X, frameY - 8, iconKey)
+          .setDisplaySize(LEFT_ICON_SIZE, LEFT_ICON_SIZE)
+          .setScrollFactor(0).setDepth(D + 2);
+        this.content.push(icon);
+        animateIn(s, icon, { from: 'scale', delay: 80, duration: 250 });
+      }
+
+      // Frame2 overlay on top (transparent center, border only)
+      const frame = s.add.sprite(LEFT_X, frameY, 'ui-frame-icy2', frameIdx)
+        .setScale(LEFT_FRAME_SCALE)
+        .setScrollFactor(0).setDepth(D + 3);
+      if (isChosen) frame.setTint(slotColor.tint);
+      this.content.push(frame);
+      animateIn(s, frame, { from: 'scale', delay: 80, duration: 250 });
+
+      // Chosen indicator
+      if (isChosen) {
+        const chosenLabel = createText(s, LEFT_X, frameY + FRAME_H * LEFT_FRAME_SCALE / 2 + 6, '— seçili —',
+          { fontSize: '10px', fontFamily: SHOP_FONT }, {
+          fill: SHOP_WHITE, depth: D + 3,
+          stroke: '#000000', strokeThickness: 2,
+        });
+        this.content.push(chosenLabel);
+        s.tweens.add({ targets: chosenLabel, alpha: { from: 0.5, to: 1 }, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      }
+    } else {
+      // No spells — slot letter placeholder
+      const placeholder = createText(s, LEFT_X, frameY, slot, {
+        fontSize: '48px', fontFamily: SHOP_FONT,
+      }, {
+        fill: SHOP_WHITE, depth: D + 3,
+        stroke: '#000000', strokeThickness: 4,
+        alpha: 0.25,
+      });
+      this.content.push(placeholder);
+    }
+
+    // ── Arrow buttons (left/right of frame) ──
+    if (total > 1) {
+      const arrowOffsetX = FRAME_W * LEFT_FRAME_SCALE / 2 + 24;
+      const canGoLeft = this._scrollOffset > 0;
+      const canGoRight = this._scrollOffset < total - 1;
+
+      this._buildArrowButton(LEFT_X - arrowOffsetX, frameY, -90, canGoLeft, () => {
+        this._playSfx('sfx-move');
+        this._scrollOffset--;
+        this.previewSpellId = null;
+        this._destroyContent();
+        this._buildContent();
+      });
+
+      this._buildArrowButton(LEFT_X + arrowOffsetX, frameY, 90, canGoRight, () => {
+        this._playSfx('sfx-move');
+        this._scrollOffset++;
+        this.previewSpellId = null;
+        this._destroyContent();
+        this._buildContent();
+      });
+    }
+
+    // ── Page indicator ──
+    if (total > 0) {
+      const pageY = frameY + FRAME_H * LEFT_FRAME_SCALE / 2 + (isChosen ? 22 : 6);
+      const pageText = s.add.text(LEFT_X, pageY,
+        `${this._scrollOffset + 1} / ${total}`, textStyle({ fontSize: '10px', fontFamily: SHOP_FONT }, {
+          fill: SHOP_WHITE, strokeThickness: 2,
+        })
+      ).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
+      this.content.push(pageText);
+    }
+
+    // ── BOTTOM ZONE: Tier info + action button ──
+    let y = panelTop + 200;
+
+    // If no spell chosen yet, show prompt
+    if (!chosenSpellId) {
+      const prompt = createText(s, LEFT_X, y, 'Bir hüner seç', { fontSize: '12px', fontFamily: SHOP_FONT }, {
+        fill: SHOP_WHITE, depth: D + 3,
+        stroke: '#000000', strokeThickness: 2,
+      });
+      this.content.push(prompt);
+      const hint = createText(s, LEFT_X, y + 28, `(${SP.SPELL_CHOICE_COST} İlham)`, { fontSize: '10px', fontFamily: SHOP_FONT }, {
+        fill: SHOP_WHITE, depth: D + 3,
+      });
+      this.content.push(hint);
       return;
     }
-    this._buildSprite();
-    this._buildInfo();
-    this._buildSpellCard();
-    this._buildCountdownBar();
-    this._buildUpgrade();
-    this._buildActionButton();
+
+    // (spell name shown in center + right panels only)
+
+    // Tier progress label
+    const maxTier = getMaxTier(chosenSpellId);
+    const tierLabel = createText(s, LEFT_X, y, `Pâye ${currentTier}/${maxTier}`, { fontSize: '10px', fontFamily: SHOP_FONT }, {
+      fill: SHOP_WHITE, depth: D + 3,
+      stroke: '#000000', strokeThickness: 2,
+    });
+    this.content.push(tierLabel);
+    y += 20;
+
+    // Tier dots
+    const dotSize = 10;
+    const dotGap = 6;
+    const dotsW = maxTier * dotSize + (maxTier - 1) * dotGap;
+    const dotStartX = LEFT_X - dotsW / 2 + dotSize / 2;
+    for (let t = 0; t < maxTier; t++) {
+      const filled = t < currentTier;
+      const dx = dotStartX + t * (dotSize + dotGap);
+      const dot = s.add.graphics().setDepth(D + 3).setScrollFactor(0);
+      dot.fillStyle(filled ? slotColor.tint : 0x334455, filled ? 0.9 : 0.5);
+      dot.fillCircle(dx, y, dotSize / 2);
+      if (filled) {
+        dot.lineStyle(1, 0xffffff, 0.3);
+        dot.strokeCircle(dx, y, dotSize / 2);
+      }
+      this.content.push(dot);
+    }
+    y += 22;
+
+    // Next tier mods
+    const nextTier = getNextTierInfo(chosenSpellId, currentTier);
+    if (nextTier) {
+      const modEntries = Object.entries(nextTier.mods);
+      const modLines = modEntries.slice(0, 4).map(([k, v]) =>
+        typeof v === 'boolean'
+          ? `${MOD_LABELS[k] || k}: ${v ? 'evet' : 'hayır'}`
+          : `${MOD_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v}`
+      );
+      for (const line of modLines) {
+        const modText = s.add.text(LEFT_X, y, line, textStyle({ fontSize: '10px', fontFamily: SHOP_FONT }, {
+          fill: SHOP_WHITE,
+          strokeThickness: 2,
+        })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
+        this.content.push(modText);
+        y += 18;
+      }
+    } else if (currentTier >= maxTier) {
+      const badge = createText(s, LEFT_X, y, '★ EN ÜST PÂYE ★', { fontSize: '10px', fontFamily: SHOP_FONT }, {
+        fill: SHOP_WHITE, depth: D + 3,
+        stroke: '#000000', strokeThickness: 2,
+      });
+      this.content.push(badge);
+      s.tweens.add({ targets: badge, alpha: { from: 0.6, to: 1 }, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      y += 22;
+    }
+
+    // ── Action Button (bottom of left panel) ──
+    const btnY = panelBot - 50;
+
+    const viewedSpellId = availableSpells[this._scrollOffset];
+    const previewId = this.previewSpellId;
+    const isPreviewingDifferent = previewId && previewId !== chosenSpellId;
+    const isViewingDifferent = viewedSpellId && viewedSpellId !== chosenSpellId;
+
+    if (isPreviewingDifferent || isViewingDifferent) {
+      const targetSpell = isPreviewingDifferent ? previewId : viewedSpellId;
+      const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
+      const costLabel = isFirstChoice ? ` (${SP.SPELL_CHOICE_COST}◆)` : '';
+      const { elements: btnEls } = createTexturedButton(s, LEFT_X, btnY, `Seç${costLabel}`, 'ui-shop-btn', {
+        width: 180, height: 36, depth: D + 4, enabled: canAfford,
+        fontToken: { fontSize: '12px', fontFamily: SHOP_FONT },
+        onClick: () => {
+          this._playSfx('sfx-accept');
+          if (s.network && s.network.connected) {
+            s.network.sendShopChooseSpell(slot, targetSpell);
+          }
+        },
+      });
+      this.content.push(...btnEls);
+      btnEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 350, duration: 200 }));
+
+      if (!isFirstChoice && currentTier > 0) {
+        const warn = createText(s, LEFT_X, btnY - 20, '⚠ pâye sıfırlanır', { fontSize: '10px', fontFamily: SHOP_FONT }, {
+          fill: SHOP_WHITE, depth: D + 4,
+        });
+        this.content.push(warn);
+      }
+    } else if (chosenSpellId && nextTier) {
+      const cost = nextTier.cost;
+      const canUpgrade = prog && prog.sp >= cost;
+      const { elements: btnEls } = createTexturedButton(s, LEFT_X, btnY, `Pişir (${cost}◆)`, 'ui-shop-btn', {
+        width: 180, height: 36, depth: D + 4, enabled: canUpgrade,
+        fontToken: { fontSize: '12px', fontFamily: SHOP_FONT },
+        onClick: () => {
+          this._playSfx('sfx-accept');
+          if (s.network && s.network.connected) {
+            s.network.sendShopUpgradeTier(slot);
+          }
+        },
+      });
+      this.content.push(...btnEls);
+      btnEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 350, duration: 200 }));
+    }
   }
 
   // ═══════════════════════════════════════════════════════
-  //  ZONE 1 — FX Display Sprite (hero)
+  //  CENTER — Spell Animation Showcase
   // ═══════════════════════════════════════════════════════
-  _buildSprite() {
+  _buildCenterCarousel() {
     const s = this.scene;
     const slot = this.activeSlot;
     const slotColor = SLOT_COLOR[slot] || SLOT_COLOR.Q;
     const displaySpellId = this._getDisplaySpellId();
 
-    if (!displaySpellId) {
+    const animY = COL_Y - 20;
+
+    if (displaySpellId) {
+      // Big animated spell FX in the center — the visual star of the shop
+      this._buildSpellAnimation(MID_X, animY, displaySpellId, 5.0, 2.5);
+
+      // Spell name below the animation
+      const def = SPELLS[displaySpellId];
+      if (def) {
+        const nameY = animY + 70;
+        const nameText = createText(s, MID_X, nameY, def.name, FONT.H2, {
+          fill: SHOP_WHITE, depth: D + 3,
+          stroke: '#000000', strokeThickness: 4,
+        });
+        this.content.push(nameText);
+        animateIn(s, nameText, { from: 'fadeOnly', delay: 150, duration: 250 });
+
+        // Short description
+        if (def.description) {
+          const descText = s.add.text(MID_X, nameY + 24, def.description, textStyle({ fontSize: '10px', fontFamily: SHOP_FONT }, {
+            fill: SHOP_WHITE,
+            wordWrap: { width: 300 },
+            align: 'center',
+            strokeThickness: 2,
+          })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
+          this.content.push(descText);
+          animateIn(s, descText, { from: 'fadeOnly', delay: 200, duration: 250 });
+        }
+      }
+    } else {
       // No spell — show slot letter placeholder
-      const placeholder = createText(s, PX, SPRITE_Y, slot, {
-        fontSize: '72px', fontFamily: FONT.FAMILY, fontStyle: 'bold',
+      const placeholder = createText(s, MID_X, animY, slot, {
+        fontSize: '64px', fontFamily: SHOP_FONT,
       }, {
-        fill: slotColor.hex, depth: D + 3,
+        fill: SHOP_WHITE, depth: D + 3,
         stroke: '#000000', strokeThickness: 4,
-        alpha: 0.25,
+        alpha: 0.2,
       });
       this.content.push(placeholder);
-      animateIn(s, placeholder, { from: 'scale', delay: 0, duration: 300 });
-      return;
     }
 
-    const def = SPELLS[displaySpellId];
-    if (!def || !def.fx || !def.fx.sprite || !s.textures.exists(def.fx.sprite)) return;
-
-    const dispSprite = def.fx.displaySprite && s.textures.exists(def.fx.displaySprite)
-      ? def.fx.displaySprite : def.fx.sprite;
-    const dispAnim = def.fx.displayAnimKey && s.anims.exists(def.fx.displayAnimKey)
-      ? def.fx.displayAnimKey : def.fx.animKey;
-
-    // Glow underneath
-    const glowColor = def.fx.color || slotColor.tint;
-    const glow = s.add.graphics().setDepth(D + 2).setScrollFactor(0);
-    glow.fillStyle(0x000000, 0.2);
-    glow.fillEllipse(PX, SPRITE_Y + 30, 60, 14);
-    glow.fillStyle(glowColor, 0.15);
-    glow.fillEllipse(PX, SPRITE_Y + 26, 90, 22);
-    this.content.push(glow);
-
-    // Animated sprite
-    const fxSprite = s.add.sprite(PX, SPRITE_Y, dispSprite, 0)
-      .setScale(def.fx.scale ? def.fx.scale * 4.0 : 4.0)
-      .setDepth(D + 3).setScrollFactor(0);
-    if (dispAnim && s.anims.exists(dispAnim)) fxSprite.play(dispAnim);
-    this.content.push(fxSprite);
-    animateIn(s, fxSprite, { from: 'scale', delay: 50, duration: 300 });
+    // ── Hint text at bottom of center ──
+    const hintY = COL_Y + PANEL_H / 2 - 10;
+    const hint = s.add.text(MID_X, hintY,
+      'Q / W / E / R ile hünerlerini göster', textStyle({ fontSize: '8px', fontFamily: SHOP_FONT }, {
+        fill: SHOP_WHITE,
+        strokeThickness: 2,
+      })
+    ).setScrollFactor(0).setDepth(D + 2).setOrigin(0.5, 0);
+    this.content.push(hint);
   }
 
   // ═══════════════════════════════════════════════════════
-  //  ZONE 2 — Spell Info (name + description + stats)
+  //  RIGHT COLUMN — Spell Info (panel2) — unchanged
   // ═══════════════════════════════════════════════════════
-  _buildInfo() {
+  _buildRightColumn() {
     const s = this.scene;
     const slot = this.activeSlot;
     const slotColor = SLOT_COLOR[slot] || SLOT_COLOR.Q;
@@ -370,23 +629,24 @@ export class ShopOverlay {
     const chosenSpellId = spellState ? spellState.chosenSpell : null;
     const currentTier = spellState ? spellState.tier : 0;
 
-    const previewId = this.previewSpellId;
-    const isPreviewingDifferent = previewId && previewId !== chosenSpellId;
     const displaySpellId = this._getDisplaySpellId();
 
-    // Empty state
+    // Panel background sprite
+    const panel = s.add.image(RIGHT_X, COL_Y, 'ui-panel2')
+      .setScrollFactor(0).setDepth(D + 1);
+    this.content.push(panel);
+    animateIn(s, panel, { from: 'scale', delay: 50, duration: 300 });
+
+    const panelTop = COL_Y - PANEL_H / 2;
+
     if (!displaySpellId) {
-      const prompt = createText(s, PX, INFO_Y + 20, 'Bir hüner seç', FONT.BODY_BOLD, {
-        fill: COLOR.TEXT_DISABLED, depth: D + 3,
-        stroke: '#000000', strokeThickness: 2,
+      const prompt = createText(s, RIGHT_X, COL_Y, '?', {
+        fontSize: '48px', fontFamily: SHOP_FONT,
+      }, {
+        fill: SHOP_WHITE, depth: D + 3,
+        stroke: '#000000', strokeThickness: 4,
       });
       this.content.push(prompt);
-      animateIn(s, prompt, { from: 'fadeOnly', delay: 200, duration: 250 });
-
-      const hint = createText(s, PX, INFO_Y + 46, `(${SP.SPELL_CHOICE_COST} İlham)`, FONT.SMALL, {
-        fill: COLOR.TEXT_DISABLED, depth: D + 3,
-      });
-      this.content.push(hint);
       return;
     }
 
@@ -394,401 +654,91 @@ export class ShopOverlay {
     const tree = SKILL_TREES[displaySpellId];
     if (!def || !tree) return;
 
-    const displayTier = isPreviewingDifferent ? 0 : currentTier;
+    const isPreviewingDifferent = this.previewSpellId && this.previewSpellId !== chosenSpellId;
+    const displayTier = isPreviewingDifferent ? 0 : (displaySpellId === chosenSpellId ? currentTier : 0);
     const stats = computeSpellStats(displaySpellId, displayTier);
-    let y = INFO_Y;
 
-    // Spell name
+    const RIGHT_INNER_X = RIGHT_X + 8; // nudge text right off the frame edge
+
+    // Panel divider is at native y=136 of 329px panel
+    const dividerY = panelTop + 136;
+    const upperCenterY = panelTop + 68; // center of upper half
+
+    // ── UPPER HALF: Spell name + description ──
+    const spellNameY = panelTop + 40;
     const nameColor = isPreviewingDifferent ? COLOR.ACCENT_INFO : slotColor.hex;
-    const spellName = createText(s, PX, y, def.name, FONT.BODY_BOLD, {
-      fill: nameColor, depth: D + 3,
+    const spellNameText = createText(s, RIGHT_INNER_X, spellNameY, def.name, { fontSize: '14px', fontFamily: SHOP_FONT }, {
+      fill: SHOP_WHITE, depth: D + 3,
       stroke: '#000000', strokeThickness: 3,
     });
-    this.content.push(spellName);
-    animateIn(s, spellName, { from: 'slideUp', delay: 100, duration: 200 });
-    y += 24;
+    this.content.push(spellNameText);
+    animateIn(s, spellNameText, { from: 'slideUp', delay: 100, duration: 200 });
 
-    // Description
     if (def.description) {
-      const desc = s.add.text(PX, y, def.description, textStyle(FONT.SMALL, {
-        fill: COLOR.TEXT_SECONDARY,
-        wordWrap: { width: CONTENT_W },
+      const desc = s.add.text(RIGHT_INNER_X, spellNameY + 26, def.description, textStyle({ fontSize: '10px', fontFamily: SHOP_FONT }, {
+        fill: SHOP_WHITE,
+        wordWrap: { width: PANEL_W - 40 },
         align: 'center',
         strokeThickness: 2,
       })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
       this.content.push(desc);
       animateIn(s, desc, { from: 'fadeOnly', delay: 150, duration: 200 });
-      y += desc.height + 6;
     }
 
-    // Stats (horizontal line)
+    // ── LOWER HALF: Stats ──
+    let y = dividerY + 16;
     const visibleStats = STAT_DEFS.filter(sd => stats[sd.key] != null && stats[sd.key] !== 0);
-    if (visibleStats.length > 0) {
-      const statParts = visibleStats.slice(0, 5).map(sd => `${sd.label}: ${sd.fmt(stats[sd.key])}`);
-      const statLine = s.add.text(PX, y, statParts.join('   '), textStyle(FONT.TINY, {
-        fill: COLOR.TEXT_SECONDARY,
-        align: 'center',
-        wordWrap: { width: CONTENT_W },
-        strokeThickness: 2,
-      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
-      this.content.push(statLine);
+    const statsToShow = visibleStats.slice(0, 6);
+    for (const sd of statsToShow) {
+      const leftX = RIGHT_X - PANEL_W / 2 + 35;
+      const rightX = RIGHT_X + PANEL_W / 2 - 35;
+
+      const labelText = s.add.text(leftX, y, sd.label, textStyle({ fontSize: '10px', fontFamily: SHOP_FONT }, {
+        fill: SHOP_WHITE, strokeThickness: 2,
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0.5);
+      this.content.push(labelText);
+
+      const valText = s.add.text(rightX, y, sd.fmt(stats[sd.key]), textStyle({ fontSize: '10px', fontFamily: SHOP_FONT }, {
+        fill: SHOP_WHITE, strokeThickness: 2,
+      })).setScrollFactor(0).setDepth(D + 3).setOrigin(1, 0.5);
+      this.content.push(valText);
+
+      y += 18;
     }
   }
 
   // ═══════════════════════════════════════════════════════
-  //  ZONE 3 — Single Spell Card with < > Arrows
-  // ═══════════════════════════════════════════════════════
-  _buildSpellCard() {
-    const s = this.scene;
-    const slot = this.activeSlot;
-    const prog = this.progression;
-    const spellState = prog ? prog.spells[slot] : null;
-    const chosenSpellId = spellState ? spellState.chosenSpell : null;
-    const isAutoEquipped = spellState ? spellState.autoEquipped : false;
-    const isFirstChoice = chosenSpellId === null || isAutoEquipped;
-    const availableSpells = SLOT_SPELLS[slot] || [];
-    const total = availableSpells.length;
-    if (total === 0) return;
-
-    // Clamp scroll offset
-    this._scrollOffset = Math.max(0, Math.min(this._scrollOffset, total - 1));
-
-    const spellId = availableSpells[this._scrollOffset];
-    const def = SPELLS[spellId];
-    if (!def) return;
-
-    const isChosen = chosenSpellId === spellId;
-    const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
-    const dimmed = !isChosen && !canAfford;
-
-    // ── Card background ──
-    const cardBg = s.add.image(PX, SPELL_Y, 'ui-shop-card')
-      .setDisplaySize(CARD_W, CARD_H)
-      .setScrollFactor(0).setDepth(D + 3)
-      .setAlpha(dimmed ? 0.4 : 0.85);
-    if (dimmed) cardBg.setTint(0x607880);
-    this.content.push(cardBg);
-
-    // Selection border
-    if (isChosen) {
-      const border = s.add.graphics().setDepth(D + 2).setScrollFactor(0);
-      border.lineStyle(2, COLOR.TINT_GOLD, 0.9);
-      border.strokeRoundedRect(PX - CARD_W / 2 - 2, SPELL_Y - CARD_H / 2 - 2, CARD_W + 4, CARD_H + 4, 4);
-      this.content.push(border);
-      s.tweens.add({ targets: border, alpha: { from: 0.5, to: 1 }, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    }
-
-    // Spell icon (left side)
-    const iconX = PX - CARD_W / 2 + 28;
-    if (def.icon && s.textures.exists(def.icon)) {
-      const icon = s.add.image(iconX, SPELL_Y, def.icon)
-        .setScrollFactor(0).setDepth(D + 4);
-      const sc = 32 / Math.max(icon.width, icon.height);
-      icon.setScale(sc);
-      if (dimmed) icon.setAlpha(0.5);
-      this.content.push(icon);
-    }
-
-    // Spell name (right of icon)
-    const nameX = iconX + 28;
-    const nameColor = isChosen ? SLOT_COLOR[slot].hex : COLOR.TEXT_SECONDARY;
-    const name = s.add.text(nameX, SPELL_Y, def.name, textStyle(FONT.SMALL, {
-      fill: nameColor, stroke: '#000000', strokeThickness: 2,
-    })).setScrollFactor(0).setDepth(D + 4).setOrigin(0, 0.5);
-    if (dimmed) name.setAlpha(0.5);
-    this.content.push(name);
-
-    // Cost badge (right side, first choice only)
-    if (!isChosen && isFirstChoice) {
-      const costBadge = s.add.text(PX + CARD_W / 2 - 10, SPELL_Y,
-        `${SP.SPELL_CHOICE_COST}◆`, textStyle(FONT.TINY, {
-          fill: canAfford ? COLOR.ACCENT_INFO : COLOR.TEXT_DISABLED,
-          strokeThickness: 2,
-        })
-      ).setScrollFactor(0).setDepth(D + 5).setOrigin(1, 0.5);
-      this.content.push(costBadge);
-    }
-
-    // Card hit area — clicking selects/previews this spell
-    const cardHit = s.add.rectangle(PX, SPELL_Y, CARD_W, CARD_H)
-      .setScrollFactor(0).setDepth(D + 6).setAlpha(0.001)
-      .setInteractive({ useHandCursor: !isChosen && canAfford });
-    this.content.push(cardHit);
-
-    if (!isChosen && canAfford) {
-      cardHit.on('pointerover', () => { cardBg.setAlpha(1); cardBg.setTint(COLOR.TINT_HOVER); });
-      cardHit.on('pointerout', () => { cardBg.setAlpha(0.85); cardBg.clearTint(); });
-      cardHit.on('pointerdown', () => {
-        this._playSfx('sfx-move');
-        this.previewSpellId = spellId;
-        this._destroyContent();
-        this._buildContent();
-      });
-    }
-
-    // ── Left/Right Arrows ──
-    const arrowGap = 24;
-    const arrowLeftX = PX - CARD_W / 2 - arrowGap;
-    const arrowRightX = PX + CARD_W / 2 + arrowGap;
-    const canGoLeft = this._scrollOffset > 0;
-    const canGoRight = this._scrollOffset < total - 1;
-
-    // Left arrow
-    const leftArrow = s.add.graphics().setDepth(D + 5).setScrollFactor(0);
-    leftArrow.fillStyle(canGoLeft ? 0xb8e4f0 : 0x607880, canGoLeft ? 0.8 : 0.25);
-    leftArrow.fillTriangle(arrowLeftX + 8, SPELL_Y - 10, arrowLeftX + 8, SPELL_Y + 10, arrowLeftX - 4, SPELL_Y);
-    this.content.push(leftArrow);
-    if (canGoLeft) {
-      const leftHit = s.add.rectangle(arrowLeftX, SPELL_Y, 28, 32)
-        .setScrollFactor(0).setDepth(D + 6).setAlpha(0.001)
-        .setInteractive({ useHandCursor: true });
-      leftHit.on('pointerdown', () => {
-        this._playSfx('sfx-move');
-        this._scrollOffset--;
-        this.previewSpellId = null;
-        this._destroyContent();
-        this._buildContent();
-      });
-      this.content.push(leftHit);
-    }
-
-    // Right arrow
-    const rightArrow = s.add.graphics().setDepth(D + 5).setScrollFactor(0);
-    rightArrow.fillStyle(canGoRight ? 0xb8e4f0 : 0x607880, canGoRight ? 0.8 : 0.25);
-    rightArrow.fillTriangle(arrowRightX - 8, SPELL_Y - 10, arrowRightX - 8, SPELL_Y + 10, arrowRightX + 4, SPELL_Y);
-    this.content.push(rightArrow);
-    if (canGoRight) {
-      const rightHit = s.add.rectangle(arrowRightX, SPELL_Y, 28, 32)
-        .setScrollFactor(0).setDepth(D + 6).setAlpha(0.001)
-        .setInteractive({ useHandCursor: true });
-      rightHit.on('pointerdown', () => {
-        this._playSfx('sfx-move');
-        this._scrollOffset++;
-        this.previewSpellId = null;
-        this._destroyContent();
-        this._buildContent();
-      });
-      this.content.push(rightHit);
-    }
-
-    // Page indicator: "1 / 3"
-    const pageText = s.add.text(PX, SPELL_Y + CARD_H / 2 + 10,
-      `${this._scrollOffset + 1} / ${total}`, textStyle(FONT.TINY, {
-        fill: COLOR.TEXT_DISABLED, strokeThickness: 2,
-      })
-    ).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
-    this.content.push(pageText);
-
-    // Entrance animation
-    animateIn(s, cardBg, { from: 'scale', delay: 200, duration: 200 });
-  }
-
-  // ═══════════════════════════════════════════════════════
-  //  ZONE 4 — Countdown Bar
-  // ═══════════════════════════════════════════════════════
-  _buildCountdownBar() {
-    const s = this.scene;
-    const barX = PX - TBAR_W / 2;
-    const ratio = Math.max(0, this.shopTimer / this.shopDuration);
-    const bar = createBar(s, barX, TBAR_Y, TBAR_W, 5, {
-      depth: D + 2,
-      tint: this.shopTimer <= 5 ? COLOR.TINT_DANGER : COLOR.TINT_INFO,
-      value: ratio,
-    });
-    this._timerBar = bar;
-    this.content.push(...bar.elements);
-    bar.elements.forEach(el => animateIn(s, el, { from: 'fadeOnly', delay: 300, duration: 250 }));
-  }
-
-  // ═══════════════════════════════════════════════════════
-  //  ZONE 5 — Upgrade / Tier Info
-  // ═══════════════════════════════════════════════════════
-  _buildUpgrade() {
-    const s = this.scene;
-    const slot = this.activeSlot;
-    const slotColor = SLOT_COLOR[slot] || SLOT_COLOR.Q;
-    const prog = this.progression;
-    const spellState = prog ? prog.spells[slot] : null;
-    const chosenSpellId = spellState ? spellState.chosenSpell : null;
-    const currentTier = spellState ? spellState.tier : 0;
-    const previewId = this.previewSpellId;
-    const isPreviewingDifferent = previewId && previewId !== chosenSpellId;
-
-    // Only show upgrade info for chosen spell (not when previewing a different one)
-    if (!chosenSpellId || isPreviewingDifferent) return;
-
-    const maxTier = getMaxTier(chosenSpellId);
-    let y = UPGRADE_Y;
-
-    // Tier dots + label
-    const dotSize = 10;
-    const dotGap = 5;
-    const dotsW = maxTier * dotSize + (maxTier - 1) * dotGap;
-
-    // "Pâye 1/4" label + dots on same line
-    const tierLabel = s.add.text(PX - dotsW / 2 - 10, y, `Pâye ${currentTier}/${maxTier}`, textStyle(FONT.TINY, {
-      fill: COLOR.ACCENT_GOLD, strokeThickness: 2,
-    })).setScrollFactor(0).setDepth(D + 3).setOrigin(1, 0.5);
-    this.content.push(tierLabel);
-
-    const dotStartX = PX - dotsW / 2 + dotSize / 2;
-    for (let t = 0; t < maxTier; t++) {
-      const filled = t < currentTier;
-      const dx = dotStartX + t * (dotSize + dotGap);
-      const dot = s.add.graphics().setDepth(D + 3).setScrollFactor(0);
-      dot.fillStyle(filled ? slotColor.tint : 0x334455, filled ? 0.9 : 0.5);
-      dot.fillCircle(dx, y, dotSize / 2);
-      this.content.push(dot);
-    }
-
-    // Next tier mods
-    const nextTier = getNextTierInfo(chosenSpellId, currentTier);
-    if (nextTier) {
-      const modText = Object.entries(nextTier.mods)
-        .map(([k, v]) => typeof v === 'boolean'
-          ? `${MOD_LABELS[k] || k}: ${v ? 'evet' : 'hayır'}`
-          : `${MOD_LABELS[k] || k}: ${v > 0 ? '+' : ''}${v}`)
-        .join(', ');
-      if (modText) {
-        const mods = s.add.text(PX, y + 14, `Sonraki: ${modText}`, textStyle(FONT.TINY, {
-          fill: COLOR.ACCENT_INFO, wordWrap: { width: CONTENT_W }, align: 'center', strokeThickness: 2,
-        })).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
-        this.content.push(mods);
-      }
-    } else if (currentTier >= maxTier) {
-      const badge = createText(s, PX, y + 10, '★ EN ÜST PÂYE ★', FONT.TINY, {
-        fill: COLOR.ACCENT_GOLD, depth: D + 3, stroke: '#000000', strokeThickness: 2,
-      });
-      this.content.push(badge);
-      s.tweens.add({ targets: badge, alpha: { from: 0.6, to: 1 }, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════
-  //  ZONE 6 — Action Button (Seç / Pişir / none)
-  // ═══════════════════════════════════════════════════════
-  _buildActionButton() {
-    const s = this.scene;
-    const slot = this.activeSlot;
-    const prog = this.progression;
-    const spellState = prog ? prog.spells[slot] : null;
-    const chosenSpellId = spellState ? spellState.chosenSpell : null;
-    const currentTier = spellState ? spellState.tier : 0;
-    const isAutoEquipped = spellState ? spellState.autoEquipped : false;
-    const isFirstChoice = chosenSpellId === null || isAutoEquipped;
-
-    const previewId = this.previewSpellId;
-    const isPreviewingDifferent = previewId && previewId !== chosenSpellId;
-
-    // Get the currently viewed spell from the carousel
-    const availableSpells = SLOT_SPELLS[slot] || [];
-    const viewedSpellId = availableSpells[this._scrollOffset];
-
-    if (isPreviewingDifferent) {
-      // ── Preview mode: "Seç" button ──
-      const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
-      const costLabel = isFirstChoice ? ` (${SP.SPELL_CHOICE_COST}◆)` : '';
-      const { elements: btnEls } = createTexturedButton(s, PX, BTN_Y, `Seç${costLabel}`, 'ui-shop-btn', {
-        width: BTN_W, height: BTN_H, depth: D + 4, enabled: canAfford,
-        onClick: () => {
-          this._playSfx('sfx-accept');
-          if (s.network && s.network.connected) {
-            s.network.sendShopChooseSpell(slot, previewId);
-          }
-        },
-      });
-      this.content.push(...btnEls);
-      btnEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 350, duration: 200 }));
-
-      // Tier reset warning
-      if (!isFirstChoice && currentTier > 0) {
-        const warn = createText(s, PX, BTN_Y - 24, '⚠ pâye sıfırlanır', FONT.TINY, {
-          fill: COLOR.ACCENT_DANGER, depth: D + 4,
-        });
-        this.content.push(warn);
-      }
-
-    } else if (viewedSpellId && viewedSpellId !== chosenSpellId) {
-      // Viewing an unchosen spell in the carousel — show "Seç" to pick it
-      const canAfford = isFirstChoice ? (prog && prog.sp >= SP.SPELL_CHOICE_COST) : true;
-      const costLabel = isFirstChoice ? ` (${SP.SPELL_CHOICE_COST}◆)` : '';
-      const { elements: btnEls } = createTexturedButton(s, PX, BTN_Y, `Seç${costLabel}`, 'ui-shop-btn', {
-        width: BTN_W, height: BTN_H, depth: D + 4, enabled: canAfford,
-        onClick: () => {
-          this._playSfx('sfx-accept');
-          if (s.network && s.network.connected) {
-            s.network.sendShopChooseSpell(slot, viewedSpellId);
-          }
-        },
-      });
-      this.content.push(...btnEls);
-      btnEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 350, duration: 200 }));
-
-      if (!isFirstChoice && currentTier > 0) {
-        const warn = createText(s, PX, BTN_Y - 24, '⚠ pâye sıfırlanır', FONT.TINY, {
-          fill: COLOR.ACCENT_DANGER, depth: D + 4,
-        });
-        this.content.push(warn);
-      }
-
-    } else if (chosenSpellId) {
-      // ── Chosen spell: "Pişir" upgrade button ──
-      const nextTier = getNextTierInfo(chosenSpellId, currentTier);
-      if (nextTier) {
-        const cost = nextTier.cost;
-        const canUpgrade = prog && prog.sp >= cost;
-        const { elements: btnEls } = createTexturedButton(s, PX, BTN_Y, `Pişir (${cost}◆)`, 'ui-shop-btn', {
-          width: BTN_W, height: BTN_H, depth: D + 4, enabled: canUpgrade,
-          onClick: () => {
-            this._playSfx('sfx-accept');
-            if (s.network && s.network.connected) {
-              s.network.sendShopUpgradeTier(slot);
-            }
-          },
-        });
-        this.content.push(...btnEls);
-        btnEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 350, duration: 200 }));
-      }
-      // Max tier = no button
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════
-  //  LOCKED SLOT CONTENT
+  //  LOCKED SLOT CONTENT — centered layout
   // ═══════════════════════════════════════════════════════
   _buildLockedContent() {
     const s = this.scene;
     const slot = this.activeSlot;
     const prog = this.progression;
 
-    // Lock icon
     if (s.textures.exists('spell-BookDarkness-off')) {
-      const lockIcon = s.add.image(PX, SPRITE_Y - 10, 'spell-BookDarkness-off')
-        .setDisplaySize(48, 48).setScrollFactor(0).setDepth(D + 3);
+      const lockIcon = s.add.image(CX, COL_Y - 50, 'spell-BookDarkness-off')
+        .setDisplaySize(64, 64).setScrollFactor(0).setDepth(D + 3);
       this.content.push(lockIcon);
       animateIn(s, lockIcon, { from: 'scale', delay: 200, duration: 250 });
     }
 
-    const label = createText(s, PX, SPRITE_Y + 30, `${SLOT_NAMES[slot]} — KİLİTLİ`, FONT.BODY_BOLD, {
-      fill: COLOR.TEXT_DISABLED, depth: D + 3,
-      stroke: '#000000', strokeThickness: 2,
+    const label = createText(s, CX, COL_Y + 10, `${SLOT_NAMES[slot]} — KİLİTLİ`, FONT.H2, {
+      fill: SHOP_WHITE, depth: D + 3,
+      stroke: '#000000', strokeThickness: 3,
     });
     this.content.push(label);
     animateIn(s, label, { from: 'slideUp', delay: 250, duration: 250 });
 
-    const costLabel = createText(s, PX, SPRITE_Y + 56, `Açmak için ${SP.SLOT_UNLOCK_COST} İlham gerekir`, FONT.SMALL, {
-      fill: COLOR.TEXT_SECONDARY, depth: D + 3,
+    const costLabel = createText(s, CX, COL_Y + 42, `Açmak için ${SP.SLOT_UNLOCK_COST} İlham gerekir`, { fontSize: '10px', fontFamily: SHOP_FONT }, {
+      fill: SHOP_WHITE, depth: D + 3,
+      stroke: '#000000', strokeThickness: 2,
     });
     this.content.push(costLabel);
     animateIn(s, costLabel, { from: 'fadeOnly', delay: 300, duration: 250 });
 
-    // Countdown bar
-    this._buildCountdownBar();
-
-    // Unlock button
     const canUnlock = prog && prog.sp >= SP.SLOT_UNLOCK_COST;
-    const { elements: btnEls } = createTexturedButton(s, PX, BTN_Y, `Kilidi Aç (${SP.SLOT_UNLOCK_COST}◆)`, 'ui-shop-btn', {
-      width: BTN_W + 40, height: BTN_H, depth: D + 4, enabled: canUnlock,
+    const { elements: btnEls } = createTexturedButton(s, CX, COL_Y + 90, `Kilidi Aç (${SP.SLOT_UNLOCK_COST}◆)`, 'ui-shop-btn', {
+      width: 220, height: 40, depth: D + 4, enabled: canUnlock,
       onClick: () => {
         this._playSfx('sfx-accept');
         if (s.network && s.network.connected) {
@@ -801,26 +751,117 @@ export class ShopOverlay {
   }
 
   // ═══════════════════════════════════════════════════════
-  //  HELPERS
+  //  HELPERS — Spell Animation Builder
   // ═══════════════════════════════════════════════════════
 
-  /** Get the spell ID currently being displayed (preview or chosen or carousel current) */
+  /** Place an animated spell FX sprite at (x, y) with given scale.
+   *  minScale ensures tiny spells (e.g. Tekerleme 0.23) are still visible in UI. */
+  _buildSpellAnimation(x, y, spellId, scale, minScale = 0) {
+    const s = this.scene;
+    const def = SPELLS[spellId];
+    if (!def || !def.fx || !def.fx.sprite || !s.textures.exists(def.fx.sprite)) return;
+
+    const slotColor = SLOT_COLOR[def.slot] || SLOT_COLOR.Q;
+    const dispSprite = def.fx.displaySprite && s.textures.exists(def.fx.displaySprite)
+      ? def.fx.displaySprite : def.fx.sprite;
+    const dispAnim = def.fx.displayAnimKey && s.anims.exists(def.fx.displayAnimKey)
+      ? def.fx.displayAnimKey : def.fx.animKey;
+
+    // Subtle glow underneath
+    const glowColor = def.fx.color || slotColor.tint;
+    const glow = s.add.graphics().setDepth(D + 2).setScrollFactor(0);
+    glow.fillStyle(glowColor, 0.15);
+    glow.fillEllipse(x, y + scale * 6, scale * 12, scale * 3.5);
+    this.content.push(glow);
+
+    // Animated sprite — enforce minimum scale for small spells
+    const rawScale = def.fx.scale ? def.fx.scale * scale : scale;
+    const finalScale = minScale > 0 ? Math.max(rawScale, minScale) : rawScale;
+    const fxSprite = s.add.sprite(x, y, dispSprite, 0)
+      .setScale(finalScale)
+      .setDepth(D + 3).setScrollFactor(0);
+    if (dispAnim && s.anims.exists(dispAnim)) fxSprite.play(dispAnim);
+    this.content.push(fxSprite);
+    animateIn(s, fxSprite, { from: 'scale', delay: 80, duration: 300 });
+  }
+
+  /** Build a rotated arrow button using ui-shop-btn sprite */
+  _buildArrowButton(x, y, angle, enabled, onClick) {
+    const s = this.scene;
+    const isLeft = angle < 0;
+    const glyph = isLeft ? '◀' : '▶';
+
+    const arrow = s.add.sprite(x, y, 'ui-shop-btn', 0)
+      .setDisplaySize(ARROW_W, ARROW_H)
+      .setAngle(angle)
+      .setScrollFactor(0).setDepth(D + 4);
+
+    // Arrow glyph label on top of button
+    const label = s.add.text(x, y, glyph, textStyle({ fontSize: '16px', fontFamily: SHOP_FONT }, {
+      fill: SHOP_WHITE,
+      strokeThickness: 3,
+    })).setScrollFactor(0).setDepth(D + 5).setOrigin(0.5);
+
+    if (!enabled) {
+      arrow.setTint(0x607880).setAlpha(0.25);
+      label.setAlpha(0.2);
+      this.content.push(arrow, label);
+      return;
+    }
+
+    arrow.setAlpha(0.85);
+    this.content.push(arrow, label);
+
+    const hitSize = Math.max(ARROW_W, ARROW_H) + 20;
+    const hit = s.add.rectangle(x, y, hitSize, hitSize)
+      .setScrollFactor(0).setDepth(D + 6).setAlpha(0.001)
+      .setInteractive({ useHandCursor: true });
+
+    const origSX = arrow.scaleX;
+    const origSY = arrow.scaleY;
+
+    hit.on('pointerover', () => {
+      arrow.setFrame(1);
+      arrow.setScale(origSX * 1.1, origSY * 1.1);
+      arrow.setAlpha(1);
+      label.setScale(1.15);
+    });
+    hit.on('pointerout', () => {
+      arrow.setFrame(0);
+      arrow.setScale(origSX, origSY);
+      arrow.setAlpha(0.85);
+      label.setScale(1);
+    });
+    hit.on('pointerdown', () => {
+      arrow.setScale(origSX * 0.9, origSY * 0.9);
+      label.setScale(0.9);
+    });
+    hit.on('pointerup', () => {
+      arrow.setScale(origSX * 1.1, origSY * 1.1);
+      label.setScale(1);
+      onClick();
+    });
+
+    this.content.push(hit);
+    animateIn(s, arrow, { from: 'scale', delay: 200, duration: 200 });
+    animateIn(s, label, { from: 'fadeOnly', delay: 220, duration: 200 });
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  HELPERS — Data
+  // ═══════════════════════════════════════════════════════
+
   _getDisplaySpellId() {
+    if (this.previewSpellId) return this.previewSpellId;
     const slot = this.activeSlot;
+    const availableSpells = SLOT_SPELLS[slot] || [];
+    const idx = Math.max(0, Math.min(this._scrollOffset, availableSpells.length - 1));
     const prog = this.progression;
     const spellState = prog ? prog.spells[slot] : null;
     const chosenSpellId = spellState ? spellState.chosenSpell : null;
-
-    // If previewing a specific spell, show that
-    if (this.previewSpellId) return this.previewSpellId;
-
-    // Otherwise show whatever the carousel is pointing at
-    const availableSpells = SLOT_SPELLS[slot] || [];
-    const idx = Math.max(0, Math.min(this._scrollOffset, availableSpells.length - 1));
     return availableSpells[idx] || chosenSpellId;
   }
 
-  /** Get the index of the chosen spell in the slot's spell list */
   _getChosenIndex() {
     const slot = this.activeSlot;
     const prog = this.progression;
@@ -878,7 +919,6 @@ export class ShopOverlay {
       }
     }
     this.content = [];
-    this._timerBar = null;
   }
 
   destroy() {

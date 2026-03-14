@@ -5,42 +5,56 @@
  * Cool ice palette — white/ice-blue text with strokes for readability.
  */
 
-// Font defined here (NOT imported from config.js to avoid circular dependency)
-const UI_FONT = "'Alkhemikal', monospace";
+// Font — Press Start 2P is the universal UI font across all screens.
+const UI_FONT = "'Press Start 2P', cursive";
+const UI_FONT_HEADING = "'Press Start 2P', cursive";
 
-// ─── Color Palette ───────────────────────────────────────────
+// ─── Color Palette (Ottoman Frost — DESIGN_SYSTEM.md) ────────
 export const COLOR = {
-  // Primary text (white — readable over any background with stroke)
-  TEXT_PRIMARY:   '#ffffff',
-  TEXT_SECONDARY: '#dce8ef',
+  // Background & surface
+  BG:             '#E8F0F8',
+  SURFACE:        '#F4F8FC',
+  ICE_ACCENT:     '#B8D8EB',
+
+  // Text hierarchy (dark text on bright icy backgrounds)
+  TEXT_PRIMARY:   '#1A2A3A',
+  TEXT_SECONDARY: '#5A7A8A',
   TEXT_DISABLED:  '#7a8e9c',
 
-  // Warm text variants
+  // Light text variants (for use on dark/colored backgrounds with stroke)
   TEXT_LIGHT:     '#ffffff',
   TEXT_CREAM:     '#f0e6d2',
-  TEXT_ICE:       '#b8e4f0',
+  TEXT_ICE:       '#B8D8EB',
 
   // Stroke colors
   STROKE_DARK:    '#000000',
   STROKE_BROWN:   '#2a1a0a',
 
-  // Accent colors (CSS strings)
-  ACCENT_GOLD:    '#ffdd44',
+  // Ottoman accent colors (CSS strings)
+  ACCENT_GOLD:    '#C8963E',
+  ACCENT_PRIMARY: '#1B4D8A',
   ACCENT_INFO:    '#44ddff',
-  ACCENT_DANGER:  '#ff6644',
-  ACCENT_SUCCESS: '#1a7733',
+  ACCENT_DANGER:  '#B83A3A',
+  ACCENT_SUCCESS: '#3A8A5A',
 
   // Tint values (hex numbers for Phaser tint)
-  TINT_GOLD:      0xffdd44,
+  TINT_GOLD:      0xC8963E,
+  TINT_PRIMARY:   0x1B4D8A,
   TINT_INFO:      0x44ddff,
-  TINT_DANGER:    0xff6644,
-  TINT_SUCCESS:   0x1a7733,
+  TINT_DANGER:    0xB83A3A,
+  TINT_SUCCESS:   0x3A8A5A,
   TINT_HOVER:     0xddccaa,
   TINT_PRESS:     0xbbaa88,
   TINT_DISABLED:  0x777777,
+  TINT_ICE:       0xB8D8EB,
+  TINT_SURFACE:   0xF4F8FC,
 
   // Dimmer only
   DIMMER_TINT:    0x000000,
+
+  // Border
+  BORDER:         '#A8C8DC',
+  TINT_BORDER:    0xA8C8DC,
 
   // HP bar gradient tints
   HP_FULL:        0x40c090,
@@ -59,7 +73,14 @@ export const SLOT_COLOR = {
 // ─── Typography ──────────────────────────────────────────────
 export const FONT = {
   FAMILY: UI_FONT,
+  FAMILY_HEADING: UI_FONT_HEADING,
 
+  // Heading font (Press Start 2P — pixel aesthetic)
+  H1:       { fontSize: '24px', fontFamily: UI_FONT_HEADING },
+  H2:       { fontSize: '16px', fontFamily: UI_FONT_HEADING },
+  H3:       { fontSize: '12px', fontFamily: UI_FONT_HEADING },
+
+  // Body font sizes (Press Start 2P — legacy size tokens)
   TITLE_LG: { fontSize: '54px', fontFamily: UI_FONT, fontStyle: 'bold' },
   TITLE_SM: { fontSize: '36px', fontFamily: UI_FONT, fontStyle: 'bold' },
   BODY:     { fontSize: '24px', fontFamily: UI_FONT },
@@ -135,5 +156,5 @@ export function getHpTint(ratio) {
  * Default fill is white with black stroke for readability over any background.
  */
 export function textStyle(token, overrides = {}) {
-  return { ...token, fill: COLOR.TEXT_PRIMARY, stroke: COLOR.STROKE_DARK, strokeThickness: 4, ...overrides };
+  return { ...token, fill: COLOR.TEXT_LIGHT, stroke: COLOR.STROKE_DARK, strokeThickness: 4, ...overrides };
 }

@@ -8,6 +8,10 @@ import {
 import { createButton, createIconButton, createPanel, createBar, createSeparator, createText } from '../ui/UIHelpers.js';
 import { getSfxVolume } from '../config.js';
 
+// Consistent style: Press Start 2P, white text
+const PS2P = FONT.FAMILY_HEADING;
+const WHITE = '#FFFFFF';
+
 export class HUDManager {
   constructor(scene) {
     this.scene = scene;
@@ -82,20 +86,14 @@ export class HUDManager {
     const scene = this.scene;
     const camW = SCREEN.W;
 
-    // --- Top-left: Round & timer (primary info on top) ---
-    this.roundText = createText(scene, SPACE.SM, SPACE.SM, 'Fasıl 0/20', FONT.BODY_BOLD, {
-      fill: COLOR.ACCENT_GOLD, depth: DEPTH.HUD, originX: 0, originY: 0,
+    // --- Top-left: Round + ping ---
+    this.roundText = createText(scene, SPACE.SM, SPACE.SM, 'Fasıl 0/20', { fontSize: '14px', fontFamily: PS2P }, {
+      fill: WHITE, depth: DEPTH.HUD, originX: 0, originY: 0,
+      stroke: '#000000', strokeThickness: 2,
     });
-    this.timerText = createText(scene, SPACE.SM, SPACE.SM + 26, '60s', FONT.BODY, {
-      fill: COLOR.ACCENT_INFO, depth: DEPTH.HUD, originX: 0, originY: 0,
-    });
-
-    // --- Top-left: Ping & player count (below round info) ---
-    this.pingText = createText(scene, SPACE.SM, SPACE.SM + 52, 'Ping: --', FONT.SMALL, {
-      fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD, originX: 0, originY: 0,
-    });
-    this.playerCountText = createText(scene, SPACE.SM, SPACE.SM + 74, 'Âşıklar: 0', FONT.SMALL, {
-      fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD, originX: 0, originY: 0,
+    this.pingText = createText(scene, SPACE.SM, SPACE.SM + 22, 'Ping: --', { fontSize: '8px', fontFamily: PS2P }, {
+      fill: WHITE, depth: DEPTH.HUD, originX: 0, originY: 0,
+      stroke: '#000000', strokeThickness: 2, alpha: 0.6,
     });
 
     // --- Center-top: HP bar ---
@@ -104,16 +102,18 @@ export class HUDManager {
     this._hpBar = createBar(scene, barX, barY, 240, 6, {
       depth: DEPTH.HUD, tint: COLOR.HP_FULL, showBg: true, value: 1,
     });
-    this.hpText = createText(scene, SCREEN.CX + 138, barY, '100 Nefes', FONT.SMALL, {
-      fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0.5,
+    this.hpText = createText(scene, SCREEN.CX + 138, barY, '100 Nefes', { fontSize: '10px', fontFamily: PS2P }, {
+      fill: WHITE, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0.5,
+      stroke: '#000000', strokeThickness: 2,
     });
-    this.phaseText = createText(scene, SCREEN.CX, 40, '', FONT.SMALL, {
-      fill: COLOR.TEXT_SECONDARY, depth: DEPTH.HUD, originX: 0.5, originY: 0,
+    this.phaseText = createText(scene, SCREEN.CX, 40, '', { fontSize: '10px', fontFamily: PS2P }, {
+      fill: WHITE, depth: DEPTH.HUD, originX: 0.5, originY: 0,
+      stroke: '#000000', strokeThickness: 2,
     });
 
     // --- Countdown (center screen, hidden until needed) ---
-    this.countdownText = scene.add.text(SCREEN.CX, SCREEN.CY - 40, '', textStyle(FONT.NUMBER_LG, {
-      fill: '#ffffff', stroke: '#000000', strokeThickness: 3,
+    this.countdownText = scene.add.text(SCREEN.CX, SCREEN.CY - 40, '', textStyle({ fontSize: '48px', fontFamily: PS2P }, {
+      fill: WHITE, stroke: '#000000', strokeThickness: 3,
     })).setScrollFactor(0).setDepth(DEPTH.OVERLAY_TOP).setOrigin(0.5).setVisible(false);
 
     // --- Toggle buttons ---
@@ -188,8 +188,9 @@ export class HUDManager {
       cdOverlay._slotY = slotY;
       cdOverlay._slotSize = slotSize;
 
-      const cdText = createText(scene, x, slotY, '', FONT.TINY, {
-        fill: '#ffffff', depth: DEPTH.HUD_OVERLAY + 1, originX: 0.5, originY: 0.5,
+      const cdText = createText(scene, x, slotY, '', { fontSize: '10px', fontFamily: PS2P }, {
+        fill: WHITE, depth: DEPTH.HUD_OVERLAY + 1, originX: 0.5, originY: 0.5,
+        stroke: '#000000', strokeThickness: 2,
       }).setVisible(false);
 
       // Key sprite hint (top-left corner)
@@ -206,8 +207,8 @@ export class HUDManager {
         .setScrollFactor(0).setDepth(DEPTH.HUD_OVERLAY + 3).setDisplaySize(18, 18).setAlpha(0.4).setVisible(false);
 
       // Charge counter
-      const chargeText = createText(scene, x + slotSize / 2 - 3, slotY + slotSize / 2 - 3, '', FONT.TINY, {
-        fill: COLOR.ACCENT_GOLD, depth: DEPTH.HUD_OVERLAY + 4, originX: 1, originY: 1,
+      const chargeText = createText(scene, x + slotSize / 2 - 3, slotY + slotSize / 2 - 3, '', { fontSize: '10px', fontFamily: PS2P }, {
+        fill: WHITE, depth: DEPTH.HUD_OVERLAY + 4, originX: 1, originY: 1,
         stroke: '#000000', strokeThickness: 2,
       }).setVisible(false);
 
@@ -228,14 +229,15 @@ export class HUDManager {
     this._spOver = scene.add.image(SCREEN.CX, spY, 'ui-sphere-over')
       .setScrollFactor(0).setDepth(DEPTH.HUD_TEXT).setDisplaySize(22, 22);
 
-    this.spText = createText(scene, SCREEN.CX, spY, '0', FONT.TINY, {
-      fill: '#ffffff', depth: DEPTH.HUD_OVERLAY, originX: 0.5, originY: 0.5,
+    this.spText = createText(scene, SCREEN.CX, spY, '0', { fontSize: '10px', fontFamily: PS2P }, {
+      fill: WHITE, depth: DEPTH.HUD_OVERLAY, originX: 0.5, originY: 0.5,
       stroke: '#000000', strokeThickness: 2,
     });
 
     if (scene.gameMode === 'sandbox') {
-      createText(scene, SCREEN.CX, spY + 14, "Dükkânı açmak için B'ye bas", FONT.SMALL, {
-        fill: COLOR.TEXT_DISABLED, depth: DEPTH.HUD, originX: 0.5, originY: 0,
+      createText(scene, SCREEN.CX, spY + 14, "Dükkânı açmak için B'ye bas", { fontSize: '8px', fontFamily: PS2P }, {
+        fill: WHITE, depth: DEPTH.HUD, originX: 0.5, originY: 0,
+        stroke: '#000000', strokeThickness: 2, alpha: 0.5,
       });
     }
   }
@@ -248,8 +250,8 @@ export class HUDManager {
     const scene = this.scene;
     if (this.announcementText) this.announcementText.destroy();
 
-    this.announcementText = scene.add.text(SCREEN.CX, SCREEN.H / 3, text, textStyle(FONT.TITLE_SM, {
-      fill: '#ffffff', stroke: '#000000', strokeThickness: 2, align: 'center',
+    this.announcementText = scene.add.text(SCREEN.CX, SCREEN.H / 3, text, textStyle({ fontSize: '24px', fontFamily: PS2P }, {
+      fill: WHITE, stroke: '#000000', strokeThickness: 3, align: 'center',
     })).setScrollFactor(0).setDepth(DEPTH.OVERLAY_TOP).setOrigin(0.5).setAlpha(1);
 
     scene.tweens.add({
@@ -268,8 +270,8 @@ export class HUDManager {
 
   showDamageNumber(x, y, amount) {
     const scene = this.scene;
-    const dmg = scene.add.text(x, y - 20, `-${Math.ceil(amount)}`, textStyle(FONT.DAMAGE, {
-      fill: COLOR.ACCENT_DANGER, stroke: '#000000', strokeThickness: 2,
+    const dmg = scene.add.text(x, y - 20, `-${Math.ceil(amount)}`, textStyle({ fontSize: '14px', fontFamily: PS2P }, {
+      fill: WHITE, stroke: '#000000', strokeThickness: 2,
     })).setDepth(DEPTH.OVERLAY_TOP).setOrigin(0.5);
 
     scene.tweens.add({
@@ -288,8 +290,9 @@ export class HUDManager {
   addKillFeed(text) {
     const scene = this.scene;
     const y = 75 + this.killFeedTexts.length * 28;
-    const feedText = createText(scene, SCREEN.W - SPACE.MD, y, text, FONT.SMALL, {
-      fill: COLOR.ACCENT_DANGER, depth: DEPTH.HUD_OVERLAY, originX: 1, originY: 0,
+    const feedText = createText(scene, SCREEN.W - SPACE.MD, y, text, { fontSize: '8px', fontFamily: PS2P }, {
+      fill: WHITE, depth: DEPTH.HUD_OVERLAY, originX: 1, originY: 0,
+      stroke: '#000000', strokeThickness: 2,
       stroke: '#000000', strokeThickness: 2,
     }).setAlpha(0.7);
 
@@ -815,21 +818,20 @@ export class HUDManager {
     this._leaderboardElements.push(bg);
 
     // Header
-    const header = createText(scene, panelX - panelW + SPACE.SM, panelY + SPACE.XS, 'PUAN', FONT.TINY, {
-      fill: COLOR.ACCENT_GOLD, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0,
+    const header = createText(scene, panelX - panelW + SPACE.SM, panelY + SPACE.XS, 'PUAN', { fontSize: '10px', fontFamily: PS2P }, {
+      fill: WHITE, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0,
+      stroke: '#000000', strokeThickness: 2,
     });
     this._leaderboardElements.push(header);
 
     // Rows
-    const rankColors = [COLOR.ACCENT_GOLD, '#c0c0c0', '#cd7f32'];
     for (let i = 0; i < sorted.length; i++) {
       const s = sorted[i];
-      const isLocal = s.id === this._cachedLocalPlayerId;
-      const color = isLocal ? COLOR.TEXT_ICE : (rankColors[i] || COLOR.TEXT_SECONDARY);
       const y = panelY + 18 + i * rowH;
       const row = createText(scene, panelX - panelW + SPACE.SM, y,
-        `${i + 1}. ${s.name}  ${s.points ?? 0}p  ${s.eliminations ?? 0}k`, FONT.SMALL, {
-          fill: color, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0,
+        `${i + 1}. ${s.name}  ${s.points ?? 0}p  ${s.eliminations ?? 0}k`, { fontSize: '8px', fontFamily: PS2P }, {
+          fill: WHITE, depth: DEPTH.HUD_TEXT, originX: 0, originY: 0,
+          stroke: '#000000', strokeThickness: 2,
         });
       this._leaderboardElements.push(row);
     }
@@ -852,15 +854,16 @@ export class HUDManager {
 
     const scene = this.scene;
     const nameText = createText(scene, SCREEN.CX, SCREEN.H - 122,
-      `İzleniyor: ${playerName}`, FONT.BODY_BOLD, {
-        fill: '#ffffff', depth: DEPTH.OVERLAY_TOP, originX: 0.5, originY: 0.5,
+      `İzleniyor: ${playerName}`, { fontSize: '14px', fontFamily: PS2P }, {
+        fill: WHITE, depth: DEPTH.OVERLAY_TOP, originX: 0.5, originY: 0.5,
         stroke: '#000000', strokeThickness: 2,
       });
     this._spectateElements.push(nameText);
 
     const hint = createText(scene, SCREEN.CX, SCREEN.H - 94,
-      'Tıkla veya ← → ile değiştir', FONT.SMALL, {
-        fill: COLOR.TEXT_SECONDARY, depth: DEPTH.OVERLAY_TOP, originX: 0.5, originY: 0.5,
+      'Tıkla veya ← → ile değiştir', { fontSize: '8px', fontFamily: PS2P }, {
+        fill: WHITE, depth: DEPTH.OVERLAY_TOP, originX: 0.5, originY: 0.5,
+        stroke: '#000000', strokeThickness: 2, alpha: 0.6,
       });
     this._spectateElements.push(hint);
   }

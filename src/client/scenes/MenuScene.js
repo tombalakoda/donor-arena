@@ -9,33 +9,45 @@ import {
 } from '../ui/UIConfig.js';
 import {
   createButton, createIconButton, createPanel, createDimmer,
-  createSeparator, createText, createIcyFrame, animateIn,
+  createSeparator, createText, createIcyFrame, createTexturedButton, animateIn,
 } from '../ui/UIHelpers.js';
 
 const CX = SCREEN.CX;
 const CY = SCREEN.CY;
 
-// Face strip
+// Consistent style: Press Start 2P, white text
+const PS2P = FONT.FAMILY_HEADING;
+const WHITE = '#FFFFFF';
+
+// ─── Hero Banner Layout ─────────────────────────────────
+// Logo top-center, face sidebar left, sprite center-left, info panel right
+
+// Face sidebar (vertical)
 const FACE_SIZE = 40;
 const FACE_INNER = 32;
 const FACE_GAP = 6;
 const FACE_COUNT = CHARACTERS.length;
-const STRIP_W = FACE_COUNT * FACE_SIZE + (FACE_COUNT - 1) * FACE_GAP;
+const FACE_X = 60;                // Far left sidebar
+const FACE_START_Y = 220;         // Top of vertical strip
 
-// Vertical positions
-const TITLE_Y = 52;
-const CHAR_NAME_Y = 130;
-const CHAR_PASSIVE_Y = 168;
-const CHAR_DESC_Y = 196;
-const CHAR_SPRITE_Y = 310;
-const ARROW_Y = 310;
-const FACE_STRIP_Y = 455;
-const BOTTOM_Y = 530;
-const TIP_Y = SCREEN.H - 16;
+// Logo
+const LOGO_Y = 150;               // Top center (logo ~255px tall, top edge at ~23px)
+const LOGO_W = 500;
 
-// Arrow positions
-const ARROW_LEFT_X = CX - 170;
-const ARROW_RIGHT_X = CX + 170;
+// Character sprite (dead center of canvas)
+const SPRITE_X = CX;
+const SPRITE_Y = 370;
+const ARROW_LEFT_X = SPRITE_X - 100;
+const ARROW_RIGHT_X = SPRITE_X + 100;
+
+// Right info panel (pushed to far right)
+const PANEL_X = 1100;
+const PANEL_Y = 390;
+const PANEL_W = 280;              // stretched from native 229
+const PANEL_H = 420;              // stretched from native 329 to fit buttons
+
+// Tip text
+const TIP_Y = SCREEN.H - 20;
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -87,12 +99,12 @@ export class MenuScene extends Phaser.Scene {
       const scale = Math.max(SCREEN.W / bg.width, SCREEN.H / bg.height);
       bg.setScale(scale);
     } else {
-      this.cameras.main.setBackgroundColor('#1a1510');
+      this.cameras.main.setBackgroundColor('#E8F0F8');
     }
 
-    // Very subtle dark overlay — lighter than before so the art shows
+    // Light frosted veil — bright icy tint over the background art
     this.add.nineslice(CX, CY, 'ui-bg-2', null, SCREEN.W, SCREEN.H, 4, 4, 4, 4)
-      .setDepth(1).setTint(0x000000).setAlpha(0.2);
+      .setDepth(1).setTint(0xE8F0F8).setAlpha(0.35);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -117,27 +129,18 @@ export class MenuScene extends Phaser.Scene {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // TITLE — floating gold text
+  // TITLE — floating white pixel text
   // ═══════════════════════════════════════════════════════════════
 
   _createTitle() {
-    // Bigger title font for menu
-    const TITLE_FONT = { fontSize: '68px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
-
-    // Shadow
-    const shadow = this.add.text(CX + 3, TITLE_Y + 3, 'ÂŞIKLAR MEYDANE', textStyle(TITLE_FONT, {
-      fill: '#000000',
-    })).setDepth(16).setOrigin(0.5).setAlpha(0.3);
-
-    // Main title
-    const title = createText(this, CX, TITLE_Y, 'ÂŞIKLAR MEYDANE', TITLE_FONT, {
-      fill: '#ffffff', depth: 17,
-      stroke: '#2a1a0a', strokeThickness: 8,
-    });
+    // Logo image — native 1270x649, big cinematic banner
+    const logoH = Math.round(LOGO_W * (649 / 1270));
+    const logo = this.add.image(CX, LOGO_Y, 'ui-logo')
+      .setDisplaySize(LOGO_W, logoH).setOrigin(0.5).setDepth(17);
 
     // Gentle float
     this.tweens.add({
-      targets: [title, shadow],
+      targets: logo,
       y: '+=3',
       duration: 2200,
       yoyo: true,
@@ -145,8 +148,7 @@ export class MenuScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    animateIn(this, title, { from: 'slideDown', delay: 100, duration: 400 });
-    animateIn(this, shadow, { from: 'slideDown', delay: 100, duration: 400 });
+    animateIn(this, logo, { from: 'slideDown', delay: 100, duration: 400 });
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -154,25 +156,29 @@ export class MenuScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════════════
 
   _createCharInfo() {
-    // Character info fonts — large and readable
-    const NAME_FONT = { fontSize: '50px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
-    const PASSIVE_FONT = { fontSize: '34px', fontFamily: FONT.FAMILY, fontStyle: 'bold' };
-    const DESC_FONT = { fontSize: '28px', fontFamily: FONT.FAMILY };
+    // Info panel background (panel2.png — stretched to fit all content)
+    this.infoPanel = this.add.image(PANEL_X, PANEL_Y, 'ui-panel2')
+      .setDisplaySize(PANEL_W, PANEL_H).setDepth(12);
+    animateIn(this, this.infoPanel, { from: 'scale', delay: 150, duration: 300 });
 
-    this.charNameText = createText(this, CX, CHAR_NAME_Y, '', NAME_FONT, {
-      fill: '#ffffff', depth: 15,
-      stroke: '#000000', strokeThickness: 7,
+    // Text inside the panel
+    const textX = PANEL_X;
+    const panelTop = PANEL_Y - PANEL_H / 2;
+
+    this.charNameText = createText(this, textX, panelTop + 40, '', { fontSize: '14px', fontFamily: PS2P }, {
+      fill: WHITE, depth: 15,
+      stroke: '#000000', strokeThickness: 4,
     });
 
-    this.charPassiveText = createText(this, CX, CHAR_PASSIVE_Y, '', PASSIVE_FONT, {
-      fill: '#b8e4f0', depth: 15,
-      stroke: '#000000', strokeThickness: 3,
-    });
-
-    this.charDescText = this.add.text(CX, CHAR_DESC_Y, '', textStyle(DESC_FONT, {
-      fill: '#dce8ef',
+    this.charPassiveText = createText(this, textX, panelTop + 70, '', { fontSize: '9px', fontFamily: PS2P }, {
+      fill: WHITE, depth: 15,
       stroke: '#000000', strokeThickness: 2,
-      wordWrap: { width: 420 },
+    });
+
+    this.charDescText = this.add.text(textX, panelTop + 96, '', textStyle({ fontSize: '8px', fontFamily: PS2P }, {
+      fill: WHITE,
+      stroke: '#000000', strokeThickness: 2,
+      wordWrap: { width: 230 },
       align: 'center',
     })).setDepth(15).setOrigin(0.5, 0);
   }
@@ -184,10 +190,10 @@ export class MenuScene extends Phaser.Scene {
   _createCharDisplay() {
     // Glow/shadow beneath character — simple graphics ellipse
     this.charGlow = this.add.graphics().setDepth(8);
-    this._drawCharGlow(0xffdd44);
+    this._drawCharGlow(0xC8963E);
 
-    // Walking sprite — big and proud
-    this.charSprite = this.add.sprite(CX, CHAR_SPRITE_Y, 'boy-walk', 0)
+    // Walking sprite — big and proud, left-center
+    this.charSprite = this.add.sprite(SPRITE_X, SPRITE_Y, 'boy-walk', 0)
       .setScale(5.5).setDepth(10);
 
     if (this.anims.exists('boy-walk-down')) {
@@ -203,15 +209,15 @@ export class MenuScene extends Phaser.Scene {
 
     // Shadow ellipse
     g.fillStyle(0x000000, 0.35);
-    g.fillEllipse(CX, CHAR_SPRITE_Y + 46, 80, 18);
+    g.fillEllipse(SPRITE_X, SPRITE_Y + 46, 80, 18);
 
     // Colored glow (outer)
     g.fillStyle(color, 0.08);
-    g.fillEllipse(CX, CHAR_SPRITE_Y + 40, 140, 36);
+    g.fillEllipse(SPRITE_X, SPRITE_Y + 40, 140, 36);
 
     // Colored glow (inner)
     g.fillStyle(color, 0.15);
-    g.fillEllipse(CX, CHAR_SPRITE_Y + 42, 90, 22);
+    g.fillEllipse(SPRITE_X, SPRITE_Y + 42, 90, 22);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -219,8 +225,8 @@ export class MenuScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════════════
 
   _createArrows() {
-    this._createArrow('left', ARROW_LEFT_X, ARROW_Y, -1);
-    this._createArrow('right', ARROW_RIGHT_X, ARROW_Y, 1);
+    this._createArrow('left', ARROW_LEFT_X, SPRITE_Y, -1);
+    this._createArrow('right', ARROW_RIGHT_X, SPRITE_Y, 1);
   }
 
   _createArrow(dir, x, y, delta) {
@@ -260,23 +266,16 @@ export class MenuScene extends Phaser.Scene {
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // FACE STRIP — 8 character portraits in a row
+  // FACE STRIP — vertical sidebar on the left
   // ═══════════════════════════════════════════════════════════════
 
   _createFaceStrip() {
     this.faceCells = [];
-    const startX = CX - STRIP_W / 2 + FACE_SIZE / 2;
-
-    // Icy frosted glass frame behind the face strip
-    const frameW = STRIP_W + 28;
-    const frameH = FACE_SIZE + 22;
-    const faceFrame = createIcyFrame(this,CX, FACE_STRIP_Y, frameW, frameH, 18);
-    animateIn(this, faceFrame, { from: 'scale', delay: 130, duration: 250 });
 
     for (let i = 0; i < FACE_COUNT; i++) {
       const char = CHARACTERS[i];
-      const x = startX + i * (FACE_SIZE + FACE_GAP);
-      const y = FACE_STRIP_Y;
+      const x = FACE_X;
+      const y = FACE_START_Y + i * (FACE_SIZE + FACE_GAP);
 
       // Gold highlight border (hidden by default)
       const highlight = this.add.nineslice(x, y, 'ui-focus', null,
@@ -346,55 +345,54 @@ export class MenuScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════════════
 
   _createBottomBar() {
-    const y = BOTTOM_Y;
+    // ── Name input inside right panel area ──────────────
+    const panelTop = PANEL_Y - PANEL_H / 2;
+    const ny = panelTop + 195;
 
-    // Icy frosted glass frame behind entire bottom bar — covers name + buttons
-    const barW = 740;
-    const pad = 20;  // equal padding on both sides
-    const frameL = CX - barW / 2; // 270
-    const frameR = CX + barW / 2; // 1010
-    const barFrame = createIcyFrame(this,CX, y, barW, 50, 14);
-    animateIn(this, barFrame, { from: 'slideUp', delay: 430, duration: 250 });
+    // Sprite background for name input (cardasset — native 254×53 pixel art)
+    const nameBg = this.add.image(PANEL_X, ny, 'ui-shop-card')
+      .setDisplaySize(200, 42).setDepth(14);
+    animateIn(this, nameBg, { from: 'slideUp', delay: 400, duration: 250 });
 
-    // "Mahlas:" label — pinned to left side with padding
-    const label = createText(this, frameL + pad, y, 'Mahlas:', { ...FONT.SMALL, fontStyle: 'bold' }, {
-      fill: COLOR.TEXT_ICE, depth: 16, originX: 0,
-      stroke: '#000000', strokeThickness: 3,
+    // "Mahlas:" label
+    const label = createText(this, PANEL_X - 86, ny, 'Mahlas:', { fontSize: '8px', fontFamily: PS2P }, {
+      fill: WHITE, depth: 16, originX: 0,
+      stroke: '#000000', strokeThickness: 2,
     });
-    animateIn(this, label, { from: 'slideUp', delay: 450, duration: 250 });
+    animateIn(this, label, { from: 'slideUp', delay: 420, duration: 250 });
 
-    // DOM input element — after label
+    // DOM input element
     const inputElement = document.createElement('input');
     inputElement.type = 'text';
     inputElement.value = 'Âşık';
     inputElement.maxLength = 16;
     inputElement.style.cssText = `
-      font-size: 22px; font-family: 'Alkhemikal', monospace;
-      padding: 4px 8px; width: 140px;
+      font-size: 10px; font-family: 'Press Start 2P', cursive;
+      padding: 4px 6px; width: 100px;
       background: transparent; color: #ffffff;
-      border: none; outline: none; caret-color: #b8e4f0;
-      font-weight: bold; text-shadow: 0 0 4px rgba(0,0,0,0.8);
+      border: none; outline: none; caret-color: #C8963E;
+      text-shadow: 0 0 4px rgba(0,0,0,0.5);
     `;
-    this.nameInput = this.add.dom(frameL + pad + 120, y, inputElement).setDepth(17);
+    this.nameInput = this.add.dom(PANEL_X + 30, ny, inputElement).setDepth(17);
 
-    // Action buttons — pinned to right side with same padding
-    const btnW = 130, btnH = 36, btnGap = 8;
-    const totalBtnsW = 3 * btnW + 2 * btnGap;
-    const btnsStartX = frameR - pad - totalBtnsW + btnW / 2; // first btn center
+    // ── Action buttons (stacked vertically below panel) ────
+    const btnW = 170, btnH = 40, btnGap = 10;
     const btns = [
       { label: 'MEYDANE', onClick: () => this._startGame('normal') },
       { label: 'ODALAR',  onClick: () => this._showRoomList() },
       { label: 'SERBEST', onClick: () => this._startGame('sandbox') },
     ];
 
+    const btnStartY = panelTop + 250;
+
     btns.forEach((b, i) => {
-      const bx = btnsStartX + i * (btnW + btnGap);
-      const { elements } = createButton(this, bx, y, b.label, {
+      const by = btnStartY + i * (btnH + btnGap);
+      const { elements } = createTexturedButton(this, PANEL_X, by, b.label, 'ui-shop-btn', {
         width: btnW, height: btnH, depth: 15,
-        fontToken: { ...FONT.SMALL, fontStyle: 'bold' }, onClick: b.onClick,
+        fontToken: { fontSize: '10px', fontFamily: PS2P }, onClick: b.onClick,
       });
       elements.forEach(el => animateIn(this, el, {
-        from: 'slideUp', delay: 500 + i * 70, duration: 250,
+        from: 'slideUp', delay: 480 + i * 70, duration: 250,
       }));
     });
 
@@ -409,8 +407,9 @@ export class MenuScene extends Phaser.Scene {
   // ═══════════════════════════════════════════════════════════════
 
   _createBottomTip() {
-    const tipText = createText(this, CX, TIP_Y, TIPS[0], FONT.SMALL, {
-      fill: COLOR.TEXT_DISABLED, depth: 15,
+    const tipText = createText(this, CX, TIP_Y, TIPS[0], { fontSize: '8px', fontFamily: PS2P }, {
+      fill: WHITE, depth: 15, alpha: 0.5,
+      stroke: '#000000', strokeThickness: 2,
     });
     animateIn(this, tipText, { from: 'fadeOnly', delay: 800, duration: 400 });
 
@@ -423,7 +422,7 @@ export class MenuScene extends Phaser.Scene {
           targets: tipText, alpha: 0, duration: 200,
           onComplete: () => {
             tipText.setText(TIPS[tipIndex]);
-            this.tweens.add({ targets: tipText, alpha: 1, duration: 200 });
+            this.tweens.add({ targets: tipText, alpha: 0.5, duration: 200 });
           },
         });
       },
@@ -529,7 +528,7 @@ export class MenuScene extends Phaser.Scene {
       'bully': 0xff8844,
       'rush': 0x44ddff,
     };
-    this._drawCharGlow(glowColors[passive.id] || 0xffdd44);
+    this._drawCharGlow(glowColors[passive.id] || 0xC8963E);
 
     // Transition sprite
     if (instant) {
@@ -594,8 +593,8 @@ export class MenuScene extends Phaser.Scene {
     animateIn(this, panel, { from: 'scale', duration: 250 });
 
     const py = CY - panelH / 2;
-    const title = createText(this, CX, py + 26, 'AÇIK ODALAR', FONT.TITLE_SM, {
-      fill: COLOR.ACCENT_GOLD, depth: DPT + 2,
+    const title = createText(this, CX, py + 26, 'AÇIK ODALAR', FONT.H2, {
+      fill: WHITE, depth: DPT + 2,
       stroke: '#000000', strokeThickness: 2,
     });
     this.roomListElements.push(title);
@@ -604,8 +603,9 @@ export class MenuScene extends Phaser.Scene {
     const sep = createSeparator(this, CX, py + 46, panelW - 32, { depth: DPT + 2 });
     this.roomListElements.push(sep);
 
-    this.roomListLoading = createText(this, CX, CY, 'Yükleniyor...', FONT.BODY, {
-      fill: COLOR.TEXT_SECONDARY, depth: DPT + 3,
+    this.roomListLoading = createText(this, CX, CY, 'Yükleniyor...', { fontSize: '12px', fontFamily: PS2P }, {
+      fill: WHITE, depth: DPT + 3,
+      stroke: '#000000', strokeThickness: 2,
     });
     this.roomListElements.push(this.roomListLoading);
 
@@ -659,14 +659,16 @@ export class MenuScene extends Phaser.Scene {
     const py = CY - panelH / 2;
 
     if (rooms.length === 0) {
-      const emptyText = createText(this, CX, CY - 10, 'Açık oda yok', FONT.BODY, {
-        fill: COLOR.TEXT_SECONDARY, depth: DPT + 3,
+      const emptyText = createText(this, CX, CY - 10, 'Açık oda yok', { fontSize: '12px', fontFamily: PS2P }, {
+        fill: WHITE, depth: DPT + 3,
+        stroke: '#000000', strokeThickness: 2,
       });
       this.roomRowElements.push(emptyText);
       this.roomListElements.push(emptyText);
 
-      const hintText = createText(this, CX, CY + 14, "MEYDANE'ye basıp oda kur!", FONT.SMALL, {
-        fill: COLOR.ACCENT_SUCCESS, depth: DPT + 3,
+      const hintText = createText(this, CX, CY + 14, "MEYDANE'ye basıp oda kur!", { fontSize: '8px', fontFamily: PS2P }, {
+        fill: WHITE, depth: DPT + 3,
+        stroke: '#000000', strokeThickness: 2,
       });
       this.roomRowElements.push(hintText);
       this.roomListElements.push(hintText);
@@ -687,14 +689,16 @@ export class MenuScene extends Phaser.Scene {
       this.roomRowElements.push(rowBg);
       this.roomListElements.push(rowBg);
 
-      const hostText = createText(this, CX - rowW / 2 + 14, rowY, room.hostName, FONT.BODY_BOLD, {
-        fill: COLOR.ACCENT_GOLD, depth: DPT + 3, originX: 0,
+      const hostText = createText(this, CX - rowW / 2 + 14, rowY, room.hostName, { fontSize: '10px', fontFamily: PS2P }, {
+        fill: WHITE, depth: DPT + 3, originX: 0,
+        stroke: '#000000', strokeThickness: 2,
       });
       this.roomRowElements.push(hostText);
       this.roomListElements.push(hostText);
 
-      const countText = createText(this, CX + 50, rowY, `${room.playerCount}/${room.maxPlayers}`, FONT.BODY, {
-        fill: COLOR.TEXT_SECONDARY, depth: DPT + 3,
+      const countText = createText(this, CX + 50, rowY, `${room.playerCount}/${room.maxPlayers}`, { fontSize: '10px', fontFamily: PS2P }, {
+        fill: WHITE, depth: DPT + 3,
+        stroke: '#000000', strokeThickness: 2,
       });
       this.roomRowElements.push(countText);
       this.roomListElements.push(countText);
@@ -755,8 +759,8 @@ export class MenuScene extends Phaser.Scene {
     animateIn(s, panel, { from: 'scale', duration: 200 });
 
     // Title
-    const title = createText(s, CX, CY - ph / 2 + 32, 'SES AYARLARI', FONT.TITLE_SM, {
-      fill: COLOR.ACCENT_GOLD, depth: DPT + 2,
+    const title = createText(s, CX, CY - ph / 2 + 32, 'SES AYARLARI', FONT.H2, {
+      fill: WHITE, depth: DPT + 2,
       stroke: '#000000', strokeThickness: 3,
     });
     this._soundSettingsElements.push(title);
@@ -787,8 +791,9 @@ export class MenuScene extends Phaser.Scene {
     const buildSlider = (y, label, storageKey, defaultVal, onChange) => {
       const val = parseFloat(localStorage.getItem(storageKey) ?? String(defaultVal));
 
-      const lbl = createText(s, labelX, y, label, FONT.SMALL, {
-        fill: COLOR.TEXT_SECONDARY, depth: DPT + 3, originX: 1, originY: 0.5,
+      const lbl = createText(s, labelX, y, label, { fontSize: '10px', fontFamily: PS2P }, {
+        fill: WHITE, depth: DPT + 3, originX: 1, originY: 0.5,
+        stroke: '#000000', strokeThickness: 2,
       });
       this._soundSettingsElements.push(lbl);
 

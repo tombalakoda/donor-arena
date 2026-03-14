@@ -7,11 +7,11 @@
 import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, textStyle } from './UIConfig.js';
 import { getSfxVolume } from '../config.js';
 
-// ─── Icy color constants ─────────────────────────────────────
-const BTN_FILL    = 0x8ad4e8;
-const BTN_HOVER   = 0xa8e4f4;
-const BTN_PRESS   = 0x6ec0d8;
-const BTN_BORDER  = 0xd0eef6;
+// ─── Button color constants (Ottoman lapis) ──────────────────
+const BTN_FILL    = 0x1B4D8A;
+const BTN_HOVER   = 0x245FA0;
+const BTN_PRESS   = 0x153D6E;
+const BTN_BORDER  = 0xC8963E;
 const BTN_DISABLED = 0x607880;
 
 // ─── Text Button ─────────────────────────────────────────────
@@ -196,20 +196,20 @@ export function createIcyFrame(scene, cx, cy, w, h, depth, fillAlpha) {
   const ly = cy - h / 2;
   const r = 6;
 
-  // Frosted glass fill
-  g.fillStyle(0xb8e4f0, fillAlpha);
+  // Frosted glass fill (design system ice-accent)
+  g.fillStyle(0xB8D8EB, fillAlpha);
   g.fillRoundedRect(lx, ly, w, h, r);
 
   // Inner highlight (lighter, top half for glass reflection)
-  g.fillStyle(0xddeeff, fillAlpha * 0.45);
+  g.fillStyle(0xF4F8FC, fillAlpha * 0.45);
   g.fillRoundedRect(lx + 2, ly + 2, w - 4, h / 2 - 2, { tl: r - 2, tr: r - 2, bl: 0, br: 0 });
 
-  // Border
-  g.lineStyle(2, 0xb8e4f0, 0.45);
+  // Border (design system border colour)
+  g.lineStyle(2, 0xA8C8DC, 0.50);
   g.strokeRoundedRect(lx, ly, w, h, r);
 
   // Outer glow border
-  g.lineStyle(1, 0xddeeff, 0.20);
+  g.lineStyle(1, 0xF4F8FC, 0.20);
   g.strokeRoundedRect(lx - 2, ly - 2, w + 4, h + 4, r + 2);
 
   return g;
@@ -339,7 +339,7 @@ export function createSeparator(scene, x, y, w, opts = {}) {
  * @returns {Phaser.GameObjects.Text}
  */
 export function createText(scene, x, y, content, token, opts = {}) {
-  const fill            = opts.fill ?? COLOR.TEXT_PRIMARY;
+  const fill            = opts.fill ?? COLOR.TEXT_LIGHT;
   const depth           = opts.depth ?? DEPTH.OVERLAY_TEXT;
   const originX         = opts.originX ?? 0.5;
   const originY         = opts.originY ?? 0.5;
