@@ -28,7 +28,7 @@ const FACE_INNER = 32;
 const FACE_GAP = 6;
 const FACE_COUNT = CHARACTERS.length;
 const FACE_X = 60;                // Far left sidebar
-const FACE_START_Y = 220;         // Top of vertical strip
+const FACE_START_Y = 235;         // Top of vertical strip
 
 // Logo
 const LOGO_Y = 150;               // Top center (logo ~255px tall, top edge at ~23px)
@@ -276,7 +276,7 @@ export class MenuScene extends Phaser.Scene {
     const stripH = FACE_COUNT * (FACE_SIZE + FACE_GAP) - FACE_GAP; // 356px
     const panelCY = FACE_START_Y + stripH / 2;
     this.add.image(FACE_X, panelCY, 'ui-panel0')
-      .setDisplaySize(FACE_SIZE + 14, stripH + 14)  // snug fit around faces (54 x 370)
+      .setDisplaySize(FACE_SIZE + 16, stripH + FACE_SIZE + 10)  // fits all faces with padding
       .setDepth(18);
 
     for (let i = 0; i < FACE_COUNT; i++) {
