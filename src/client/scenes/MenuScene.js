@@ -273,10 +273,10 @@ export class MenuScene extends Phaser.Scene {
     this.faceCells = [];
 
     // Panel frame behind the face icons
-    const stripH = FACE_COUNT * (FACE_SIZE + FACE_GAP) - FACE_GAP; // total strip height
+    const stripH = FACE_COUNT * (FACE_SIZE + FACE_GAP) - FACE_GAP; // 356px
     const panelCY = FACE_START_Y + stripH / 2;
     this.add.image(FACE_X, panelCY, 'ui-panel0')
-      .setDisplaySize(70, stripH + 30)  // slight vertical padding
+      .setDisplaySize(FACE_SIZE + 14, stripH + 14)  // snug fit around faces (54 x 370)
       .setDepth(18);
 
     for (let i = 0; i < FACE_COUNT; i++) {
