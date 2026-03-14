@@ -328,16 +328,69 @@ export class GameScene extends Phaser.Scene {
       this._showChannelingEffect(data.playerId, data.spellId, data.duration);
     };
 
+    // Handle connection errors — show message and return to menu
+    this._connectionFailed = false;
+    this.network.onConnectError = (err) => {
+      if (this._connectionFailed) return; // only show once
+      this._connectionFailed = true;
+      console.error('[Game] Connection failed:', err.message);
+      this._showConnectionError('SUNUCUYA BAĞLANILAMADI');
+    };
+
+    this.network.onReconnectFailed = () => {
+      if (this._connectionFailed) return;
+      this._connectionFailed = true;
+      this._showConnectionError('BAĞLANTI KOPTU');
+    };
+
     this.network.connect();
-    // Wait for actual connection before joining (cloudflare can be slow)
+    // Wait for actual connection before joining — timeout after 10 seconds
+    let joinAttempts = 0;
+    const MAX_JOIN_ATTEMPTS = 50; // 50 × 200ms = 10 seconds
     const tryJoin = () => {
+      if (this._connectionFailed) return; // stop if connection already failed
       if (this.network.connected) {
         this.network.join(this.playerName, this.characterId, this.gameMode, this.roomId);
-      } else {
+      } else if (joinAttempts < MAX_JOIN_ATTEMPTS) {
+        joinAttempts++;
         this._tryJoinTimeout = setTimeout(tryJoin, 200);
+      } else {
+        // Timed out
+        this._connectionFailed = true;
+        this._showConnectionError('BAĞLANTI ZAMAN AŞIMI');
       }
     };
     this._tryJoinTimeout = setTimeout(tryJoin, 200);
+  }
+
+  /** Show a connection error message and return to menu after 3 seconds */
+  _showConnectionError(message) {
+    if (this.network) this.network.disconnect();
+    window.__networkConnected = false;
+    if (this._tryJoinTimeout) clearTimeout(this._tryJoinTimeout);
+
+    const cam = this.cameras.main;
+    const errorText = this.add.text(cam.width / 2, cam.height / 2, message, {
+      fontFamily: "'Press Start 2P', cursive",
+      fontSize: '14px',
+      fill: '#ff4444',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(999);
+
+    const hintText = this.add.text(cam.width / 2, cam.height / 2 + 40, 'Menüye dönülüyor...', {
+      fontFamily: "'Press Start 2P', cursive",
+      fontSize: '8px',
+      fill: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(999);
+
+    this.time.delayedCall(3000, () => {
+      errorText.destroy();
+      hintText.destroy();
+      this.scene.start('MenuScene');
+    });
   }
 
   handleServerState(snapshot) {

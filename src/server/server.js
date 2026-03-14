@@ -18,9 +18,10 @@ const app = express();
 app.use(express.static(path.join(__dirname, '../../dist')));
 const httpServer = createServer(app);
 
+// CORS: use explicit origins from env var, or allow all origins (safe for same-origin deploys like Railway)
 const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',')
-  : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:5173'];
+  : true; // true = allow all origins (client is served from same server)
 
 const io = new Server(httpServer, {
   cors: {

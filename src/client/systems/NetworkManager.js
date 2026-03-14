@@ -25,6 +25,8 @@ export class NetworkManager {
     this.onChanneling = null;      // (data) => {} — channeling start event
     this.onLobbyUpdate = null;     // (data) => {} — lobby player list / host change
     this.onLobbyError = null;      // (data) => {} — lobby error message
+    this.onConnectError = null;    // (error) => {} — connection failed
+    this.onReconnectFailed = null; // () => {} — all reconnect attempts exhausted
 
     // Input sending throttle
     this.lastInputSendTime = 0;
@@ -52,6 +54,18 @@ export class NetworkManager {
     this.socket.on('disconnect', () => {
       this.connected = false;
       this.playerId = null;
+    });
+
+    // Connection error — server unreachable, CORS blocked, transport failure
+    this.socket.on('connect_error', (err) => {
+      console.error('[Network] Connection error:', err.message);
+      if (this.onConnectError) this.onConnectError(err);
+    });
+
+    // All reconnection attempts exhausted
+    this.socket.io.on('reconnect_failed', () => {
+      console.error('[Network] All reconnection attempts failed');
+      if (this.onReconnectFailed) this.onReconnectFailed();
     });
 
     // Server confirmed our join
