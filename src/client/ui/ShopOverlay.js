@@ -360,11 +360,13 @@ export class ShopOverlay {
       const frameIdx = isChosen ? 1 : 0;
 
       // Spell icon first (behind frame overlay) — 160×160 display
+      // Subtle icy tint to blend with the frost frame
       const iconKey = browseDef.icon;
       if (iconKey && s.textures.exists(iconKey)) {
         const icon = s.add.image(LEFT_X, frameY - 8, iconKey)
           .setDisplaySize(LEFT_ICON_SIZE, LEFT_ICON_SIZE)
-          .setScrollFactor(0).setDepth(D + 2);
+          .setScrollFactor(0).setDepth(D + 2)
+          .setTint(0xd8eeff);
         this.content.push(icon);
         animateIn(s, icon, { from: 'scale', delay: 80, duration: 250 });
       }
