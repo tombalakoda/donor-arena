@@ -257,13 +257,10 @@ export class BootScene extends Phaser.Scene {
       frameWidth: 16, frameHeight: 16,
     });
 
-    // --- Load Arena Maps (hand-designed in editor.html) ---
-    // Load only maps that exist (map24 is missing)
-    const mapIds = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,25,26,27,28,29];
-    for (const i of mapIds) {
-      this.load.json(`arena-map-${i}`, `assets/maps/map${i}.json`);
-    }
-    // Fallback default map
+    // --- Load Arena Maps ---
+    // Only load map1 (for shared floor/decorations) + fallback at boot.
+    // Other maps are lazy-loaded per round in GameScene to speed up initial load.
+    this.load.json('arena-map-1', 'assets/maps/map1.json');
     this.load.json('arena-map', 'assets/maps/arena-default.json');
 
     // --- Shop panel assets ---

@@ -1134,16 +1134,17 @@ export class GameScene extends Phaser.Scene {
   // --- Arena ---
 
   createArena() {
-    // Load all arena map variants for per-round obstacle rotation
-    this.arenaMaps = [];
-    for (let i = 1; i <= 29; i++) {
-      const m = this.cache.json.get(`arena-map-${i}`);
-      if (m) this.arenaMaps.push(m);
-    }
+    // Maps are lazy-loaded per round. Only map1 is preloaded (for floor/decorations).
+    this.arenaMaps = {};          // sparse map: mapIndex → mapData
+    this._loadingMaps = new Set(); // track in-flight map fetches
     this.currentMapIndex = -1;
 
-    // Use first available map for floor/decorations (they're shared across all maps)
-    const mapData = this.arenaMaps[0] || this.cache.json.get('arena-map');
+    // Map1 was preloaded in BootScene — cache it
+    const map1 = this.cache.json.get('arena-map-1');
+    if (map1) this.arenaMaps[0] = map1; // mapIndex 0 = map1
+
+    // Use map1 for shared floor/decorations
+    const mapData = map1 || this.cache.json.get('arena-map');
     if (mapData && mapData.floor && mapData.floor.tiles && mapData.floor.tiles.length > 0) {
       this.createArenaFromMap(mapData);
     } else {
@@ -1276,9 +1277,13 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // Map IDs sorted numerically — must match server's loadMaps() order
+  // so that mapIndex 0 → map1, mapIndex 22 → map23, mapIndex 23 → map25, etc.
+  static MAP_IDS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,25,26,27,28,29];
+
   /**
    * Swap obstacle visuals for a new round's map.
-   * Destroys old obstacle sprites and creates new ones from the given map index.
+   * Lazy-loads the map JSON if not already cached.
    */
   loadObstaclesForMap(mapIndex) {
     // Destroy existing obstacles
@@ -1292,13 +1297,46 @@ export class GameScene extends Phaser.Scene {
 
     this.currentMapIndex = mapIndex;
 
-    // Load new obstacles from the selected map
-    if (mapIndex >= 0 && mapIndex < this.arenaMaps.length) {
+    // Already cached — use it immediately
+    if (this.arenaMaps[mapIndex]) {
       const mapData = this.arenaMaps[mapIndex];
-      if (mapData && mapData.obstacles && mapData.obstacles.length > 0) {
+      if (mapData.obstacles && mapData.obstacles.length > 0) {
         this.createObstaclesFromMap(mapData.obstacles);
       }
+      return;
     }
+
+    // Need to lazy-load this map
+    const mapFileId = GameScene.MAP_IDS[mapIndex];
+    if (mapFileId === undefined || this._loadingMaps.has(mapIndex)) return;
+
+    this._loadingMaps.add(mapIndex);
+    const cacheKey = `arena-map-${mapFileId}`;
+
+    // Check if Phaser already has it cached (e.g. map1 from boot)
+    const cached = this.cache.json.get(cacheKey);
+    if (cached) {
+      this.arenaMaps[mapIndex] = cached;
+      this._loadingMaps.delete(mapIndex);
+      if (cached.obstacles && cached.obstacles.length > 0) {
+        this.createObstaclesFromMap(cached.obstacles);
+      }
+      return;
+    }
+
+    // Fetch map JSON on demand
+    this.load.json(cacheKey, `assets/maps/map${mapFileId}.json`);
+    this.load.once(`filecomplete-json-${cacheKey}`, () => {
+      const data = this.cache.json.get(cacheKey);
+      this._loadingMaps.delete(mapIndex);
+      if (!data) return;
+      this.arenaMaps[mapIndex] = data;
+      // Only apply if we're still on the same round's map
+      if (this.currentMapIndex === mapIndex && data.obstacles && data.obstacles.length > 0) {
+        this.createObstaclesFromMap(data.obstacles);
+      }
+    });
+    this.load.start();
   }
 
   /**
