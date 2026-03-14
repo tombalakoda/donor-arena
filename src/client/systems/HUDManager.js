@@ -126,9 +126,8 @@ export class HUDManager {
       fill: WHITE, stroke: '#000000', strokeThickness: 3,
     })).setScrollFactor(0).setDepth(DEPTH.OVERLAY_TOP).setOrigin(0.5).setVisible(false);
 
-    // --- Toggle buttons ---
-    this.createSoundToggle();
-    this.createScoreboardToggle();
+    // Sound/scoreboard toggle buttons removed — sound controlled in menu,
+    // leaderboard toggled with Tab key.
   }
 
   createSoundToggle() {
