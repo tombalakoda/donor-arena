@@ -1,9 +1,6 @@
-import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
 import { isIntangible, tryShieldAbsorb } from './defenseUtils.js';
-
-const { Body } = Matter;
 
 /**
  * Link handler — Rabıta (Bond/Shared KB).
@@ -41,15 +38,13 @@ export const linkHandler = {
       phase: 'flight',
       linkDuration: stats.linkDuration || 4000,
       linkedKbMultiplier: stats.linkedKbMultiplier || 0,
-      linkForwardForce: stats.linkForwardForce || 0.008,
       linkForwardKb: stats.linkForwardKb || 0.003,
       linkedPlayerId: null,
       linkedX: 0,
       linkedY: 0,
-      // KB tracking for forwarding
+      // KB tracking — timestamps to detect new KB events
       lastKbUntilOwner: 0,
       lastKbUntilTarget: 0,
-      linkKbGuard: false, // prevents infinite recursion
     };
 
     ctx.activeSpells.push(spell);
@@ -155,55 +150,66 @@ export const linkHandler = {
 
       // ── KB forwarding ──
       // Detect if either player received new knockback this tick.
-      // linkKbGuard prevents infinite recursion: when we forward KB to the partner,
-      // that triggers applyKnockback which updates knockbackUntil — without this
-      // guard, the next check would see the new timestamp and forward it back,
-      // creating an infinite loop. The guard is set before forwarding and cleared
-      // after, ensuring only one direction of forwarding happens per tick.
-      if (!spell.linkKbGuard) {
-        const currentKbOwner = ctx.physics.knockbackUntil.get(spell.ownerId) || 0;
-        const currentKbTarget = ctx.physics.knockbackUntil.get(spell.linkedPlayerId) || 0;
+      // Uses a fixed force (linkForwardKb) instead of reading velocity,
+      // which would escalate across ticks. Direction comes from the
+      // original attacker via lastKnockbackFrom.
+      // After forwarding, we update the partner's lastKbUntil so our
+      // own applyKnockback call doesn't re-trigger on the next tick.
+      const currentKbOwner = ctx.physics.knockbackUntil.get(spell.ownerId) || 0;
+      const currentKbTarget = ctx.physics.knockbackUntil.get(spell.linkedPlayerId) || 0;
 
-        // Owner got hit → forward to target
-        if (currentKbOwner > spell.lastKbUntilOwner) {
-          spell.linkKbGuard = true;
-          const vel = ownerBody.velocity;
-          const mult = 0.5 + (spell.linkedKbMultiplier || 0); // target may get extra
-          Body.applyForce(targetBody, targetBody.position, {
-            x: vel.x * mult * spell.linkForwardForce,
-            y: vel.y * mult * spell.linkForwardForce,
-          });
-          // Also trigger knockback grace on target
+      // Owner got hit → forward to target
+      if (currentKbOwner > spell.lastKbUntilOwner) {
+        const kbInfo = ctx.physics.lastKnockbackFrom.get(spell.ownerId);
+        if (kbInfo) {
+          // Direction: same as original KB (away from attacker → toward target)
+          const attackerBody = ctx.physics.playerBodies.get(kbInfo.attackerId);
+          let nx = 0, ny = 1;
+          if (attackerBody) {
+            const adx = targetBody.position.x - attackerBody.position.x;
+            const ady = targetBody.position.y - attackerBody.position.y;
+            const aDist = Math.sqrt(adx * adx + ady * ady) || 1;
+            nx = adx / aDist;
+            ny = ady / aDist;
+          }
+          const mult = 1 + (spell.linkedKbMultiplier || 0);
+          const force = spell.linkForwardKb * mult;
           ctx.physics.applyKnockback(spell.linkedPlayerId,
-            vel.x * mult * spell.linkForwardKb,
-            vel.y * mult * spell.linkForwardKb,
+            nx * force, ny * force,
             ctx.getDamageTaken(spell.linkedPlayerId),
             spell.ownerId,
           );
-          spell.linkKbGuard = false;
+          // Record partner's new KB timestamp so it doesn't re-trigger
+          spell.lastKbUntilTarget = ctx.physics.knockbackUntil.get(spell.linkedPlayerId) || 0;
         }
+      }
 
-        // Target got hit → forward to owner
-        if (currentKbTarget > spell.lastKbUntilTarget) {
-          spell.linkKbGuard = true;
-          const vel = targetBody.velocity;
-          const mult = 0.5; // owner gets base forwarding
-          Body.applyForce(ownerBody, ownerBody.position, {
-            x: vel.x * mult * spell.linkForwardForce,
-            y: vel.y * mult * spell.linkForwardForce,
-          });
+      // Target got hit → forward to owner
+      if (currentKbTarget > spell.lastKbUntilTarget) {
+        const kbInfo = ctx.physics.lastKnockbackFrom.get(spell.linkedPlayerId);
+        if (kbInfo) {
+          const attackerBody = ctx.physics.playerBodies.get(kbInfo.attackerId);
+          let nx = 0, ny = 1;
+          if (attackerBody) {
+            const adx = ownerBody.position.x - attackerBody.position.x;
+            const ady = ownerBody.position.y - attackerBody.position.y;
+            const aDist = Math.sqrt(adx * adx + ady * ady) || 1;
+            nx = adx / aDist;
+            ny = ady / aDist;
+          }
+          const force = spell.linkForwardKb; // owner gets base forwarding (no multiplier)
           ctx.physics.applyKnockback(spell.ownerId,
-            vel.x * mult * spell.linkForwardKb,
-            vel.y * mult * spell.linkForwardKb,
+            nx * force, ny * force,
             ctx.getDamageTaken(spell.ownerId),
             spell.linkedPlayerId,
           );
-          spell.linkKbGuard = false;
+          spell.lastKbUntilOwner = ctx.physics.knockbackUntil.get(spell.ownerId) || 0;
         }
-
-        spell.lastKbUntilOwner = currentKbOwner;
-        spell.lastKbUntilTarget = currentKbTarget;
       }
+
+      // Update baselines (use Math.max to preserve any mid-tick updates from forwarding)
+      spell.lastKbUntilOwner = Math.max(spell.lastKbUntilOwner, currentKbOwner);
+      spell.lastKbUntilTarget = Math.max(spell.lastKbUntilTarget, currentKbTarget);
     }
   },
 };

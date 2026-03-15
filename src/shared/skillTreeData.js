@@ -453,8 +453,7 @@ export const SKILL_TREES = {
       lifetime: 1500,            // projectile phase
       linkDuration: 4000,        // shared-KB phase
       linkedKbMultiplier: 0,     // 0 = equal sharing, T1 adds 0.25 (enemy gets 25% more)
-      linkForwardForce: 0.008,   // Body.applyForce factor for KB forwarding
-      linkForwardKb: 0.003,      // applyKnockback factor for KB forwarding
+      linkForwardKb: 0.05,      // KB force applied to partner when either gets hit (fixed, no escalation)
     },
     tiers: [
       { cost: 6, name: 'Ağır Bağ', description: 'Bağlanan daha çok savrulur, daha uzun süre', mods: { linkedKbMultiplier: 0.25, linkDuration: 1000 } },

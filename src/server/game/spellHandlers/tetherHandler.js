@@ -72,15 +72,71 @@ function applyTetherConstraint(body, anchorX, anchorY, tetherLength, pullStrengt
 }
 
 /**
+ * Apply drag constraint between two player bodies connected by a rope.
+ * When the rope goes taut, the body moving away gets slowed and the
+ * other body gets dragged along in the same direction.
+ *
+ * Unlike the pendulum constraint (for obstacles), this does NOT convert
+ * radial energy to tangential. It simply transfers momentum — both
+ * players move together like objects connected by a rope on ice.
+ */
+function applyDragConstraint(bodyA, bodyB, tetherLength, pullStrength) {
+  const dx = bodyA.position.x - bodyB.position.x;
+  const dy = bodyA.position.y - bodyB.position.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (dist <= tetherLength || dist === 0) return;
+
+  // Rope axis unit vector (B → A)
+  const axisX = dx / dist;
+  const axisY = dy / dist;
+
+  // Decompose each body's velocity along the rope axis
+  const velA = bodyA.velocity;
+  const velB = bodyB.velocity;
+  const radialA = velA.x * axisX + velA.y * axisY; // positive = A moving away from B
+  const radialB = velB.x * (-axisX) + velB.y * (-axisY); // positive = B moving away from A
+
+  // Only intervene if they're moving apart (sum of outward radial > 0)
+  const separatingSpeed = radialA + radialB;
+  if (separatingSpeed > 0) {
+    // Average the radial components — both share the momentum
+    // A's outward velocity is reduced, B gets dragged in A's direction
+    const avgRadial = (radialA - radialB) * 0.5;
+
+    // A: reduce outward radial to averaged value
+    const newRadialA = avgRadial * 0.5; // dampen further (rope absorbs some energy)
+    const diffA = newRadialA - radialA;
+    Body.setVelocity(bodyA, {
+      x: velA.x + diffA * axisX,
+      y: velA.y + diffA * axisY,
+    });
+
+    // B: add drag in A's direction (along the rope axis toward A)
+    const dragB = Math.max(0, radialA) * 0.5; // B gets dragged by A's outward motion
+    Body.setVelocity(bodyB, {
+      x: velB.x + dragB * axisX,
+      y: velB.y + dragB * axisY,
+    });
+  }
+
+  // Elastic pull toward each other (proportional to overshoot)
+  const overshoot = dist - tetherLength;
+  const pullForce = overshoot * pullStrength;
+  Body.applyForce(bodyA, bodyA.position, { x: -axisX * pullForce, y: -axisY * pullForce });
+  Body.applyForce(bodyB, bodyB.position, { x: axisX * pullForce, y: axisY * pullForce });
+}
+
+/**
  * Tether handler — Kement (Lasso).
  *
  * Phase 1 (flight): projectile travels toward target direction.
  *   - Anchors to obstacle on contact (fixed anchor, only caster constrained).
  *   - Anchors to enemy player on contact (rope between two players, both constrained).
  *   - Fizzles (expires) if it reaches max range without hitting anything.
- * Phase 2 (tethered): pendulum physics.
- *   - KB is converted from radial (away from anchor/partner) to tangential (orbit).
- *   - Soft elastic pull-back if distance exceeds tether length.
+ * Phase 2 (tethered):
+ *   - Obstacle anchor: pendulum physics (radial → tangential conversion, orbit).
+ *   - Player anchor: drag physics (rope yanks the other player along).
  */
 export const tetherHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY) {
@@ -196,10 +252,8 @@ export const tetherHandler = {
         spell.anchorX = targetBody.position.x;
         spell.anchorY = targetBody.position.y;
 
-        // Apply constraint to BOTH players — each treats the other as anchor
-        applyTetherConstraint(ownerBody, targetBody.position.x, targetBody.position.y,
-          spell.tetherLength, spell.pullStrength);
-        applyTetherConstraint(targetBody, ownerBody.position.x, ownerBody.position.y,
+        // Drag constraint: when rope goes taut, one drags the other
+        applyDragConstraint(ownerBody, targetBody,
           spell.tetherLength, spell.pullStrength);
 
       } else {
