@@ -66,13 +66,14 @@ export const SANDBOX = {
 
 export const SP = {
   PER_DAMAGE_25: 1,       // 1 SP per 25 damage dealt
-  RING_OUT_KILL: 7,        // ring-out kill — THE core mechanic (was 5)
-  DAMAGE_KILL: 1,          // killed by HP depletion — incidental (was 2)
-  ROUND_WIN: 4,            // last player standing (was 3)
-  SURVIVAL: 2,             // survived the round (was 1 — staying in the ring matters)
-  BASE_PER_ROUND: 2,       // everyone gets 2 SP per round just for playing
-  SLOT_UNLOCK_COST: 5,     // cost to unlock W, E, or R slot
-  SPELL_CHOICE_COST: 3,    // cost to choose a spell in a slot (was BRANCH_CHOICE_COST)
+  RING_OUT_KILL: 4,        // ring-out kill — rewarding but not snowbally (was 7)
+  DAMAGE_KILL: 0,          // impossible now (HP floors at 1)
+  ROUND_WIN: 3,            // last player standing (was 4)
+  SURVIVAL: 2,             // survived the round
+  BASE_PER_ROUND: 3,       // everyone gets 3 SP per round (was 2 — higher base, flatter income)
+  SPELL_CHOICE_COST: 3,    // cost to choose a spell in a slot
+  // Slots auto-unlock at round milestones (no SP cost):
+  SLOT_UNLOCK_ROUNDS: { W: 3, E: 9, R: 13 },
   // Tier upgrade costs are defined per-tier in skillTreeData.js
-  // Q tiers: 3/3/4/5 SP.  W/E/R tiers: 3/5 SP.
+  // Q tiers: 5/6/8/10 SP.  W/E/R tiers: 6/10 SP.
 };

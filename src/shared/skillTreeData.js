@@ -20,10 +20,10 @@ export const SKILL_TREES = {
       piercing: false,
     },
     tiers: [
-      { cost: 3, name: 'Uzak Nefes', description: 'Daha uzun menzil, daha hızlı söz', mods: { range: 60, speed: 1 } },
-      { cost: 3, name: 'Ağır Söz', description: 'Daha sert itme', mods: { knockbackForce: 0.02 } },
-      { cost: 4, name: 'Delici Söz', description: 'Söz rakiplerden geçer', mods: { piercing: true } },
-      { cost: 5, name: 'Yıldırım Nefes', description: 'En uzun menzil, en sert itme', mods: { range: 80, knockbackForce: 0.02, speed: 1 } },
+      { cost: 5, name: 'Uzak Nefes', description: 'Daha uzun menzil, daha hızlı söz', mods: { range: 60, speed: 1 } },
+      { cost: 6, name: 'Ağır Söz', description: 'Daha sert itme', mods: { knockbackForce: 0.02 } },
+      { cost: 8, name: 'Delici Söz', description: 'Söz rakiplerden geçer', mods: { piercing: true } },
+      { cost: 10, name: 'Yıldırım Nefes', description: 'En uzun menzil, en sert itme', mods: { range: 80, knockbackForce: 0.02, speed: 1 } },
     ],
   },
 
@@ -40,10 +40,10 @@ export const SKILL_TREES = {
       piercing: false,
     },
     tiers: [
-      { cost: 3, name: 'Hızlı Atış', description: 'Daha hızlı ateş eder', mods: { cooldown: -300, speed: 1 } },
-      { cost: 3, name: 'Yakıcı Alev', description: 'Daha güçlü yakar', mods: { cooldown: -300, damage: 1 } },
-      { cost: 4, name: 'Uzun Menzil', description: 'Daha uzağa ulaşır', mods: { cooldown: -200, range: 50 } },
-      { cost: 5, name: 'Ateş Yağmuru', description: 'Daha da hızlı ateş', mods: { cooldown: -200 } },
+      { cost: 5, name: 'Hızlı Atış', description: 'Daha hızlı ateş eder', mods: { cooldown: -300, speed: 1 } },
+      { cost: 6, name: 'Yakıcı Alev', description: 'Daha güçlü yakar', mods: { cooldown: -300, damage: 1 } },
+      { cost: 8, name: 'Uzun Menzil', description: 'Daha uzağa ulaşır', mods: { cooldown: -200, range: 50 } },
+      { cost: 10, name: 'Ateş Yağmuru', description: 'Daha da hızlı ateş', mods: { cooldown: -200 } },
     ],
   },
 
@@ -60,10 +60,10 @@ export const SKILL_TREES = {
       piercing: false,
     },
     tiers: [
-      { cost: 3, name: 'Sert Vuruş', description: 'Daha çok itme, daha çok hasar', mods: { knockbackForce: 0.02, damage: 1 } },
-      { cost: 3, name: 'Çarpma Dalgası', description: 'Çarptığında patlar', mods: { explosionRadius: 40 } },
-      { cost: 4, name: 'Sarsıntı', description: 'Daha geniş patlama, daha çok itme', mods: { explosionRadius: 15, knockbackForce: 0.02 } },
-      { cost: 5, name: 'Zelzele', description: 'Yıkıcı patlama, kısa sersemletme', mods: { damage: 2, knockbackForce: 0.02, stunDuration: 300 } },
+      { cost: 5, name: 'Sert Vuruş', description: 'Daha çok itme, daha çok hasar', mods: { knockbackForce: 0.02, damage: 1 } },
+      { cost: 6, name: 'Çarpma Dalgası', description: 'Çarptığında patlar', mods: { explosionRadius: 40 } },
+      { cost: 8, name: 'Sarsıntı', description: 'Daha geniş patlama, daha çok itme', mods: { explosionRadius: 15, knockbackForce: 0.02 } },
+      { cost: 10, name: 'Zelzele', description: 'Yıkıcı patlama, kısa sersemletme', mods: { damage: 2, knockbackForce: 0.02, stunDuration: 300 } },
     ],
   },
 
@@ -79,8 +79,8 @@ export const SKILL_TREES = {
       knockbackForce: 0,
     },
     tiers: [
-      { cost: 3, name: 'Uzun Adım', description: 'Daha uzağa ışınlan', mods: { range: 60 } },
-      { cost: 5, name: 'Burak', description: 'Çok daha uzağa, daha kısa bekleme', mods: { range: 80, cooldown: -1000 } },
+      { cost: 6, name: 'Uzun Adım', description: 'Daha uzağa ışınlan', mods: { range: 60 } },
+      { cost: 10, name: 'Burak', description: 'Çok daha uzağa, daha kısa bekleme', mods: { range: 80, cooldown: -1000 } },
     ],
   },
 
@@ -94,8 +94,8 @@ export const SKILL_TREES = {
       dashWidth: 12,
     },
     tiers: [
-      { cost: 3, name: 'Ağır Hücum', description: 'Daha sert çarpma, daha çok hasar', mods: { dashKnockback: 0.02, dashDamage: 2 } },
-      { cost: 5, name: 'Koç Başı', description: 'Daha geniş, kısa bekleme, daha çok itme', mods: { dashWidth: 10, cooldown: -1000, dashKnockback: 0.02 } },
+      { cost: 6, name: 'Ağır Hücum', description: 'Daha sert çarpma, daha çok hasar', mods: { dashKnockback: 0.02, dashDamage: 2 } },
+      { cost: 10, name: 'Koç Başı', description: 'Daha geniş, kısa bekleme, daha çok itme', mods: { dashWidth: 10, cooldown: -1000, dashKnockback: 0.02 } },
     ],
   },
 
@@ -108,8 +108,8 @@ export const SKILL_TREES = {
       frictionReduction: 0.003, // reduce air friction during flash
     },
     tiers: [
-      { cost: 3, name: 'Alev Topuk', description: 'Daha uzun hız, daha hızlı koşu', mods: { buffDuration: 1000, speedBoost: 0.2 } },
-      { cost: 5, name: 'Ateş İzi', description: 'Ardında yavaşlatan iz bırakır', mods: { cooldown: -1500, leaveTrail: true, trailSlowAmount: 0.3, trailSlowDuration: 1500 } },
+      { cost: 6, name: 'Alev Topuk', description: 'Daha uzun hız, daha hızlı koşu', mods: { buffDuration: 1000, speedBoost: 0.2 } },
+      { cost: 10, name: 'Ateş İzi', description: 'Ardında yavaşlatan iz bırakır', mods: { cooldown: -1500, leaveTrail: true, trailSlowAmount: 0.3, trailSlowDuration: 1500 } },
     ],
   },
 
@@ -122,8 +122,8 @@ export const SKILL_TREES = {
       intangible: true,         // projectiles pass through
     },
     tiers: [
-      { cost: 3, name: 'Hayalet', description: 'Daha uzun dokunulmazlık', mods: { buffDuration: 1000 } },
-      { cost: 5, name: 'Cin Çarpması', description: 'Gaybdan çıkınca etraftakileri iter', mods: { cooldown: -2000, exitPushForce: 0, exitPushRadius: 0 } },
+      { cost: 6, name: 'Hayalet', description: 'Daha uzun dokunulmazlık', mods: { buffDuration: 1000 } },
+      { cost: 10, name: 'Cin Çarpması', description: 'Gaybdan çıkınca etraftakileri iter', mods: { cooldown: -2000, exitPushForce: 0, exitPushRadius: 0 } },
     ],
   },
 
@@ -139,8 +139,8 @@ export const SKILL_TREES = {
       knockbackForce: 0,
     },
     tiers: [
-      { cost: 3, name: 'Çabuk El', description: 'Daha hızlı söz, daha kısa bekleme', mods: { speed: 3, cooldown: -2000 } },
-      { cost: 5, name: 'Şaşırtma', description: 'Yer değiştirince rakip sersemler', mods: { swapStunDuration: 500, cooldown: -1500 } },
+      { cost: 6, name: 'Çabuk El', description: 'Daha hızlı söz, daha kısa bekleme', mods: { speed: 3, cooldown: -2000 } },
+      { cost: 10, name: 'Şaşırtma', description: 'Yer değiştirince rakip sersemler', mods: { swapStunDuration: 500, cooldown: -1500 } },
     ],
   },
 
@@ -151,8 +151,8 @@ export const SKILL_TREES = {
       recallDuration: 3000,     // stores 3s of position history
     },
     tiers: [
-      { cost: 3, name: 'Derin Hafıza', description: '4 sâniye geriye dön, kısa bekleme', mods: { recallDuration: 1000, cooldown: -1500 } },
-      { cost: 5, name: 'Zaman Yarığı', description: 'Ayrıldığın yerde itme dalgası, kısa bekleme', mods: { departurePushForce: 0, departurePushRadius: 0, cooldown: -1500 } },
+      { cost: 6, name: 'Derin Hafıza', description: '4 sâniye geriye dön, kısa bekleme', mods: { recallDuration: 1000, cooldown: -1500 } },
+      { cost: 10, name: 'Zaman Yarığı', description: 'Ayrıldığın yerde itme dalgası, kısa bekleme', mods: { departurePushForce: 0, departurePushRadius: 0, cooldown: -1500 } },
     ],
   },
 
@@ -175,8 +175,8 @@ export const SKILL_TREES = {
       rootDuration: 400,
     },
     tiers: [
-      { cost: 3, name: 'Ebedî Ayaz', description: 'Daha güçlü, daha uzun yavaşlatma', mods: { slowDuration: 500, slowAmount: 0.1 } },
-      { cost: 5, name: 'Mutlak Sıfır', description: 'Derin don: uzun köklenme, sert itme', mods: { rootDuration: 400, knockbackForce: 0.02, damage: 2 } },
+      { cost: 6, name: 'Ebedî Ayaz', description: 'Daha güçlü, daha uzun yavaşlatma', mods: { slowDuration: 500, slowAmount: 0.1 } },
+      { cost: 10, name: 'Mutlak Sıfır', description: 'Derin don: uzun köklenme, sert itme', mods: { rootDuration: 400, knockbackForce: 0.02, damage: 2 } },
     ],
   },
 
@@ -192,8 +192,8 @@ export const SKILL_TREES = {
       slowDuration: 1000,
     },
     tiers: [
-      { cost: 3, name: 'Yayılan Soğuk', description: 'Daha geniş alan, daha uzun süre', mods: { zoneRadius: 20, zoneDuration: 1500 } },
-      { cost: 5, name: 'Buzul Çağı', description: 'Alan hasar verir, çok daha fazla yavaşlatır', mods: { zoneDamage: 1, slowAmount: 0.15 } },
+      { cost: 6, name: 'Yayılan Soğuk', description: 'Daha geniş alan, daha uzun süre', mods: { zoneRadius: 20, zoneDuration: 1500 } },
+      { cost: 10, name: 'Buzul Çağı', description: 'Alan hasar verir, çok daha fazla yavaşlatır', mods: { zoneDamage: 1, slowAmount: 0.15 } },
     ],
   },
 
@@ -207,8 +207,8 @@ export const SKILL_TREES = {
       wallRadius: 22,           // circular obstacle radius
     },
     tiers: [
-      { cost: 3, name: 'Sağlam Duvar', description: 'Daha dayanıklı, daha uzun ömür', mods: { wallHp: 20, wallDuration: 2000 } },
-      { cost: 5, name: 'Parçalanma', description: 'Yıkılınca patlar, yakındakileri yavaşlatır', mods: { shatterSlowAmount: 0.4, shatterSlowDuration: 1500, shatterRadius: 60, cooldown: -2000 } },
+      { cost: 6, name: 'Sağlam Duvar', description: 'Daha dayanıklı, daha uzun ömür', mods: { wallHp: 20, wallDuration: 2000 } },
+      { cost: 10, name: 'Parçalanma', description: 'Yıkılınca patlar, yakındakileri yavaşlatır', mods: { shatterSlowAmount: 0.4, shatterSlowDuration: 1500, shatterRadius: 60, cooldown: -2000 } },
     ],
   },
 
@@ -227,8 +227,8 @@ export const SKILL_TREES = {
       destroysSpells: true,     // destroys enemy projectiles on contact
     },
     tiers: [
-      { cost: 3, name: 'Çarpıp Sekme', description: 'Daha çok sekme, daha hızlı söz', mods: { maxBounces: 2, speed: 2 } },
-      { cost: 5, name: 'İvme', description: 'Her sekmede daha güçlü olur', mods: { kbPerBounce: 0.01, cooldown: -1000 } },
+      { cost: 6, name: 'Çarpıp Sekme', description: 'Daha çok sekme, daha hızlı söz', mods: { maxBounces: 2, speed: 2 } },
+      { cost: 10, name: 'İvme', description: 'Her sekmede daha güçlü olur', mods: { kbPerBounce: 0.01, cooldown: -1000 } },
     ],
   },
 
@@ -240,8 +240,8 @@ export const SKILL_TREES = {
       shieldHits: 2,            // blocks this many hits
     },
     tiers: [
-      { cost: 3, name: 'Pekişmiş', description: 'Daha çok darbe emer, daha uzun sürer', mods: { shieldHits: 1, buffDuration: 1000 } },
-      { cost: 5, name: 'Yansıtma', description: 'Kırılınca son darbeyi yansıtır. Kısa bekleme.', mods: { reflectOnBreak: true, cooldown: -2000 } },
+      { cost: 6, name: 'Pekişmiş', description: 'Daha çok darbe emer, daha uzun sürer', mods: { shieldHits: 1, buffDuration: 1000 } },
+      { cost: 10, name: 'Yansıtma', description: 'Kırılınca son darbeyi yansıtır. Kısa bekleme.', mods: { reflectOnBreak: true, cooldown: -2000 } },
     ],
   },
 
@@ -264,8 +264,8 @@ export const SKILL_TREES = {
       throwGrace: 200,
     },
     tiers: [
-      { cost: 3, name: 'Sivri Kanca', description: 'Daha sert fırlatma, daha çok hasar', mods: { throwForce: 0.01, damage: 2, cooldown: -1500 } },
-      { cost: 5, name: 'Ölüm Kavraması', description: 'Uzun menzil, hızlı çekim, sert savurma', mods: { range: 60, pullSpeed: 1.5, throwForce: 0.01, pullDuration: 100 } },
+      { cost: 6, name: 'Sivri Kanca', description: 'Daha sert fırlatma, daha çok hasar', mods: { throwForce: 0.01, damage: 2, cooldown: -1500 } },
+      { cost: 10, name: 'Ölüm Kavraması', description: 'Uzun menzil, hızlı çekim, sert savurma', mods: { range: 60, pullSpeed: 1.5, throwForce: 0.01, pullDuration: 100 } },
     ],
   },
 
@@ -285,8 +285,8 @@ export const SKILL_TREES = {
       flightDuration: 500,
     },
     tiers: [
-      { cost: 3, name: 'Uzun Zincir', description: 'Daha hızlı çekim, daha uzun menzil', mods: { pullSpeed: 2, range: 80, cooldown: -1500 } },
-      { cost: 5, name: 'Gülle', description: 'Uçarken rakiplere çarpar', mods: { flightCollision: true, flightDamage: 4, flightKnockback: 0.03 } },
+      { cost: 6, name: 'Uzun Zincir', description: 'Daha hızlı çekim, daha uzun menzil', mods: { pullSpeed: 2, range: 80, cooldown: -1500 } },
+      { cost: 10, name: 'Gülle', description: 'Uçarken rakiplere çarpar', mods: { flightCollision: true, flightDamage: 4, flightKnockback: 0.03 } },
     ],
   },
 
@@ -300,8 +300,8 @@ export const SKILL_TREES = {
       radius: 70,               // AoE radius around caster
     },
     tiers: [
-      { cost: 3, name: 'Hamle', description: 'Daha geniş menzil, daha sert itme', mods: { radius: 40, knockbackForce: 0.03 } },
-      { cost: 5, name: 'Zincirleme Sitem', description: 'İkinci rakibe yarı güçle sıçrar', mods: { chainCount: 1, chainKbFactor: 0.5, cooldown: -1500 } },
+      { cost: 6, name: 'Hamle', description: 'Daha geniş menzil, daha sert itme', mods: { radius: 40, knockbackForce: 0.03 } },
+      { cost: 10, name: 'Zincirleme Sitem', description: 'İkinci rakibe yarı güçle sıçrar', mods: { chainCount: 1, chainKbFactor: 0.5, cooldown: -1500 } },
     ],
   },
 
@@ -318,8 +318,8 @@ export const SKILL_TREES = {
       trackingRange: 400,       // max distance to acquire a target
     },
     tiers: [
-      { cost: 3, name: 'Sebat', description: 'Daha uzun izler, daha keskin döner', mods: { lifetime: 2000, turnRate: 0.03 } },
-      { cost: 5, name: 'Harp Başı', description: 'Daha hızlı, daha güçlü, çarpınca patlar', mods: { speed: 2, knockbackForce: 0.03, explosionRadius: 30 } },
+      { cost: 6, name: 'Sebat', description: 'Daha uzun izler, daha keskin döner', mods: { lifetime: 2000, turnRate: 0.03 } },
+      { cost: 10, name: 'Harp Başı', description: 'Daha hızlı, daha güçlü, çarpınca patlar', mods: { speed: 2, knockbackForce: 0.03, explosionRadius: 30 } },
     ],
   },
 
@@ -335,8 +335,8 @@ export const SKILL_TREES = {
       isMeteor: true,           // flag for special meteor behavior
     },
     tiers: [
-      { cost: 3, name: 'Çabuk Düşüş', description: 'Daha hızlı çarpar, biraz daha geniş patlar', mods: { impactDelay: -500, impactRadius: 10, cooldown: -2000 } },
-      { cost: 5, name: 'Kıyamet', description: 'Yıkıcı darbe, ardında yanan zemin bırakır', mods: { knockbackForce: 0.04, damage: 3, burnZoneDuration: 2000, burnSlowAmount: 0.3 } },
+      { cost: 6, name: 'Çabuk Düşüş', description: 'Daha hızlı çarpar, biraz daha geniş patlar', mods: { impactDelay: -500, impactRadius: 10, cooldown: -2000 } },
+      { cost: 10, name: 'Kıyamet', description: 'Yıkıcı darbe, ardında yanan zemin bırakır', mods: { knockbackForce: 0.04, damage: 3, burnZoneDuration: 2000, burnSlowAmount: 0.3 } },
     ],
   },
 
@@ -355,8 +355,8 @@ export const SKILL_TREES = {
       isSwarm: true,
     },
     tiers: [
-      { cost: 3, name: 'Yaylım', description: 'Daha çok söz, daha uzun süre', mods: { missileCount: 3, lifetime: 500 } },
-      { cost: 5, name: 'Doygunluk', description: 'Daha güçlü sözler, daha geniş takip', mods: { knockbackForce: 0.01, trackingRange: 50, cooldown: -2000 } },
+      { cost: 6, name: 'Yaylım', description: 'Daha çok söz, daha uzun süre', mods: { missileCount: 3, lifetime: 500 } },
+      { cost: 10, name: 'Doygunluk', description: 'Daha güçlü sözler, daha geniş takip', mods: { knockbackForce: 0.01, trackingRange: 50, cooldown: -2000 } },
     ],
   },
 
@@ -374,8 +374,8 @@ export const SKILL_TREES = {
       overshootRange: 500,      // how far past the caster it travels (accelerates through)
     },
     tiers: [
-      { cost: 3, name: 'Uzun Fırlatma', description: 'Daha uzak menzil, daha sert dönüş', mods: { range: 100, maxKnockbackForce: 0.02, lifetime: 2000 } },
-      { cost: 5, name: 'Tut ve Fırlat', description: 'Dönüşte de vurur, yakalayınca bekleme azalır', mods: { hitsOnReturn: true, cooldownOnCatch: -2000 } },
+      { cost: 6, name: 'Uzun Fırlatma', description: 'Daha uzak menzil, daha sert dönüş', mods: { range: 100, maxKnockbackForce: 0.02, lifetime: 2000 } },
+      { cost: 10, name: 'Tut ve Fırlat', description: 'Dönüşte de vurur, yakalayınca bekleme azalır', mods: { hitsOnReturn: true, cooldownOnCatch: -2000 } },
     ],
   },
 
@@ -393,8 +393,8 @@ export const SKILL_TREES = {
       slowDuration: 1500,
     },
     tiers: [
-      { cost: 3, name: 'Ağır Varil', description: 'Daha geniş ve sert varil', mods: { radius: 4, speed: 1, knockbackForce: 0.02 } },
-      { cost: 5, name: 'Yıkım Topu', description: 'Daha hızlı, engelleri yıkar', mods: { speed: 1.5, cooldown: -2500, destroysObstacles: true } },
+      { cost: 6, name: 'Ağır Varil', description: 'Daha geniş ve sert varil', mods: { radius: 4, speed: 1, knockbackForce: 0.02 } },
+      { cost: 10, name: 'Yıkım Topu', description: 'Daha hızlı, engelleri yıkar', mods: { speed: 1.5, cooldown: -2500, destroysObstacles: true } },
     ],
   },
 };

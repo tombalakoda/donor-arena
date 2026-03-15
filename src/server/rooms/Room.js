@@ -4,7 +4,7 @@ import { ObstacleManager } from '../game/ObstacleManager.js';
 import { RoundManager, PHASE } from '../game/RoundManager.js';
 import { PlayerProgression } from '../game/PlayerProgression.js';
 import { MSG } from '../../shared/messageTypes.js';
-import { PHYSICS, MATCH, PLAYER, SANDBOX, ARENA } from '../../shared/constants.js';
+import { PHYSICS, MATCH, PLAYER, SANDBOX, ARENA, SP } from '../../shared/constants.js';
 import { getPassive } from '../../shared/characterPassives.js';
 import { SPELL_TYPES } from '../../shared/spellData.js';
 import { GameLoop } from '../game/GameLoop.js';
@@ -534,6 +534,20 @@ export class Room {
   handleRoundEvent(event) {
     switch (event.event) {
       case 'roundStart':
+        // Auto-unlock slots at round milestones
+        if (SP.SLOT_UNLOCK_ROUNDS) {
+          for (const [slot, round] of Object.entries(SP.SLOT_UNLOCK_ROUNDS)) {
+            if (event.round >= round) {
+              for (const [playerId] of this.players) {
+                const progression = this.progressions.get(playerId);
+                if (progression && progression.autoUnlockSlot(slot)) {
+                  console.log(`[AUTO-UNLOCK] ${playerId} unlocked slot ${slot} at round ${event.round}`);
+                }
+              }
+            }
+          }
+        }
+
         // Pick a random map for this round's obstacles
         if (this.arenaMaps.length > 0) {
           this.currentMapIndex = Math.floor(Math.random() * this.arenaMaps.length);

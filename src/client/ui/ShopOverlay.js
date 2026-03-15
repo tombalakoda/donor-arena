@@ -732,26 +732,15 @@ export class ShopOverlay {
     this.content.push(label);
     animateIn(s, label, { from: 'slideUp', delay: 250, duration: 250 });
 
-    const costLabel = createText(s, CX, COL_Y + 42, `Açmak için ${SP.SLOT_UNLOCK_COST} İlham gerekir`, { fontSize: '10px', fontFamily: SHOP_FONT }, {
+    // Show which round this slot unlocks
+    const unlockRounds = SP.SLOT_UNLOCK_ROUNDS || {};
+    const unlockRound = unlockRounds[slot] || '?';
+    const costLabel = createText(s, CX, COL_Y + 42, `${unlockRound}. elde açılır`, { fontSize: '10px', fontFamily: SHOP_FONT }, {
       fill: SHOP_WHITE, depth: D + 3,
       stroke: '#000000', strokeThickness: 2,
     });
     this.content.push(costLabel);
     animateIn(s, costLabel, { from: 'fadeOnly', delay: 300, duration: 250 });
-
-    const canUnlock = prog && prog.sp >= SP.SLOT_UNLOCK_COST;
-    const { elements: btnEls } = createTexturedButton(s, CX, COL_Y + 90, `Kilidi Aç (${SP.SLOT_UNLOCK_COST}◆)`, 'ui-shop-btn-wide', {
-      width: 250, height: 50, depth: D + 4, enabled: canUnlock,
-      fontToken: { fontSize: '10px', fontFamily: SHOP_FONT },
-      onClick: () => {
-        this._playSfx('sfx-accept');
-        if (s.network && s.network.connected) {
-          s.network.sendShopUnlockSlot(slot);
-        }
-      },
-    });
-    this.content.push(...btnEls);
-    btnEls.forEach(el => animateIn(s, el, { from: 'slideUp', delay: 350, duration: 200 }));
   }
 
   // ═══════════════════════════════════════════════════════

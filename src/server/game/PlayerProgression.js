@@ -79,19 +79,26 @@ export class PlayerProgression {
 
   // --- Slot Unlocks ---
 
-  canUnlockSlot(slot) {
-    if (slot === 'Q') return false; // Q is always unlocked
+  /**
+   * Auto-unlock a slot (free, triggered by round milestone).
+   * Called by Room when the round matches SLOT_UNLOCK_ROUNDS.
+   */
+  autoUnlockSlot(slot) {
+    if (slot === 'Q') return false;
     if (this.slots[slot] !== 'locked') return false;
-    return this.sp >= SP.SLOT_UNLOCK_COST;
-  }
-
-  unlockSlot(slot) {
-    if (!this.canUnlockSlot(slot)) return false;
-    this.sp -= SP.SLOT_UNLOCK_COST;
     this.slots[slot] = 'unlocked';
-    // Initialize spell state for the newly unlocked slot
     this.spells[slot] = { chosenSpell: null, tier: 0 };
     return true;
+  }
+
+  canUnlockSlot(/* slot */) {
+    // Slots are now auto-unlocked at round milestones — manual unlock disabled
+    return false;
+  }
+
+  unlockSlot(/* slot */) {
+    // Slots are now auto-unlocked at round milestones — manual unlock disabled
+    return false;
   }
 
   // --- Spell Choice ---
