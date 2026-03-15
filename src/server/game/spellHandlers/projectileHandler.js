@@ -1,6 +1,7 @@
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
 import { isIntangible, tryShieldAbsorb } from './defenseUtils.js';
+import { sweepTestHit } from './collisionUtils.js';
 
 export const projectileHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY) {
@@ -67,6 +68,9 @@ export const projectileHandler = {
   update(ctx, spell, i) {
     const { now } = ctx;
 
+    // Store previous position for swept collision test
+    const prevX = spell.x;
+    const prevY = spell.y;
     spell.x += spell.vx;
     spell.y += spell.vy;
 
@@ -117,12 +121,15 @@ export const projectileHandler = {
 
       if (isIntangible(ctx, playerId)) continue;
 
+      // Swept line-circle test: catches fast projectiles that would tunnel
+      const combinedRadius = spell.radius + PLAYER.RADIUS;
+      if (!sweepTestHit(prevX, prevY, spell.x, spell.y,
+            body.position.x, body.position.y, combinedRadius)) {
+        continue;
+      }
+
       // Shield: absorb hit instead of taking damage
-      const dx2 = body.position.x - spell.x;
-      const dy2 = body.position.y - spell.y;
-      const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
-      if (dist2 < spell.radius + PLAYER.RADIUS &&
-          tryShieldAbsorb(ctx, playerId, spell.ownerId, spell.damage, spell.knockbackForce)) {
+      if (tryShieldAbsorb(ctx, playerId, spell.ownerId, spell.damage, spell.knockbackForce)) {
         if (!spell.piercing) {
           spell.active = false;
           ctx.removeSpell(i);
@@ -131,11 +138,10 @@ export const projectileHandler = {
         continue;
       }
 
-      const dx = body.position.x - spell.x;
-      const dy = body.position.y - spell.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < spell.radius + PLAYER.RADIUS) {
+      {
+        const dx = body.position.x - spell.x;
+        const dy = body.position.y - spell.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
         const nx = dist > 0 ? dx / dist : 0;
         const ny = dist > 0 ? dy / dist : 1;
         const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);

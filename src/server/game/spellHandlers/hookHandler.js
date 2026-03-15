@@ -1,6 +1,7 @@
 import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER, PHYSICS } from '../../../shared/constants.js';
+import { sweepTestHit } from './collisionUtils.js';
 
 const { Body } = Matter;
 
@@ -293,6 +294,8 @@ export const hookHandler = {
     // ═══════════════════════════════════════════════════════════════
 
     if (spell.active && !spell.hooked) {
+      const prevX = spell.x;
+      const prevY = spell.y;
       spell.x += spell.vx;
       spell.y += spell.vy;
 
@@ -312,15 +315,14 @@ export const hookHandler = {
       }
 
       if (!spell.pullSelf) {
-        // --- Hook: grab enemy on contact ---
+        // --- Hook: grab enemy on contact (swept test) ---
         for (const [playerId, body] of ctx.physics.playerBodies) {
           if (playerId === spell.ownerId) continue;
           if (ctx.isEliminated(playerId)) continue;
-          const pdx = body.position.x - spell.x;
-          const pdy = body.position.y - spell.y;
-          const dist = Math.sqrt(pdx * pdx + pdy * pdy);
 
-          if (dist < spell.radius + PLAYER.RADIUS) {
+          const combinedRadius = spell.radius + PLAYER.RADIUS;
+          if (sweepTestHit(prevX, prevY, spell.x, spell.y,
+                body.position.x, body.position.y, combinedRadius)) {
             spell.hooked = true;
             spell.hookedPlayerId = playerId;
             spell.phase = 'pull';

@@ -2,6 +2,7 @@ import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER, PHYSICS } from '../../../shared/constants.js';
 import { isIntangible } from './defenseUtils.js';
+import { sweepTestHit } from './collisionUtils.js';
 
 const { Body } = Matter;
 
@@ -44,6 +45,8 @@ export const barrelHandler = {
 
   update(ctx, spell, i) {
     // --- Move barrel ---
+    const prevX = spell.x;
+    const prevY = spell.y;
     spell.x += spell.vx;
     spell.y += spell.vy;
 
@@ -88,11 +91,13 @@ export const barrelHandler = {
       if (ctx.isEliminated(playerId)) continue;
       if (isIntangible(ctx, playerId)) continue;
 
-      const pdx = body.position.x - spell.x;
-      const pdy = body.position.y - spell.y;
-      const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
+      const combinedRadius = spell.radius + PLAYER.RADIUS;
+      if (!sweepTestHit(prevX, prevY, spell.x, spell.y,
+            body.position.x, body.position.y, combinedRadius)) {
+        continue;
+      }
 
-      if (pDist < spell.radius + PLAYER.RADIUS) {
+      {
         // First contact: deal damage + set kill credit (no impulse — barrel drags, not throws)
         if (!spell.hitIds.includes(playerId)) {
           ctx.pendingHits.push({

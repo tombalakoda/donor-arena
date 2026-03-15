@@ -260,6 +260,37 @@ export class ServerPhysics {
     Engine.update(this.engine, deltaMs);
   }
 
+  /**
+   * Clamp speeds for players NOT in knockback grace or post-KB ease.
+   * Called AFTER physics.step() to catch residual velocities from
+   * Body.applyForce (sema push, çekim pull, tether constraints)
+   * that bypass the KB grace/ease system.
+   */
+  clampNonKnockbackSpeeds() {
+    const maxSpeed = PLAYER.SPEED * 0.05;
+    const now = Date.now();
+    const easeMs = PLAYER.KNOCKBACK_EASE_MS || 1000;
+
+    for (const [playerId, body] of this.playerBodies) {
+      const kbUntil = this.knockbackUntil.get(playerId) || 0;
+
+      // Skip players currently in KB grace — they're meant to fly
+      if (now < kbUntil) continue;
+
+      // Skip players in post-KB ease window — handled by applyInput's soft decay
+      const kbEndedAgo = now - kbUntil;
+      if (kbEndedAgo < easeMs) continue;
+
+      // Past ease window: hard clamp any excess speed
+      const vel = body.velocity;
+      const currentSpeed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+      if (currentSpeed > maxSpeed) {
+        const scale = maxSpeed / currentSpeed;
+        Body.setVelocity(body, { x: vel.x * scale, y: vel.y * scale });
+      }
+    }
+  }
+
   setPlayerPosition(playerId, x, y) {
     const body = this.playerBodies.get(playerId);
     if (!body) return;

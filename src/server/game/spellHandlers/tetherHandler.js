@@ -2,6 +2,7 @@ import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
 import { isIntangible } from './defenseUtils.js';
+import { sweepTestHit } from './collisionUtils.js';
 
 const { Body } = Matter;
 
@@ -181,6 +182,8 @@ export const tetherHandler = {
   update(ctx, spell, i) {
     // ── Flight phase: move toward target, check obstacle/player/range ──
     if (spell.phase === 'flight') {
+      const prevX = spell.x;
+      const prevY = spell.y;
       spell.x += spell.vx;
       spell.y += spell.vy;
 
@@ -197,15 +200,14 @@ export const tetherHandler = {
         return;
       }
 
-      // Check player collision → rope between caster and hit player
+      // Check player collision → rope between caster and hit player (swept test)
       for (const [playerId, body] of ctx.physics.playerBodies) {
         if (playerId === spell.ownerId) continue;
         if (ctx.isEliminated(playerId)) continue;
         if (isIntangible(ctx, playerId)) continue;
-        const pdx = body.position.x - spell.x;
-        const pdy = body.position.y - spell.y;
-        const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
-        if (pDist < spell.radius + PLAYER.RADIUS) {
+        const combinedRadius = spell.radius + PLAYER.RADIUS;
+        if (sweepTestHit(prevX, prevY, spell.x, spell.y,
+              body.position.x, body.position.y, combinedRadius)) {
           spell.anchoredPlayerId = playerId;
           spell.phase = 'tethered';
           spell.lifetime = spell.elapsed + spell.tetherDuration;

@@ -1,6 +1,7 @@
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
 import { isIntangible, tryShieldAbsorb } from './defenseUtils.js';
+import { sweepTestHit } from './collisionUtils.js';
 
 /**
  * Link handler — Rabıta (Bond/Shared KB).
@@ -56,27 +57,30 @@ export const linkHandler = {
 
     // ── Flight phase: move projectile, check for hit ──
     if (spell.phase === 'flight') {
+      const prevX = spell.x;
+      const prevY = spell.y;
       spell.x += spell.vx;
       spell.y += spell.vy;
 
-      // Check player collision
+      // Check player collision (swept test)
       for (const [playerId, body] of ctx.physics.playerBodies) {
         if (playerId === spell.ownerId) continue;
         if (ctx.isEliminated(playerId)) continue;
         if (isIntangible(ctx, playerId)) continue;
 
-        const dx = body.position.x - spell.x;
-        const dy = body.position.y - spell.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const combinedRadius = spell.radius + PLAYER.RADIUS;
+        if (!sweepTestHit(prevX, prevY, spell.x, spell.y,
+              body.position.x, body.position.y, combinedRadius)) {
+          continue;
+        }
 
-        if (dist < spell.radius + PLAYER.RADIUS &&
-            tryShieldAbsorb(ctx, playerId, spell.ownerId, spell.damage, spell.knockbackForce)) {
+        if (tryShieldAbsorb(ctx, playerId, spell.ownerId, spell.damage, spell.knockbackForce)) {
           spell.active = false;
           ctx.removeSpell(i);
           return 'break';
         }
 
-        if (dist < spell.radius + PLAYER.RADIUS) {
+        {
           // Hit! Transition to linked phase
           spell.phase = 'linked';
           spell.linkedPlayerId = playerId;

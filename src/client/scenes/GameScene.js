@@ -1250,8 +1250,8 @@ export class GameScene extends Phaser.Scene {
         const diStrength = PLAYER.DI_STRENGTH || 0.15;
         const nx = dx / distance;
         const ny = dy / distance;
-        const timeScale = delta / 50;
-        const diForce = currentSpeed * diStrength * 0.001 * timeScale;
+        // No timeScale — match server's fixed-force-per-tick DI exactly
+        const diForce = currentSpeed * diStrength * 0.001;
         MatterBody.applyForce(this.playerBody, this.playerBody.position, {
           x: nx * diForce,
           y: ny * diForce,

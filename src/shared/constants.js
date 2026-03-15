@@ -16,7 +16,6 @@ export const PLAYER = {
   FRICTION_STATIC: 0.01,          // Near-zero — easy to slide
   MAX_HP: 100,
   STOP_RADIUS: 8,                 // Stop applying thrust within this distance
-  KNOCKBACK_GRACE_MS: 500,        // After knockback hit, player slides freely (was 300 — longer for sumo drama)
   KNOCKBACK_GRACE_MIN: 200,       // Light taps (frostbolt 0.02) — snappy recovery
   KNOCKBACK_GRACE_MAX: 900,       // Devastating hits (meteor 0.10) — long dramatic slide
   KNOCKBACK_GRACE_SCALE: 5000,    // grace = clamp(forceMag * SCALE, MIN, MAX)

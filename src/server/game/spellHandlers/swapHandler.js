@@ -2,6 +2,7 @@ import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
 import { isIntangible } from './defenseUtils.js';
+import { sweepTestHit } from './collisionUtils.js';
 
 const { Body } = Matter;
 
@@ -40,6 +41,8 @@ export const swapHandler = {
   update(ctx, spell, i) {
     const { now } = ctx;
 
+    const prevX = spell.x;
+    const prevY = spell.y;
     spell.x += spell.vx;
     spell.y += spell.vy;
 
@@ -50,17 +53,19 @@ export const swapHandler = {
       return 'continue';
     }
 
-    // Player collision: swap positions
+    // Player collision: swap positions (swept test for fast projectiles)
     for (const [playerId, body] of ctx.physics.playerBodies) {
       if (playerId === spell.ownerId) continue;
       if (ctx.isEliminated(playerId)) continue;
       if (isIntangible(ctx, playerId)) continue;
 
-      const dx = body.position.x - spell.x;
-      const dy = body.position.y - spell.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
+      const combinedRadius = spell.radius + PLAYER.RADIUS;
+      if (!sweepTestHit(prevX, prevY, spell.x, spell.y,
+            body.position.x, body.position.y, combinedRadius)) {
+        continue;
+      }
 
-      if (dist < spell.radius + PLAYER.RADIUS) {
+      {
         // Swap positions
         const casterBody = ctx.physics.playerBodies.get(spell.ownerId);
         if (casterBody) {

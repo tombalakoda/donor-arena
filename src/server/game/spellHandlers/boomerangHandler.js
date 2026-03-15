@@ -1,6 +1,7 @@
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
 import { isIntangible } from './defenseUtils.js';
+import { sweepTestHit } from './collisionUtils.js';
 
 // Speed curve multipliers (applied to base spell.speed)
 const OUTBOUND_MAX_SPEED_MULT = 1.8;   // throw: fast start
@@ -139,6 +140,8 @@ export const boomerangHandler = {
     }
 
     // Apply movement
+    const prevX = spell.x;
+    const prevY = spell.y;
     spell.x += spell.vx;
     spell.y += spell.vy;
 
@@ -152,11 +155,18 @@ export const boomerangHandler = {
       // Skip return hits if hitsOnReturn not enabled (but always hit during overshoot)
       if (spell.returning && !spell.passedCaster && !spell.hitsOnReturn) continue;
 
-      const pdx = body.position.x - spell.x;
-      const pdy = body.position.y - spell.y;
-      const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
+      const combinedRadius = spell.radius + PLAYER.RADIUS;
+      if (!sweepTestHit(prevX, prevY, spell.x, spell.y,
+            body.position.x, body.position.y, combinedRadius)) {
+        continue;
+      }
 
-      if (pDist < spell.radius + PLAYER.RADIUS) {
+      {
+        // Direction from spell to player (for KB direction)
+        const pdx = body.position.x - spell.x;
+        const pdy = body.position.y - spell.y;
+        const pDist = Math.sqrt(pdx * pdx + pdy * pdy);
+
         // KB scales with current speed — faster = harder hit
         const curSpd = Math.sqrt(spell.vx * spell.vx + spell.vy * spell.vy) || 1;
         const maxPossibleSpeed = spell.speed * OVERSHOOT_MAX_SPEED_MULT;

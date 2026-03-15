@@ -77,6 +77,11 @@ export class GameLoop {
       // Step physics — resolves all forces from applyInput + spells.update
       room.physics.step(PHYSICS.TICK_MS);
 
+      // Clamp residual velocities from spell forces (sema push, çekim pull, tether)
+      // that bypass the KB grace/ease system. Must run AFTER step() so forces are
+      // integrated, and BEFORE broadcastState() so clients get clean values.
+      room.physics.clampNonKnockbackSpeeds();
+
       if (isPlaying) {
         // Process deferred spell hits
         this.processSpellHits(room.spells.drainHits());
