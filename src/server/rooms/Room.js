@@ -147,11 +147,15 @@ export class Room {
       this.handleShopUpgradeTier(playerId, data);
     });
 
-    // Sandbox: give starting SP and shop toggle
+    // Sandbox: give starting SP, unlock all slots, and shop toggle
     if (this.sandbox) {
       const progression = this.progressions.get(playerId);
       if (progression) {
         progression.awardSP(SANDBOX.STARTING_SP);
+        // Unlock all spell slots immediately in sandbox
+        for (const slot of ['W', 'E', 'R']) {
+          progression.autoUnlockSlot(slot);
+        }
       }
       socket.on(MSG.CLIENT_SANDBOX_SHOP_TOGGLE, () => {
         const prog = this.progressions.get(playerId);
