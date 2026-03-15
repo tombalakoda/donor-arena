@@ -314,7 +314,7 @@ export class ServerSpell {
               vy: (dy / dist) * 8,
               radius: 6,
               damage: hit.damage || 3,
-              knockbackForce: hit.knockbackForce || 0.04,
+              knockbackForce: (hit.knockbackForce || 0.04) * 0.5, // reflect at half KB
               lifetime: 1500,
               piercing: false,
               elapsed: 0,

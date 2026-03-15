@@ -11,7 +11,7 @@ export const SKILL_TREES = {
     base: {
       type: 'projectile',
       damage: 3,
-      knockbackForce: 0.14,      // sniper: high KB
+      knockbackForce: 0.08,      // sniper: long range poke, lower KB than power
       cooldown: 3500,             // sniper: slow fire rate
       speed: 8,
       range: 450,                 // sniper: long range
@@ -31,7 +31,7 @@ export const SKILL_TREES = {
     base: {
       type: 'projectile',
       damage: 3,
-      knockbackForce: 0.10,      // machinegun: weak per-shot KB
+      knockbackForce: 0.10,      // machinegun: moderate per-shot KB
       cooldown: 1800,             // machinegun: fast fire rate
       speed: 8,
       range: 250,                 // machinegun: short range
@@ -51,7 +51,7 @@ export const SKILL_TREES = {
     base: {
       type: 'projectile',
       damage: 3,
-      knockbackForce: 0.16,      // power: heavy KB
+      knockbackForce: 0.12,      // power: strong Q poke, sets up R kills
       cooldown: 3200,             // power: slow fire rate
       speed: 8,
       range: 280,                 // power: short range (close combat)
@@ -90,7 +90,7 @@ export const SKILL_TREES = {
       cooldown: 5500,
       range: 160,
       dashDamage: 3,
-      dashKnockback: 0.04,
+      dashKnockback: 0.04,       // bump: useful near edge, not a weapon
       dashWidth: 12,
     },
     tiers: [
@@ -123,7 +123,7 @@ export const SKILL_TREES = {
     },
     tiers: [
       { cost: 3, name: 'Hayalet', description: 'Daha uzun dokunulmazlık', mods: { buffDuration: 1000 } },
-      { cost: 5, name: 'Cin Çarpması', description: 'Gaybdan çıkınca etraftakileri iter', mods: { cooldown: -2000, exitPushForce: 0.03, exitPushRadius: 60 } },
+      { cost: 5, name: 'Cin Çarpması', description: 'Gaybdan çıkınca etraftakileri iter', mods: { cooldown: -2000, exitPushForce: 0, exitPushRadius: 0 } },
     ],
   },
 
@@ -152,7 +152,7 @@ export const SKILL_TREES = {
     },
     tiers: [
       { cost: 3, name: 'Derin Hafıza', description: '4 sâniye geriye dön, kısa bekleme', mods: { recallDuration: 1000, cooldown: -1500 } },
-      { cost: 5, name: 'Zaman Yarığı', description: 'Ayrıldığın yerde itme dalgası, kısa bekleme', mods: { departurePushForce: 0.04, departurePushRadius: 60, cooldown: -1500 } },
+      { cost: 5, name: 'Zaman Yarığı', description: 'Ayrıldığın yerde itme dalgası, kısa bekleme', mods: { departurePushForce: 0, departurePushRadius: 0, cooldown: -1500 } },
     ],
   },
 
@@ -260,12 +260,12 @@ export const SKILL_TREES = {
       lifetime: 1500,
       pullSpeed: 3.5,
       pullDuration: 300,
-      throwForce: 0.08,
+      throwForce: 0.13,           // powerful throw but not the strongest
       throwGrace: 200,
     },
     tiers: [
-      { cost: 3, name: 'Sivri Kanca', description: 'Daha sert fırlatma, daha çok hasar', mods: { throwForce: 0.03, damage: 2, cooldown: -1500 } },
-      { cost: 5, name: 'Ölüm Kavraması', description: 'Uzun menzil, hızlı çekim, sert savurma', mods: { range: 60, pullSpeed: 1.5, throwForce: 0.02, pullDuration: 100 } },
+      { cost: 3, name: 'Sivri Kanca', description: 'Daha sert fırlatma, daha çok hasar', mods: { throwForce: 0.01, damage: 2, cooldown: -1500 } },
+      { cost: 5, name: 'Ölüm Kavraması', description: 'Uzun menzil, hızlı çekim, sert savurma', mods: { range: 60, pullSpeed: 1.5, throwForce: 0.01, pullDuration: 100 } },
     ],
   },
 
@@ -309,7 +309,7 @@ export const SKILL_TREES = {
     base: {
       type: 'homing',
       damage: 3,
-      knockbackForce: 0.12,
+      knockbackForce: 0.08,      // pressure tool, forces movement — not a kill tool
       cooldown: 15000,
       speed: 3.5,
       radius: 7,
@@ -327,7 +327,7 @@ export const SKILL_TREES = {
     base: {
       type: 'zone',
       damage: 5,
-      knockbackForce: 0.10,
+      knockbackForce: 0.16,      // hardest KB in game — kills at ≤94HP from center
       cooldown: 13000,
       range: 150,               // close range cast — high risk, high reward
       impactDelay: 2000,        // 2s delay before impact
@@ -345,7 +345,7 @@ export const SKILL_TREES = {
       type: 'homing',
       damage: 1,
       knockbackForce: 0.04,
-      cooldown: 11000,
+      cooldown: 14000,              // long CD — powerful but infrequent
       speed: 8,                   // faster missiles, more threatening
       radius: 5,
       lifetime: 4000,             // more time to find and chase targets
@@ -383,12 +383,14 @@ export const SKILL_TREES = {
     base: {
       type: 'barrel',
       damage: 4,
-      knockbackForce: 0.06,
+      knockbackForce: 0.08,      // snowplow drag + slow
       cooldown: 13000,
       speed: 5,
       range: 1050,
       radius: 16,
       lifetime: 10500,
+      slowAmount: 0.4,           // slows enemies after contact so they can't escape
+      slowDuration: 1500,
     },
     tiers: [
       { cost: 3, name: 'Ağır Varil', description: 'Daha geniş ve sert varil', mods: { radius: 4, speed: 1, knockbackForce: 0.02 } },

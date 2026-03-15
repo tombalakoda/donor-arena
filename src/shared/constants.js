@@ -24,7 +24,7 @@ export const PLAYER = {
   KNOCKBACK_COMBO_MAX_GRACE: 1200,// hard cap on total accumulated grace
   KNOCKBACK_COMBO_FORCE_MULT: 1.15, // 15% bonus force on combo hits
   KNOCKBACK_BASE_MULT: 1.0,       // Minimum knockback multiplier at full HP
-  KNOCKBACK_SCALE: 2.5,           // At 0 HP remaining, knockback is (1 + 2.5) = 3.5× base (Smash Bros %)
+  KNOCKBACK_SCALE: 1.8,           // At 0 HP remaining, knockback is (1 + 1.8) = 2.8× base (Smash Bros %)
   DI_STRENGTH: 0.15,              // 15% of current speed as steering force during knockback
   SPEED_CAP_DECAY: 0.82,          // Retain 82% of excess speed per tick (smooth post-knockback decel)
   KNOCKBACK_EASE_MS: 1000,        // Post-knockback ease window: soft cap for 1s, then hard cap resumes

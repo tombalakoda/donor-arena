@@ -15,6 +15,7 @@ export function applyDamage(target, damage, spellId) {
     finalDamage *= (1 - targetPassive.fireResist);
   }
 
-  target.hp = Math.max(0, target.hp - finalDamage);
+  // Floor at 1 HP — spell damage can never kill, only ring damage can
+  target.hp = Math.max(1, target.hp - finalDamage);
   return finalDamage;
 }

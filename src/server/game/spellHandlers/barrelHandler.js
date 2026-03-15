@@ -25,7 +25,7 @@ export const barrelHandler = {
       vy: ny * clampedSpeed,
       radius: stats.radius || 16,
       damage: stats.damage || 4,
-      knockbackForce: stats.knockbackForce || 0.06,
+      knockbackForce: stats.knockbackForce || 0.08,
       range: stats.range || 1050,
       lifetime: stats.lifetime || 10500,
       elapsed: 0,
@@ -33,6 +33,8 @@ export const barrelHandler = {
       speed: clampedSpeed,
       hitIds: [],                          // damage dealt once per player
       destroysObstacles: stats.destroysObstacles || false,
+      slowAmount: stats.slowAmount || 0,
+      slowDuration: stats.slowDuration || 0,
     };
 
     ctx.activeSpells.push(spell);
@@ -102,6 +104,14 @@ export const barrelHandler = {
           // Set kill credit for ring-out tracking (without applying force impulse)
           ctx.physics.lastKnockbackFrom.set(playerId, { attackerId: spell.ownerId, timestamp: ctx.now });
           spell.hitIds.push(playerId);
+
+          // Apply slow effect on first contact so enemies can't escape
+          if (spell.slowAmount > 0 && spell.slowDuration > 0) {
+            ctx.applyStatusEffect(playerId, 'slow', {
+              amount: spell.slowAmount,
+              until: ctx.now + spell.slowDuration,
+            }, spell.type);
+          }
         }
 
         // Continuous drag: override velocity to match barrel speed (player rides with barrel)
