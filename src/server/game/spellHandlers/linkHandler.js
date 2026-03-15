@@ -166,15 +166,24 @@ export const linkHandler = {
       if (currentKbOwner > spell.lastKbUntilOwner) {
         const kbInfo = ctx.physics.lastKnockbackFrom.get(spell.ownerId);
         if (kbInfo) {
-          // Direction: same as original KB (away from attacker → toward target)
+          // Direction: away from attacker toward recipient.
+          // If the attacker is the recipient themselves (caster hit their own
+          // linked target), fall back to pushing along the link axis.
           const attackerBody = ctx.physics.playerBodies.get(kbInfo.attackerId);
           let nx = 0, ny = 1;
-          if (attackerBody) {
+          if (attackerBody && kbInfo.attackerId !== spell.linkedPlayerId) {
             const adx = targetBody.position.x - attackerBody.position.x;
             const ady = targetBody.position.y - attackerBody.position.y;
             const aDist = Math.sqrt(adx * adx + ady * ady) || 1;
             nx = adx / aDist;
             ny = ady / aDist;
+          } else {
+            // Attacker is the recipient or unknown — push away from partner (along link axis)
+            const ldx = targetBody.position.x - ownerBody.position.x;
+            const ldy = targetBody.position.y - ownerBody.position.y;
+            const lDist = Math.sqrt(ldx * ldx + ldy * ldy) || 1;
+            nx = ldx / lDist;
+            ny = ldy / lDist;
           }
           const mult = 1 + (spell.linkedKbMultiplier || 0);
           const force = spell.linkForwardKb * mult;
@@ -194,12 +203,19 @@ export const linkHandler = {
         if (kbInfo) {
           const attackerBody = ctx.physics.playerBodies.get(kbInfo.attackerId);
           let nx = 0, ny = 1;
-          if (attackerBody) {
+          if (attackerBody && kbInfo.attackerId !== spell.ownerId) {
             const adx = ownerBody.position.x - attackerBody.position.x;
             const ady = ownerBody.position.y - attackerBody.position.y;
             const aDist = Math.sqrt(adx * adx + ady * ady) || 1;
             nx = adx / aDist;
             ny = ady / aDist;
+          } else {
+            // Attacker is the recipient or unknown — push away from partner (along link axis)
+            const ldx = ownerBody.position.x - targetBody.position.x;
+            const ldy = ownerBody.position.y - targetBody.position.y;
+            const lDist = Math.sqrt(ldx * ldx + ldy * ldy) || 1;
+            nx = ldx / lDist;
+            ny = ldy / lDist;
           }
           const force = spell.linkForwardKb; // owner gets base forwarding (no multiplier)
           ctx.physics.applyKnockback(spell.ownerId,
