@@ -156,7 +156,11 @@ app.get('/{*splat}', (req, res) => {
   res.sendFile(path.join(__dirname, '../../dist/index.html'));
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT, 10) || 3001;
+if (!Number.isFinite(PORT) || PORT < 1 || PORT > 65535) {
+  console.error(`[FATAL] Invalid PORT: ${process.env.PORT}. Must be a number between 1 and 65535.`);
+  process.exit(1);
+}
 httpServer.listen(PORT, () => {
   console.log(`Game server running on port ${PORT}`);
 });

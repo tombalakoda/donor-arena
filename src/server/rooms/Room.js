@@ -140,9 +140,6 @@ export class Room {
     });
 
     // Listen for shop purchases
-    socket.on(MSG.CLIENT_SHOP_UNLOCK_SLOT, (data) => {
-      this.handleShopUnlockSlot(playerId, data);
-    });
     socket.on(MSG.CLIENT_SHOP_CHOOSE_SPELL, (data) => {
       this.handleShopChooseSpell(playerId, data);
     });
@@ -187,7 +184,6 @@ export class Room {
     if (player && player.socket) {
       player.socket.removeAllListeners(MSG.CLIENT_SPELL_CAST);
       player.socket.removeAllListeners(MSG.CLIENT_HOOK_RELEASE);
-      player.socket.removeAllListeners(MSG.CLIENT_SHOP_UNLOCK_SLOT);
       player.socket.removeAllListeners(MSG.CLIENT_SHOP_CHOOSE_SPELL);
       player.socket.removeAllListeners(MSG.CLIENT_SHOP_UPGRADE_TIER);
       player.socket.removeAllListeners(MSG.CLIENT_SANDBOX_SHOP_TOGGLE);
@@ -372,28 +368,6 @@ export class Room {
   }
 
   // --- Shop Handlers ---
-
-  handleShopUnlockSlot(playerId, data) {
-    if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
-    const player = this.players.get(playerId);
-    if (!player) return;
-    const now = Date.now();
-    if (now - (player.lastShopAction || 0) < 100) return;
-    player.lastShopAction = now;
-    const VALID_SLOTS = new Set(['Q', 'W', 'E', 'R']);
-    if (!data || !VALID_SLOTS.has(data.slot)) {
-      console.warn(`[SHOP] ${playerId}: unlockSlot invalid slot=${data?.slot}`);
-      return;
-    }
-    const progression = this.progressions.get(playerId);
-    if (!progression) return;
-
-    const success = progression.unlockSlot(data.slot);
-    if (success) {
-      this.sendProgressionUpdate(playerId);
-      console.log(`[SHOP] ${playerId} unlocked slot ${data.slot}`);
-    }
-  }
 
   handleShopChooseSpell(playerId, data) {
     if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;

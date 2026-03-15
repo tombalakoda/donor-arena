@@ -12,6 +12,7 @@ import { MatchEndOverlay } from '../ui/MatchEndOverlay.js';
 import { LobbyOverlay } from '../ui/LobbyOverlay.js';
 import { SpellVisualManager } from '../systems/SpellVisualManager.js';
 import { HUDManager } from '../systems/HUDManager.js';
+import { ArenaRenderer } from '../systems/ArenaRenderer.js';
 
 const MatterBody = Phaser.Physics.Matter.Matter.Body;
 const SPRITE_SCALE = 2.25;
@@ -139,8 +140,7 @@ export class GameScene extends Phaser.Scene {
     this.lastPhase = null;
     this.isHost = false;
     // NOTE: do NOT reset this.roomId here — it is set in init() before create()
-    this.obstacleSprites = [];
-    this.currentMapIndex = -1;
+    this.arenaRenderer = null;
     this.lastServerSpells = [];
     this.trailGraphics = null;
     this.cachedScores = null;
@@ -171,7 +171,8 @@ export class GameScene extends Phaser.Scene {
     // Fade in from black
     this.cameras.main.fadeIn(500, 0, 0, 0);
 
-    this.createArena();
+    this.arenaRenderer = new ArenaRenderer(this);
+    this.arenaRenderer.createArena();
     this.setupInput();
     this.setupCamera();
     this.hudManager.createHUD();
@@ -321,7 +322,7 @@ export class GameScene extends Phaser.Scene {
     };
 
     this.network.onObstacleEvent = (data) => {
-      this.handleObstacleEvent(data);
+      this.arenaRenderer.handleObstacleEvent(data);
     };
 
     this.network.onChanneling = (data) => {
@@ -371,7 +372,7 @@ export class GameScene extends Phaser.Scene {
 
     const cam = this.cameras.main;
     const errorText = this.add.text(cam.width / 2, cam.height / 2, message, {
-      fontFamily: "'Press Start 2P', cursive",
+      fontFamily: FONT.FAMILY_HEADING,
       fontSize: '14px',
       fill: '#ff4444',
       stroke: '#000000',
@@ -379,7 +380,7 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(999);
 
     const hintText = this.add.text(cam.width / 2, cam.height / 2 + 40, 'Menüye dönülüyor...', {
-      fontFamily: "'Press Start 2P', cursive",
+      fontFamily: FONT.FAMILY_HEADING,
       fontSize: '8px',
       fill: '#ffffff',
       stroke: '#000000',
@@ -462,8 +463,8 @@ export class GameScene extends Phaser.Scene {
     if (snapshot.progression) this.progression = snapshot.progression;
 
     // Sync map index for obstacles (handles late join / reconnection)
-    if (snapshot.mapIndex !== undefined && snapshot.mapIndex !== this.currentMapIndex) {
-      this.loadObstaclesForMap(snapshot.mapIndex);
+    if (snapshot.mapIndex !== undefined && this.arenaRenderer && snapshot.mapIndex !== this.arenaRenderer.currentMapIndex) {
+      this.arenaRenderer.loadObstaclesForMap(snapshot.mapIndex);
     }
 
     // Sync active spells from server state
@@ -496,7 +497,7 @@ export class GameScene extends Phaser.Scene {
 
     // Swap obstacles for this round's map
     if (data.mapIndex !== undefined) {
-      this.loadObstaclesForMap(data.mapIndex);
+      this.arenaRenderer.loadObstaclesForMap(data.mapIndex);
     }
 
     // Show round start announcement
@@ -1131,543 +1132,6 @@ export class GameScene extends Phaser.Scene {
     return spellState.chosenSpell;
   }
 
-  // --- Arena ---
-
-  createArena() {
-    // Maps are lazy-loaded per round. Only map1 is preloaded (for floor/decorations).
-    this.arenaMaps = {};          // sparse map: mapIndex → mapData
-    this._loadingMaps = new Set(); // track in-flight map fetches
-    this.currentMapIndex = -1;
-
-    // Map1 was preloaded in BootScene — cache it
-    const map1 = this.cache.json.get('arena-map-1');
-    if (map1) this.arenaMaps[0] = map1; // mapIndex 0 = map1
-
-    // Use map1 for shared floor/decorations
-    const mapData = map1 || this.cache.json.get('arena-map');
-    if (mapData && mapData.floor && mapData.floor.tiles && mapData.floor.tiles.length > 0) {
-      this.createArenaFromMap(mapData);
-    } else {
-      this.createArenaProceduralFallback();
-    }
-  }
-
-  createArenaFromMap(mapData) {
-    const texSize = ARENA.FLOOR_SIZE + 800;
-    const texHalf = texSize / 2;
-    const radius = ARENA.RADIUS;
-    const COLS = 22;
-    const TILE_SIZE = 16;
-
-    // --- RenderTexture for static floor ---
-    const rt = this.add.renderTexture(0, 0, texSize, texSize);
-    rt.setOrigin(0.5);
-    rt.setDepth(0);
-
-    // Step 1: Fill entire texture with white (frame 331 is pure 255,255,255 — just fill white)
-    rt.fill(0xFFFFFF);
-
-    // Step 2: Stamp map tiles on top (centered within the larger texture)
-    // Reuse a single sprite — avoids 15k+ create/destroy cycles that freeze the browser
-    const mapOffset = (texSize - ARENA.FLOOR_SIZE) / 2;
-    const stampSprite = this.make.sprite({ x: 0, y: 0, key: 'tile-floor', frame: 0, add: false });
-    stampSprite.setOrigin(0);
-    let currentTileset = 'tile-floor';
-    for (const tile of mapData.floor.tiles) {
-      if (tile.tileset !== currentTileset) {
-        currentTileset = tile.tileset;
-        stampSprite.setTexture(currentTileset, tile.frame);
-      } else {
-        stampSprite.setFrame(tile.frame);
-      }
-      rt.draw(stampSprite, mapOffset + tile.col * 16, mapOffset + tile.row * 16);
-    }
-    stampSprite.destroy();
-
-    // Step 3: Subtle grid overlay
-    this.drawGridOverlay(rt, texSize, texHalf);
-
-    this.arenaTexture = rt;
-
-    // Step 5: Place decorations from map data
-    if (mapData.decorations && mapData.decorations.length > 0) {
-      this.createDecorationsFromMap(mapData.decorations);
-    }
-
-    // Step 6: Obstacles are loaded dynamically per round (see loadObstaclesForMap)
-
-    // Step 7: Dynamic ring graphics (owned by HUDManager)
-    this.hudManager.ringGraphics = this.add.graphics();
-    this.hudManager.ringGraphics.setDepth(1);
-    this.hudManager.outerRingGraphics = this.add.graphics();
-    this.hudManager.outerRingGraphics.setDepth(1);
-    this.hudManager.lastDrawnRingRadius = -1;
-
-    // Aim indicator graphics (world-space, below spells)
-    this.indicatorGraphics = this.add.graphics().setDepth(3);
-  }
-
-  createDecorationsFromMap(decorations) {
-    const half = ARENA.FLOOR_SIZE / 2; // 600 — editor coords are 0-1200, game world is centered at 0,0
-    for (const dec of decorations) {
-      const scale = dec.scale || 3;
-      const alpha = dec.alpha || 0.65;
-
-      // Convert editor coords (0-1200) to game world coords (centered at 0,0)
-      const worldX = dec.x - half;
-      const worldY = dec.y - half;
-
-      const sprite = this.add.sprite(worldX, worldY, dec.tileset, dec.frame);
-      sprite.setScale(scale);
-      sprite.setOrigin(0.5, 0.5);
-      sprite.setAlpha(alpha);
-      sprite.setDepth(2);
-    }
-  }
-
-  createObstaclesFromMap(obstacles) {
-    const half = ARENA.FLOOR_SIZE / 2;
-    this.obstacleSprites = [];
-
-    // Type → tint map
-    const TYPE_TINTS = {
-      breakable: 0xddaa44,  // amber
-      bouncer:   0x44ff88,  // green
-      explosive: 0xff4444,  // red
-    };
-
-    for (let i = 0; i < obstacles.length; i++) {
-      const obs = obstacles[i];
-      const worldX = obs.x - half;
-      const worldY = obs.y - half;
-      const scale = obs.scale || 2.25;
-      const radius = obs.radius || 24;
-      const type = obs.type || 'normal';
-
-      // Subtle shadow under the pillar
-      const shadow = this.add.ellipse(worldX, worldY + 4, radius * 2, radius, 0x000000, 0.3);
-      shadow.setDepth(4);
-
-      // Main pillar sprite
-      const sprite = this.add.sprite(worldX, worldY, obs.tileset, obs.frame);
-      sprite.setScale(scale);
-      sprite.setOrigin(0.5, 0.5);
-      sprite.setDepth(5); // Above floor (0), ring (1), decos (2); below spells (10+)
-
-      // Type-specific tint
-      const tint = TYPE_TINTS[type];
-      if (tint) {
-        sprite.setTint(tint);
-      }
-
-      // Bouncer: subtle scale pulse tween
-      if (type === 'bouncer') {
-        this.tweens.add({
-          targets: sprite,
-          scaleX: scale * 1.08,
-          scaleY: scale * 1.08,
-          duration: 800,
-          yoyo: true,
-          repeat: -1,
-          ease: 'Sine.easeInOut',
-        });
-      }
-
-      this.obstacleSprites.push({ sprite, shadow, mapIndex: i, type });
-    }
-  }
-
-  // Map IDs sorted numerically — must match server's loadMaps() order
-  // so that mapIndex 0 → map1, mapIndex 22 → map23, mapIndex 23 → map25, etc.
-  static MAP_IDS = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,25,26,27,28,29];
-
-  /**
-   * Swap obstacle visuals for a new round's map.
-   * Lazy-loads the map JSON if not already cached.
-   */
-  loadObstaclesForMap(mapIndex) {
-    // Destroy existing obstacles
-    if (this.obstacleSprites) {
-      for (const obs of this.obstacleSprites) {
-        if (obs.sprite && !obs.sprite.destroyed) obs.sprite.destroy();
-        if (obs.shadow && !obs.shadow.destroyed) obs.shadow.destroy();
-      }
-      this.obstacleSprites = [];
-    }
-
-    this.currentMapIndex = mapIndex;
-
-    // Already cached — use it immediately
-    if (this.arenaMaps[mapIndex]) {
-      const mapData = this.arenaMaps[mapIndex];
-      if (mapData.obstacles && mapData.obstacles.length > 0) {
-        this.createObstaclesFromMap(mapData.obstacles);
-      }
-      return;
-    }
-
-    // Need to lazy-load this map
-    const mapFileId = GameScene.MAP_IDS[mapIndex];
-    if (mapFileId === undefined || this._loadingMaps.has(mapIndex)) return;
-
-    this._loadingMaps.add(mapIndex);
-    const cacheKey = `arena-map-${mapFileId}`;
-
-    // Check if Phaser already has it cached (e.g. map1 from boot)
-    const cached = this.cache.json.get(cacheKey);
-    if (cached) {
-      this.arenaMaps[mapIndex] = cached;
-      this._loadingMaps.delete(mapIndex);
-      if (cached.obstacles && cached.obstacles.length > 0) {
-        this.createObstaclesFromMap(cached.obstacles);
-      }
-      return;
-    }
-
-    // Fetch map JSON on demand
-    this.load.json(cacheKey, `assets/maps/map${mapFileId}.json`);
-    this.load.once(`filecomplete-json-${cacheKey}`, () => {
-      const data = this.cache.json.get(cacheKey);
-      this._loadingMaps.delete(mapIndex);
-      if (!data) return;
-      this.arenaMaps[mapIndex] = data;
-      // Only apply if we're still on the same round's map
-      if (this.currentMapIndex === mapIndex && data.obstacles && data.obstacles.length > 0) {
-        this.createObstaclesFromMap(data.obstacles);
-      }
-    });
-    this.load.start();
-  }
-
-  /**
-   * Handle obstacle destruction events from server.
-   * Removes sprite/shadow and shows visual effects for explosive obstacles.
-   */
-  handleObstacleEvent(data) {
-    if (!data || !data.destroyed) return;
-
-    for (const evt of data.destroyed) {
-      // Find the obstacle sprite by mapIndex
-      const idx = this.obstacleSprites.findIndex(o => o.mapIndex === evt.mapIndex);
-      if (idx === -1) continue;
-
-      const obs = this.obstacleSprites[idx];
-      const x = obs.sprite ? obs.sprite.x : evt.x;
-      const y = obs.sprite ? obs.sprite.y : evt.y;
-
-      // Destroy sprite and shadow
-      if (obs.sprite && !obs.sprite.destroyed) obs.sprite.destroy();
-      if (obs.shadow && !obs.shadow.destroyed) obs.shadow.destroy();
-      this.obstacleSprites.splice(idx, 1);
-
-      // Explosion effect for explosive obstacles
-      if (evt.type === 'explosive') {
-        const explosionRadius = evt.explosionRadius || 120;
-
-        // Explosion sprite animation
-        if (this.anims.exists('fx-explosion-play')) {
-          const explosion = this.add.sprite(x, y, 'fx-explosion');
-          explosion.setScale(explosionRadius / 20);
-          explosion.setDepth(16);
-          explosion.play({ key: 'fx-explosion-play', repeat: 0 });
-          explosion.once('animationcomplete', () => explosion.destroy());
-        }
-
-        // Expanding ring flash
-        if (this.anims.exists('fx-circular-slash-play')) {
-          const ring = this.add.sprite(x, y, 'fx-circular-slash');
-          ring.setTint(0xff4444);
-          ring.setScale(1);
-          ring.setDepth(15);
-          ring.setAlpha(0.8);
-          ring.play({ key: 'fx-circular-slash-play', repeat: 0 });
-          this.tweens.add({
-            targets: ring,
-            scaleX: explosionRadius / 16, scaleY: explosionRadius / 16,
-            alpha: 0,
-            duration: 400,
-            ease: 'Quad.easeOut',
-            onComplete: () => ring.destroy(),
-          });
-        }
-      } else {
-        // Breakable: smoke puff + rock debris
-        if (this.anims.exists('fx-smoke-circular-play')) {
-          const puff = this.add.sprite(x, y, 'fx-smoke-circular');
-          puff.setTint(0xddaa44);
-          puff.setScale(3);
-          puff.setDepth(15);
-          puff.play({ key: 'fx-smoke-circular-play', repeat: 0 });
-          puff.once('animationcomplete', () => puff.destroy());
-        }
-
-        // Scatter rock debris particles
-        const rockKey = 'fx-particle-rock';
-        const rockTex = this.textures.exists(rockKey) ? this.textures.get(rockKey) : null;
-        const rockFrames = rockTex ? Math.max(1, rockTex.frameTotal - 1) : 0;
-        if (rockFrames > 0) {
-          for (let i = 0; i < 5; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const dist = 20 + Math.random() * 30;
-            const frame = Math.floor(Math.random() * rockFrames);
-            const debris = this.add.sprite(x, y, rockKey, frame);
-            debris.setScale(1.5 + Math.random());
-            debris.setDepth(15);
-            debris.setAlpha(0.8);
-            this.tweens.add({
-              targets: debris,
-              x: x + Math.cos(angle) * dist,
-              y: y + Math.sin(angle) * dist,
-              alpha: 0,
-              scaleX: 0.5,
-              scaleY: 0.5,
-              duration: 300 + Math.random() * 200,
-              ease: 'Quad.easeOut',
-              onComplete: () => debris.destroy(),
-            });
-          }
-        }
-      }
-    }
-  }
-
-  drawEdgeMask(rt, size, half, radius) {
-    const edgeMask = this.make.graphics({ x: 0, y: 0, add: false });
-    const snowColor = 0xe8eef5;
-    edgeMask.fillStyle(snowColor, 1);
-
-    // Soft fade zone — white snow blends into ice edge
-    for (let i = 0; i < 8; i++) {
-      const alpha = 0.08 + i * 0.13;
-      edgeMask.lineStyle(4, snowColor, Math.min(alpha, 1.0));
-      edgeMask.strokeCircle(half, half, radius - 4 + i * 4);
-    }
-
-    // Hard coverage zone — solid white snow beyond arena
-    for (let i = 0; i < 40; i++) {
-      edgeMask.lineStyle(4, snowColor, 1.0);
-      edgeMask.strokeCircle(half, half, radius + 28 + i * 4);
-    }
-
-    // Corner strips — fill remaining corners with snow
-    edgeMask.fillRect(0, 0, size, half - radius - 150);
-    edgeMask.fillRect(0, half + radius + 150, size, half - radius - 150);
-    edgeMask.fillRect(0, 0, half - radius - 150, size);
-    edgeMask.fillRect(half + radius + 150, 0, half - radius - 150, size);
-
-    rt.draw(edgeMask);
-    edgeMask.destroy();
-  }
-
-  drawGridOverlay(rt, size, half) {
-    const grid = this.make.graphics({ x: 0, y: 0, add: false });
-    const radius = ARENA.RADIUS;
-    const gridSpacing = 64;
-
-    // Only draw grid lines within the arena circle (avoids visible lines on white snow)
-    grid.lineStyle(1, 0xffffff, 0.05);
-    for (let x = 0; x <= size; x += gridSpacing) {
-      // Clip line to arena circle
-      const dx = x - half;
-      if (Math.abs(dx) > radius) continue;
-      const yExtent = Math.sqrt(radius * radius - dx * dx);
-      grid.lineBetween(x, half - yExtent, x, half + yExtent);
-    }
-    for (let y = 0; y <= size; y += gridSpacing) {
-      const dy = y - half;
-      if (Math.abs(dy) > radius) continue;
-      const xExtent = Math.sqrt(radius * radius - dy * dy);
-      grid.lineBetween(half - xExtent, y, half + xExtent, y);
-    }
-
-    // Center crosshair
-    grid.lineStyle(1, 0xffffff, 0.1);
-    grid.lineBetween(half - 20, half, half + 20, half);
-    grid.lineBetween(half, half - 20, half, half + 20);
-    rt.draw(grid);
-    grid.destroy();
-  }
-
-  createArenaProceduralFallback() {
-    const radius = ARENA.RADIUS;    // 550
-    const TILE_SCALE = 2;
-    const TILE_SIZE = 16 * TILE_SCALE; // 32px rendered
-
-    // Make texture large enough that players never see the edge, even when knocked far
-    const texSize = ARENA.FLOOR_SIZE + 800; // 2000px — plenty of margin
-    const texHalf = texSize / 2;
-
-    // --- RenderTexture for static floor ---
-    const rt = this.add.renderTexture(0, 0, texSize, texSize);
-    rt.setOrigin(0.5);
-    rt.setDepth(0);
-
-    // TilesetFloor.png: 22 cols x 26 rows (16x16 tiles)
-    const COLS = 22;
-
-    // Pure white snow tile (verified: all 256 pixels are exactly 255,255,255, zero variance)
-    const snowFillFrame = 15 * COLS + 1; // frame 331 — perfectly uniform white
-
-    // Ice fill tiles — for inside the arena ring
-    const iceFillFrames = [
-      22 * COLS + 1,  // row 22, col 1 — cleanest solid ice (primary)
-      22 * COLS + 1,  // duplicate for higher weight
-      22 * COLS + 1,  // duplicate for higher weight
-      22 * COLS + 5,  // row 22, col 5 — subtle variant
-      22 * COLS + 6,  // row 22, col 6 — subtle variant
-      22 * COLS + 9,  // row 22, col 9 — subtle variant
-      21 * COLS + 5,  // row 21, col 5 — faint mark variant
-      21 * COLS + 9,  // row 21, col 9 — faint mark variant
-      23 * COLS + 5,  // row 23, col 5 — subtle variant
-      23 * COLS + 9,  // row 23, col 9 — subtle variant
-    ];
-
-    // Seeded RNG for deterministic tile placement
-    let rngSeed = 42;
-    const nextRng = () => {
-      rngSeed = (rngSeed * 16807 + 0) % 2147483647;
-      return (rngSeed & 0x7fffffff) / 0x7fffffff;
-    };
-
-    // Step 1: Fill white, then stamp ice tiles only inside the arena
-    // (avoids 4000+ sprite create/destroy cycles that freeze the browser)
-    rt.fill(0xFFFFFF);
-
-    const totalTiles = Math.ceil(texSize / TILE_SIZE);
-    const stampTile = this.make.sprite({ x: 0, y: 0, key: 'tile-floor', frame: 0, add: false });
-    stampTile.setScale(TILE_SCALE);
-    stampTile.setOrigin(0);
-
-    for (let ty = 0; ty < totalTiles; ty++) {
-      for (let tx = 0; tx < totalTiles; tx++) {
-        const cx = tx * TILE_SIZE + TILE_SIZE / 2;
-        const cy = ty * TILE_SIZE + TILE_SIZE / 2;
-        const dx = cx - texHalf;
-        const dy = cy - texHalf;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        // Only stamp ice tiles inside the arena — snow is already white fill
-        if (dist < radius + TILE_SIZE * 0.3) {
-          const frame = iceFillFrames[Math.floor(nextRng() * iceFillFrames.length)];
-          stampTile.setFrame(frame);
-          rt.draw(stampTile, tx * TILE_SIZE, ty * TILE_SIZE);
-        } else {
-          // Advance RNG to keep deterministic sequence
-          nextRng();
-        }
-      }
-    }
-    stampTile.destroy();
-
-    // Step 2: Subtle grid overlay
-    this.drawGridOverlay(rt, texSize, texHalf);
-
-    this.arenaTexture = rt;
-
-    // Step 3: Decorative props around arena rim
-    this.createArenaDecorations();
-
-    // Step 4: Dynamic ring graphics (owned by HUDManager)
-    this.hudManager.ringGraphics = this.add.graphics();
-    this.hudManager.ringGraphics.setDepth(1);
-    this.hudManager.outerRingGraphics = this.add.graphics();
-    this.hudManager.outerRingGraphics.setDepth(1);
-    this.hudManager.lastDrawnRingRadius = -1;
-
-    // Aim indicator graphics
-    if (this.indicatorGraphics && !this.indicatorGraphics.destroyed) this.indicatorGraphics.destroy();
-    this.indicatorGraphics = this.add.graphics().setDepth(3);
-  }
-
-  createArenaDecorations() {
-    const PROP_SCALE = 3;
-    const radius = ARENA.RADIUS;
-    const COLS = 24; // TilesetNature: 384/16 = 24 cols
-
-    // Define multi-tile decoration props from TilesetNature.png
-    // Frame = row * 24 + col (24 cols in TilesetNature)
-    // Only snow/ice/grey objects — NO trees with green grass or brown dirt bases
-    const PROPS = [
-      // White snowball — r13c10 (322), confirmed clean white
-      { frames: [[13*COLS+10]], w: 1, h: 1, weight: 5 },
-      // White puff — r12c10 (298), confirmed clean white
-      { frames: [[12*COLS+10]], w: 1, h: 1, weight: 4 },
-      // White blob — r12c11 (299), confirmed clean white
-      { frames: [[12*COLS+11]], w: 1, h: 1, weight: 3 },
-      // White/cream rock — r13c11 (323), confirmed clean white
-      { frames: [[13*COLS+11]], w: 1, h: 1, weight: 3 },
-      // White triangular tree canopy (top only) — r0 c8-9
-      { frames: [[0*COLS+8, 0*COLS+9]], w: 2, h: 1, weight: 5 },
-      // White round canopy (top only) — r0 c10-11
-      { frames: [[0*COLS+10, 0*COLS+11]], w: 2, h: 1, weight: 5 },
-      // White snow evergreen top — r2 c8-9
-      { frames: [[2*COLS+8, 2*COLS+9]], w: 2, h: 1, weight: 4 },
-    ];
-
-    // Seeded RNG
-    let rng = 54321;
-    const nextRng = () => {
-      rng = (rng * 16807) % 2147483647;
-      return (rng & 0x7fffffff) / 0x7fffffff;
-    };
-
-    // Build weighted array
-    const weighted = [];
-    for (const prop of PROPS) {
-      for (let i = 0; i < prop.weight; i++) weighted.push(prop);
-    }
-
-    // Place props in ring around arena edge
-    const numProps = 22;
-    const innerR = radius - 10;
-    const outerR = radius + 50;
-    const placed = [];
-    const minDist = 90;
-
-    for (let i = 0; i < numProps; i++) {
-      const angle = (i / numProps) * Math.PI * 2 + nextRng() * 0.25;
-      const r = innerR + nextRng() * (outerR - innerR);
-      const x = Math.cos(angle) * r;
-      const y = Math.sin(angle) * r;
-
-      // Check minimum spacing
-      let tooClose = false;
-      for (const pp of placed) {
-        const ddx = pp.x - x, ddy = pp.y - y;
-        if (Math.sqrt(ddx * ddx + ddy * ddy) < minDist) { tooClose = true; break; }
-      }
-      if (tooClose) continue;
-      placed.push({ x, y });
-
-      // Pick a prop type
-      const prop = weighted[Math.floor(nextRng() * weighted.length)];
-
-      // Create container for multi-tile prop
-      const container = this.add.container(x, y);
-      container.setDepth(2);
-
-      const tileRendered = 16 * PROP_SCALE;
-      const offsetX = -(prop.w * tileRendered) / 2;
-      const offsetY = -(prop.h * tileRendered) / 2;
-
-      for (let row = 0; row < prop.h; row++) {
-        for (let col = 0; col < prop.w; col++) {
-          const frame = prop.frames[row][col];
-          const sprite = this.add.sprite(
-            offsetX + col * tileRendered,
-            offsetY + row * tileRendered,
-            'tile-nature',
-            frame
-          );
-          sprite.setScale(PROP_SCALE);
-          sprite.setOrigin(0, 0);
-          sprite.setAlpha(0.65);
-          container.add(sprite);
-        }
-      }
-    }
-  }
-
   // --- Input ---
 
   setupInput() {
@@ -1748,16 +1212,20 @@ export class GameScene extends Phaser.Scene {
       console.error('[BUG] update() running on WRONG scene! this.scene.key:', this.scene?.key, 'expected:', window.__gameScene?.scene?.key);
       return;
     }
-    this.spellVisualManager.processPending();
-    this.updateLocalMovement(delta);
-    this.syncLocalVisuals();
-    this.interpolateRemotePlayers();
-    this.updateSpellInput();
-    this.updateAimIndicator();
-    this.spellVisualManager.update(delta);
-    this.updateCamera();
-    this.hudManager.update();
-    this.sendInputToServer();
+    try {
+      this.spellVisualManager.processPending();
+      this.updateLocalMovement(delta);
+      this.syncLocalVisuals();
+      this.interpolateRemotePlayers();
+      this.updateSpellInput();
+      this.updateAimIndicator();
+      this.spellVisualManager.update(delta);
+      this.updateCamera();
+      this.hudManager.update();
+      this.sendInputToServer();
+    } catch (err) {
+      console.error('[GameScene] update() error:', err);
+    }
   }
 
   updateLocalMovement(delta) {
@@ -2298,13 +1766,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   _doShutdown() {
-    // Cleanup obstacle sprites
-    if (this.obstacleSprites) {
-      for (const obs of this.obstacleSprites) {
+    // Cleanup arena renderer (obstacle sprites, arena texture)
+    if (this.arenaRenderer) {
+      for (const obs of this.arenaRenderer.obstacleSprites) {
         if (obs.sprite && !obs.sprite.destroyed) obs.sprite.destroy();
         if (obs.shadow && !obs.shadow.destroyed) obs.shadow.destroy();
       }
-      this.obstacleSprites = [];
+      this.arenaRenderer.obstacleSprites = [];
     }
 
     // Cleanup local player physics body and sprites
@@ -2346,7 +1814,7 @@ export class GameScene extends Phaser.Scene {
 
     // Cleanup graphics objects
     if (this.trailGraphics && !this.trailGraphics.destroyed) this.trailGraphics.destroy();
-    if (this.arenaTexture && !this.arenaTexture.destroyed) this.arenaTexture.destroy();
+    if (this.arenaRenderer && this.arenaRenderer.arenaTexture && !this.arenaRenderer.arenaTexture.destroyed) this.arenaRenderer.arenaTexture.destroy();
 
     // Destroy overlay systems
     if (this.shopOverlay) this.shopOverlay.destroy();

@@ -91,16 +91,6 @@ export class PlayerProgression {
     return true;
   }
 
-  canUnlockSlot(/* slot */) {
-    // Slots are now auto-unlocked at round milestones — manual unlock disabled
-    return false;
-  }
-
-  unlockSlot(/* slot */) {
-    // Slots are now auto-unlocked at round milestones — manual unlock disabled
-    return false;
-  }
-
   // --- Spell Choice ---
 
   /**

@@ -471,6 +471,35 @@ export function createTexturedButton(scene, x, y, label, textureKey, opts = {}) 
   return { elements, bg, text };
 }
 
+// ─── Scene Transition ────────────────────────────────────────
+/**
+ * Clean up the current game session and transition to another scene.
+ * Disconnects network, stops audio, fades camera, then starts the target scene.
+ *
+ * @param {Phaser.Scene} scene - The current active scene
+ * @param {string} targetScene - Scene key to transition to (e.g. 'MenuScene', 'GameScene')
+ * @param {object} [sceneData] - Optional data to pass to the target scene
+ */
+export function cleanupAndTransition(scene, targetScene, sceneData) {
+  if (scene.network) scene.network.disconnect();
+  window.__networkConnected = false;
+  scene.sound.stopAll();
+
+  // Reset camera effects before fade (shake can prevent fadeOut completion)
+  scene.cameras.main.resetFX();
+  scene.cameras.main.fadeOut(400, 0, 0, 0);
+
+  let transitioned = false;
+  const doTransition = () => {
+    if (transitioned) return;
+    transitioned = true;
+    scene.scene.start(targetScene, sceneData);
+  };
+  scene.cameras.main.once('camerafadeoutcomplete', doTransition);
+  // Safety: force transition if fade event never fires
+  setTimeout(doTransition, 600);
+}
+
 // ─── Legacy Compat ───────────────────────────────────────────
 /**
  * Backward-compatible wrapper for code that still calls createNinesliceButton.

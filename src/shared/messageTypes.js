@@ -4,7 +4,6 @@ export const MSG = {
   // Client -> Server
   CLIENT_JOIN: 'c:join',
   CLIENT_INPUT: 'c:input',
-  CLIENT_READY: 'c:ready',
   CLIENT_PING: 'c:ping',
 
   // Client -> Server (spells)
@@ -15,7 +14,6 @@ export const MSG = {
   CLIENT_SANDBOX_SHOP_TOGGLE: 'c:sandboxShopToggle',
 
   // Client -> Server (shop)
-  CLIENT_SHOP_UNLOCK_SLOT: 'c:shopUnlockSlot',
   CLIENT_SHOP_CHOOSE_SPELL: 'c:shopChooseSpell',
   CLIENT_SHOP_UPGRADE_TIER: 'c:shopUpgradeTier',
 
@@ -35,8 +33,6 @@ export const MSG = {
   SERVER_MATCH_END: 's:matchEnd',
   SERVER_SPELL_CAST: 's:spellCast',
   SERVER_ELIMINATED: 's:eliminated',
-  SERVER_SPELL_CONFIRM: 's:spellOk',
-  SERVER_SPELL_DENY: 's:spellNo',
   SERVER_PONG: 's:pong',
   SERVER_OBSTACLE_EVENT: 's:obstacleEvent',
   SERVER_CHANNELING: 's:channeling',

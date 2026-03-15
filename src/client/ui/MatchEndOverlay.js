@@ -6,8 +6,8 @@
  * Text: Press Start 2P, white, black stroke.
  */
 
-import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle } from './UIConfig.js';
-import { createButton, createPanel, createDimmer, createSeparator, createText, animateIn } from './UIHelpers.js';
+import { COLOR, FONT, DEPTH, ALPHA, SCREEN, textStyle } from './UIConfig.js';
+import { createButton, createPanel, createDimmer, createSeparator, createText, animateIn, cleanupAndTransition } from './UIHelpers.js';
 import { getSfxVolume } from '../config.js';
 
 // ─── Constants ───────────────────────────────────────────
@@ -259,42 +259,15 @@ export class MatchEndOverlay {
   //  NAVIGATION
   // ═══════════════════════════════════════════════════════
   returnToMenu() {
-    const scene = this.scene;
-    if (scene.network) scene.network.disconnect();
-    window.__networkConnected = false;
-    scene.sound.stopAll();
-    scene.cameras.main.resetFX();
-    scene.cameras.main.fadeOut(400, 0, 0, 0);
-
-    let transitioned = false;
-    const doTransition = () => {
-      if (transitioned) return;
-      transitioned = true;
-      scene.scene.start('MenuScene');
-    };
-    scene.cameras.main.once('camerafadeoutcomplete', doTransition);
-    setTimeout(doTransition, 600);
+    cleanupAndTransition(this.scene, 'MenuScene');
   }
 
   playAgain() {
     const scene = this.scene;
-    if (scene.network) scene.network.disconnect();
-    window.__networkConnected = false;
-    scene.sound.stopAll();
-    scene.cameras.main.resetFX();
-    scene.cameras.main.fadeOut(400, 0, 0, 0);
-
-    let transitioned = false;
-    const doTransition = () => {
-      if (transitioned) return;
-      transitioned = true;
-      scene.scene.start('GameScene', {
-        characterId: scene.characterId,
-        playerName: scene.playerName,
-        mode: scene.gameMode,
-      });
-    };
-    scene.cameras.main.once('camerafadeoutcomplete', doTransition);
-    setTimeout(doTransition, 600);
+    cleanupAndTransition(scene, 'GameScene', {
+      characterId: scene.characterId,
+      playerName: scene.playerName,
+      mode: scene.gameMode,
+    });
   }
 }

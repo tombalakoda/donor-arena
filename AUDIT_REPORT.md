@@ -1,9 +1,9 @@
 # Code Audit Report
-Date: 2026-03-14
-Project: Âşıklar Meydane (Arena2)
+Date: 2026-03-15
+Project: Asiklar Meydane (Arena2) — 2D top-down multiplayer arena game
 
 ## Summary
-The project is a well-built multiplayer arena game with solid architecture and clean code. The most urgent issue is that **the game silently hangs when it can't connect to the server** — there's no timeout, no error message, and no feedback to the player. This affects all game modes (serbest, normal, join) when the server is unreachable or the connection fails. Beyond that, the codebase is healthy with good input validation, proper client/server separation, and no security vulnerabilities.
+This is a well-built multiplayer game with clean architecture, solid server-authority design, and thorough input validation. The codebase is in good shape overall. The most important issue is that the game silently hangs or crashes when things go wrong — there is no graceful error recovery during gameplay. A few pieces of old code were left behind after recent system changes (slot unlock, kill mechanics) and should be cleaned up. GameScene.js at ~2,400 lines is getting unwieldy and will slow down future development if not broken up soon.
 
 ## Overall Health
 🟡 Needs Attention
@@ -14,97 +14,111 @@ The project is a well-built multiplayer arena game with solid architecture and c
 
 ### 🔴 Critical — Fix Before Going Further
 
-**The game hangs forever if the server connection fails**
-What this means: After clicking MEYDANE or SERBEST, the game tries to connect to the server. If the connection doesn't establish (wrong URL, server down, WebSocket blocked), the player sees a black screen or frozen lobby overlay with no way out and no error message.
-Why it matters: Every player who hits a connection issue will think the game is broken. On Railway or behind proxies, WebSocket connections can fail silently — the player has zero feedback.
-What to do: Add a connection timeout (e.g., 10 seconds) with an error message and a "return to menu" button. Also add a `connect_error` handler in NetworkManager.js.
+**Game crashes if anything unexpected happens during play**
+What this means: The main gameplay loop on the client (GameScene.js `update()`) has no safety net. If any single piece of game logic encounters bad data — a missing sprite, an undefined value, a physics glitch — the entire game freezes for that player with no way to recover except refreshing the browser.
+Why it matters: In a multiplayer game with 8 players, edge cases happen constantly. A single corrupted state update from the server could freeze a player's game permanently mid-match.
+What to do: Wrap the client-side game update loop in a try-catch that logs the error and attempts to continue, similar to how the server-side GameLoop already does this.
 
-**No error handler for WebSocket connection failures**
-What this means: NetworkManager.js (line 34-46) creates a Socket.IO connection but never listens for `connect_error` or `reconnect_failed` events. If the connection is rejected (CORS, transport failure, server down), the client has no idea.
-Why it matters: This is almost certainly why "serbest mode doesn't start" — the connection may be failing silently. On Railway, if WebSocket transport is blocked or CORS isn't configured, the connection fails with no feedback.
-What to do: Add `socket.on('connect_error', ...)` in NetworkManager and surface the error to the player.
+---
 
-**CORS defaults block production deployments**
-What this means: The server (server.js line 21-23) defaults to only allowing connections from localhost ports. On Railway, if `CORS_ORIGINS` environment variable is not set, connections from the Railway URL are blocked by CORS.
-Why it matters: Same-origin Socket.IO connections usually bypass CORS, but if Railway's proxy layer strips the origin header or if the client URL doesn't exactly match the server URL, the connection is silently rejected.
-What to do: Either set `CORS_ORIGINS` in Railway to include your Railway URL, or change the default to `origin: true` (allow all same-origin) when no env var is set.
+**Corrupted physics data (NaN positions) silently spreads to all players**
+What this means: If the physics engine produces an invalid position (NaN — "not a number"), the server broadcasts that corrupted data to every connected player without checking it first. The ring damage calculation also silently skips players with corrupted positions, making them effectively invincible.
+Why it matters: One physics glitch could make a player invisible, invincible, or cause visual chaos for everyone in the match. This is hard to debug because it happens silently.
+What to do: Add a validation check in GameLoop's state broadcast — if any player's position or velocity contains NaN or Infinity, reset them to a safe position (arena center) and log a warning.
 
 ---
 
 ### 🟡 Important — Address Soon
 
-**The tryJoin polling loop never gives up**
-What this means: After connecting, GameScene.js (lines 333-340) polls every 200ms to check if the connection is ready. There is no retry limit or timeout — it polls forever.
-Why it matters: If the connection establishes but the join message is lost, the player is stuck forever in the lobby. Combined with the missing connect_error handler, this creates a "silent death" scenario.
-What to do: Add a maximum retry count (e.g., 50 attempts = 10 seconds) and show an error if the join fails.
+**GameScene.js is 2,400 lines and growing**
+What this means: The main gameplay file handles everything — player movement, spell casting, arena rendering, spectator mode, overlays, input handling, camera, and more. It is the single largest file in the project by far.
+Why it matters: Every time you add or change a feature, you risk accidentally breaking something unrelated because everything is tangled together. Finding specific code takes longer, and bugs become harder to track down.
+What to do: Extract logical sections into separate manager files. Good candidates: SpectatorManager (spectator mode logic), InputManager (keyboard/mouse handling), ArenaRenderer (floor tiles, obstacles, decorations). This can be done incrementally — one section at a time.
 
-**GameScene.js is too large (2,294 lines)**
-What this means: This single file handles rendering, input, networking, physics reconciliation, arena drawing, obstacles, spectator mode, and visual effects. It's the "do everything" file.
-Why it matters: As new features are added, this file will become harder to modify without breaking something. Finding a specific piece of logic takes increasingly longer.
-What to do: Extract the networking callbacks (lines 222-341) into a separate handler, and consider extracting arena/obstacle rendering into its own module.
+---
 
-**No asset load error handling**
-What this means: BootScene loads dozens of images, spritesheets, and JSON files but has no `this.load.on('loaderror', ...)` handler. If a critical asset fails to download, the game proceeds with missing textures.
-Why it matters: On slow connections or if a CDN hiccups, the player gets visual glitches with no explanation.
-What to do: Add a load error handler that counts failures and shows a warning if critical assets are missing.
+**Old slot-unlock code left behind after redesign**
+What this means: When the slot system was changed from "buy with SP" to "auto-unlock at round milestones," several pieces of the old system were left in place: the `canUnlockSlot()` and `unlockSlot()` functions (which now always return false), the server handler that listens for unlock requests (which the client never sends), and three unused network message types (`CLIENT_READY`, `SERVER_SPELL_CONFIRM`, `SERVER_SPELL_DENY`).
+Why it matters: Dead code creates confusion — someone reading the code later might think these features still work or try to build on them. It also adds unnecessary complexity.
+What to do: Remove the dead `canUnlockSlot()`, `unlockSlot()` functions, the `handleShopUnlockSlot()` handler in Room.js, and the three unused message types.
 
-**Dead code in shared message types**
-What this means: Several message constants are defined but never used: `CLIENT_READY`, `SERVER_SPELL_CONFIRM`, `SERVER_SPELL_DENY`. Several RoomManager methods are never called: `findOrCreateRoom()`, `findPlayerRoom()`, `cleanup()`.
-Why it matters: Dead code is confusing for anyone reading the codebase and suggests incomplete features.
-What to do: Remove unused message types and methods, or mark them with comments explaining their future purpose.
+---
 
-**returnToMenu() logic duplicated**
-What this means: The "return to main menu" cleanup code is written identically in both PauseMenu.js (line 238-257) and MatchEndOverlay.js (line 261-277).
-Why it matters: If the cleanup steps change, both files must be updated in sync. Easy to miss one.
-What to do: Extract into a shared utility function in UIHelpers.js or a new MenuUtils.js.
+**Menu-to-game cleanup logic is copy-pasted in three places**
+What this means: The code that handles "leave the game and go back to the menu" — disconnecting from the server, stopping sounds, fading the camera — is written nearly identically in PauseMenu.js, MatchEndOverlay.js (twice: once for "menu" and once for "play again").
+Why it matters: If you change how cleanup works (for example, adding a "save stats" step), you'd need to remember to update it in three separate places. Missing one creates bugs that only appear in specific exit paths.
+What to do: Extract a shared `cleanupAndTransition(scene, nextScene)` function into UIHelpers.js and call it from all three locations.
+
+---
+
+**Race condition in shop during player disconnect**
+What this means: If a player disconnects from the server at the exact moment they're upgrading a spell in the shop, the server could try to access their progression data after it's been deleted. This would cause the server to crash for that game room.
+Why it matters: A server crash affects all 8 players in that room, not just the one who disconnected. Under normal play this is very unlikely, but under bad network conditions (which is when disconnects happen most) it becomes more plausible.
+What to do: Add a null-check on `progression` in all three shop handler functions in Room.js before calling methods on it.
+
+---
+
+**Server startup doesn't validate its configuration**
+What this means: The server reads its port number and allowed website origins from environment variables but doesn't check if they're valid. Setting the port to a non-number (like `PORT=abc`) crashes the server with an unhelpful error. A typo in the allowed origins could accidentally block or allow connections from the wrong websites.
+Why it matters: This makes deployment mistakes harder to diagnose. Instead of a clear "invalid port" message, you'd get a cryptic Node.js error.
+What to do: Add startup validation: check that PORT is a number between 1 and 65535, and that CORS_ORIGINS entries look like valid URLs.
 
 ---
 
 ### 🟢 Good to Know — Low Priority
 
-**Duplicate passive effect on two characters**
-What this means: Boran (fighter-white) and Govel Ayse (ninja-green) both have `mobilityRangeBonus: 0.20` as their passive, making them mechanically identical despite having different names.
-Why it matters: Players may feel cheated when two characters play the same.
-What to do: Differentiate the passives if intended to be unique, or document that they share the same bonus.
+**Two characters have identical passive abilities**
+What this means: Ninja-Green and Fighter-White both have the exact same passive ability — 20% bonus range on movement spells (blink, dash, etc.), with the same description text.
+Why it matters: This isn't a bug — it may be intentional. But it means players choosing between these two characters get no gameplay difference from their passive, which could feel like a missed opportunity for variety.
+What to do: Consider whether one of them should have a slightly different passive (e.g., different bonus percentage, or a different ability entirely) to make the choice more interesting.
 
-**Font constant declared in multiple files**
-What this means: The Press Start 2P font string is declared as a local constant in BootScene.js, MenuScene.js, config.js, and UIConfig.js (4 places).
-Why it matters: If the font ever changes, all 4 files need updating.
-What to do: Import from UIConfig.js everywhere instead of redeclaring.
+---
 
-**Redundant logo load in BootScene**
-What this means: BootScene loads `ui-logo` twice — once inline (line 99) for the loading screen, and again in the main preload (line 327). Phaser deduplicates silently.
-Why it matters: No functional impact, just unnecessary.
-What to do: Remove the second load call.
+**Font name hardcoded in GameScene.js instead of using the design system**
+What this means: Two places in GameScene.js type out the font name directly (`'Press Start 2P'`) instead of using the centralized font constant from the design system (UIConfig.js).
+Why it matters: If the font ever changes, these two spots would be missed and show the wrong font.
+What to do: Replace the hardcoded strings with `FONT.FAMILY_HEADING` from UIConfig.js.
 
-**PauseMenu depth uses ad-hoc offset**
-What this means: PauseMenu.js adds 100 to `DEPTH.OVERLAY_DIM` instead of using a named constant.
-Why it matters: Bypasses the centralized depth system in UIConfig.js.
-What to do: Add `DEPTH.PAUSE_MENU` constant in UIConfig.js.
+---
 
-**window.__gameScene exposed globally**
-What this means: The full game scene object is accessible from the browser console.
-Why it matters: Not a real security risk since the client is untrusted anyway, but it makes it slightly easier for players to inspect game state.
-What to do: Only expose in development builds, or leave as-is (low priority).
+**Unused imports in overlay files**
+What this means: PauseMenu.js and MatchEndOverlay.js import `SPACE` and `NINE` from UIConfig but never use them. This is leftover from copy-paste during development.
+Why it matters: Doesn't affect functionality, but clutters the code and could confuse future readers.
+What to do: Remove the unused imports.
+
+---
+
+**No ping timeout detection**
+What this means: The client pings the server every 2 seconds to measure latency, but doesn't detect when the server stops responding. If the server silently dies (no disconnect event), the client would keep playing with stale data indefinitely.
+Why it matters: Players would see their game "freeze" with no explanation. The game wouldn't tell them the connection was lost.
+What to do: Add a watchdog — if no pong response comes back within 10 seconds, treat it as a disconnect and show the connection error screen.
+
+---
+
+## What's Working Well
+
+- **Server-authoritative design**: All game logic (damage, knockback, spells, scoring) runs on the server. Clients can't cheat by modifying their local game — the server always has the final say.
+- **Input validation is thorough**: Player names are sanitized against injection attacks. Character IDs are whitelisted. Movement coordinates are bounds-checked. Rate limiting prevents spam on joins, inputs, spells, and shop actions.
+- **Spell handler architecture is clean**: Each spell type has its own handler file with a consistent spawn/update pattern. Adding a new spell type is straightforward.
+- **Hidden tab support**: The Web Worker fallback keeps the game running even when the browser tab is in the background — a common issue that many web games ignore.
+- **No hardcoded secrets**: All sensitive configuration uses environment variables. No API keys, passwords, or tokens in the codebase.
 
 ---
 
 ## Debt Level
-**Building Up**
-The codebase is well-organized with clean separation between client, server, and shared code. The spell handler pattern and UI component system are good. However, GameScene.js at 2,294 lines is becoming a monolith, there are a few instances of duplicated logic, and the font constant is scattered. The debt is manageable now but will compound if new features keep landing in GameScene.js.
+Building Up
+
+The project has a strong foundation with clean server/client separation and a well-designed spell system. However, GameScene.js has grown into a monolith at 2,400 lines, dead code from recent system changes hasn't been cleaned up, and cleanup logic is duplicated across overlays. None of these are urgent, but they'll compound if left unaddressed — each new feature will be slightly harder to add than the last.
 
 ## Documentation Status
-- **DESIGN_SYSTEM.md**: Exists and is current (updated today). Covers colors, typography, spacing, and component patterns well.
-- **PROJECT.md**: Does not exist. The project lacks a high-level overview, architecture description, and setup instructions.
-- **Inline comments**: Good quality overall. Key decisions are explained with "why" comments, especially in physics tuning and reconciliation logic.
-- **Onboarding**: A new developer could orient in ~15-20 minutes by reading constants.js and the shared files, but there's no quick-start guide.
+The project has a detailed DESIGN_SYSTEM.md covering visual design tokens and UI patterns. The .claude/memory/MEMORY.md file contains extensive technical notes and learnings. However, there is no PROJECT.md, README.md, or SESSION_LOG.md. A new developer (or future you) would need to read the code directly to understand the game's architecture, round lifecycle, or spell system. The in-code comments are adequate but focused on "what" rather than "why."
 
 ## Recommended Next Steps
-1. **Fix the connection timeout** — Add `connect_error` handler in NetworkManager.js and a 10-second timeout in the tryJoin loop. Show an error message with a "return to menu" button when connection fails. This is almost certainly why serbest mode isn't starting.
-2. **Check Railway CORS_ORIGINS** — Verify that `CORS_ORIGINS` env var is set in Railway to include your production URL (e.g., `https://your-app.up.railway.app`), or change the server default to `origin: true`.
-3. **Add load error handler** — Add `this.load.on('loaderror', ...)` in BootScene to catch and report missing assets instead of silently proceeding.
-4. **Extract GameScene networking** — Move the 120-line `connectToServer()` method and its callbacks into a dedicated `GameNetworkHandler.js` to reduce GameScene size.
-5. **Create PROJECT.md** — Add a quick-start guide with setup instructions, architecture overview, and how to run dev/prod builds.
+1. **Add try-catch to GameScene.update()** and NaN validation to GameLoop state broadcast — these prevent silent crashes and data corruption during live play.
+2. **Add null-checks in Room.js shop handlers** — prevents server crash from disconnect race condition (one-line fix in three places).
+3. **Remove dead slot-unlock code** — clean up `canUnlockSlot`, `unlockSlot`, `handleShopUnlockSlot`, and unused message types.
+4. **Extract cleanup logic** into a shared utility function in UIHelpers.js.
+5. **Start breaking up GameScene.js** — extract spectator mode, input handling, or arena rendering into separate files. Do one at a time; each extraction makes the next one easier.
 
 ---
 *Generated by Code Auditor skill. Findings reflect the state of the project at the time of the audit.*

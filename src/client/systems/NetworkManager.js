@@ -139,15 +139,23 @@ export class NetworkManager {
       if (this.onLobbyError) this.onLobbyError(data);
     });
 
-    // Ping/pong
+    // Ping/pong with timeout detection
+    this.lastPongTime = Date.now();
     this.socket.on(MSG.SERVER_PONG, (data) => {
       this.ping = Date.now() - data.timestamp;
+      this.lastPongTime = Date.now();
     });
 
-    // Start ping interval
+    // Start ping interval — also checks for hung connections
     this.pingInterval = setInterval(() => {
       if (this.connected) {
         this.socket.emit(MSG.CLIENT_PING, { timestamp: Date.now() });
+        // If no pong received in 10 seconds, treat as disconnected
+        if (Date.now() - this.lastPongTime > 10000) {
+          console.error('[Network] Ping timeout — server unresponsive');
+          if (this.onReconnectFailed) this.onReconnectFailed();
+          this.disconnect();
+        }
       }
     }, 2000);
   }
@@ -180,11 +188,6 @@ export class NetworkManager {
   sendHookRelease() {
     if (!this.connected) return;
     this.socket.emit(MSG.CLIENT_HOOK_RELEASE);
-  }
-
-  sendShopUnlockSlot(slot) {
-    if (!this.connected) return;
-    this.socket.emit(MSG.CLIENT_SHOP_UNLOCK_SLOT, { slot });
   }
 
   sendShopChooseSpell(slot, spellId) {

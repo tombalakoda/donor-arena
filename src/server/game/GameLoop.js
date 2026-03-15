@@ -143,6 +143,13 @@ export class GameLoop {
       const state = room.physics.getPlayerState(playerId);
       if (!state) continue;
 
+      // Skip players with corrupted positions (NaN from physics glitches)
+      if (!Number.isFinite(state.x) || !Number.isFinite(state.y)) {
+        console.warn(`[Room ${room.id}] NaN position for ${playerId}, resetting to center`);
+        room.physics.setPlayerPosition(playerId, 0, 0);
+        continue;
+      }
+
       const distFromCenter = Math.sqrt(state.x * state.x + state.y * state.y);
       if (distFromCenter > ringRadius) {
         const overshoot = distFromCenter - ringRadius;
@@ -165,12 +172,14 @@ export class GameLoop {
     for (const [playerId, player] of room.players) {
       const phys = room.physics.getPlayerState(playerId);
       if (phys) {
+        // Sanitize corrupted physics values before broadcasting
+        const x = Number.isFinite(phys.x) ? phys.x : 0;
+        const y = Number.isFinite(phys.y) ? phys.y : 0;
+        const vx = Number.isFinite(phys.vx) ? phys.vx : 0;
+        const vy = Number.isFinite(phys.vy) ? phys.vy : 0;
         playerStates.push({
           id: playerId,
-          x: phys.x,
-          y: phys.y,
-          vx: phys.vx,
-          vy: phys.vy,
+          x, y, vx, vy,
           kb: phys.kb,
           hp: player.hp,
           maxHp: player.maxHp,
@@ -187,12 +196,13 @@ export class GameLoop {
       for (const [dummyId, dummy] of room.dummies) {
         const phys = room.physics.getPlayerState(dummyId);
         if (phys) {
+          const x = Number.isFinite(phys.x) ? phys.x : 0;
+          const y = Number.isFinite(phys.y) ? phys.y : 0;
+          const vx = Number.isFinite(phys.vx) ? phys.vx : 0;
+          const vy = Number.isFinite(phys.vy) ? phys.vy : 0;
           playerStates.push({
             id: dummyId,
-            x: phys.x,
-            y: phys.y,
-            vx: phys.vx,
-            vy: phys.vy,
+            x, y, vx, vy,
             kb: phys.kb,
             hp: dummy.hp,
             maxHp: dummy.maxHp,

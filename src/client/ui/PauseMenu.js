@@ -6,8 +6,8 @@
  * Text: Press Start 2P, white, black stroke.
  */
 
-import { COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN, textStyle } from './UIConfig.js';
-import { createButton, createPanel, createDimmer, createText, animateIn } from './UIHelpers.js';
+import { COLOR, FONT, DEPTH, ALPHA, SCREEN, textStyle } from './UIConfig.js';
+import { createButton, createPanel, createDimmer, createText, animateIn, cleanupAndTransition } from './UIHelpers.js';
 import { getMusicVolume, getSfxVolume } from '../config.js';
 
 // ─── Constants ───────────────────────────────────────────
@@ -236,23 +236,6 @@ export class PauseMenu {
   //  NAVIGATION
   // ═══════════════════════════════════════════════════════
   returnToMenu() {
-    const scene = this.scene;
-    if (scene.network) scene.network.disconnect();
-    window.__networkConnected = false;
-    scene.sound.stopAll();
-
-    // Reset camera effects before fade (shake can prevent fadeOut completion)
-    scene.cameras.main.resetFX();
-    scene.cameras.main.fadeOut(400, 0, 0, 0);
-
-    let transitioned = false;
-    const doTransition = () => {
-      if (transitioned) return;
-      transitioned = true;
-      scene.scene.start('MenuScene');
-    };
-    scene.cameras.main.once('camerafadeoutcomplete', doTransition);
-    // Safety: force transition if fade event never fires
-    setTimeout(doTransition, 600);
+    cleanupAndTransition(this.scene, 'MenuScene');
   }
 }
