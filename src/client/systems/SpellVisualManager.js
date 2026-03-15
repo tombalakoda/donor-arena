@@ -479,6 +479,29 @@ export class SpellVisualManager {
           if (scene.sound && scene.cache.audio.exists('sfx-shield')) {
             scene.sound.play('sfx-shield', { volume: 0.4 * getSfxVolume() });
           }
+        } else if (buffType === 'sema') {
+          // Sema: spinning circle aura
+          let semaGlow;
+          if (scene.anims.exists('fx-circle-play')) {
+            semaGlow = scene.add.sprite(spell.x, spell.y, 'fx-circle');
+            semaGlow.setDepth(4);
+            semaGlow.setScale((PLAYER.RADIUS + 10) / 12);
+            semaGlow.setAlpha(0.3);
+            semaGlow.setTint(0x44cc88);
+            semaGlow.play({ key: 'fx-circle-play', repeat: -1 });
+          } else {
+            semaGlow = scene.add.circle(spell.x, spell.y, PLAYER.RADIUS + 10, 0x44cc88, 0.15);
+            semaGlow.setDepth(4);
+            semaGlow.setStrokeStyle(2, 0x66eebb, 0.6);
+          }
+          visual.sprite = semaGlow;
+          visual.isSema = true;
+          // Outer push radius indicator
+          const pushR = spell.pushRadius || 50;
+          const pushCircle = scene.add.circle(spell.x, spell.y, pushR, 0x44cc88, 0.06);
+          pushCircle.setDepth(3);
+          pushCircle.setStrokeStyle(1, 0x44cc88, 0.25);
+          visual.glow = pushCircle;
         } else if (buffType === 'ghost') {
           let ghostGlow;
           if (scene.anims.exists('fx-aura-play')) {
@@ -795,6 +818,107 @@ export class SpellVisualManager {
         break;
       }
 
+      case SPELL_TYPES.LINK: {
+        const fx = def.fx || {};
+        const spriteKey = fx.sprite || 'fx-canonball';
+        const animKey = fx.animKey || 'fx-canonball-play';
+        const scale = fx.scale || 0.7;
+        const color = fx.color || 0xcc44aa;
+        const glowColor = fx.glowColor || color;
+        const chainColor = fx.chainColor || color;
+
+        if (spell.phase === 'linked') {
+          // Already in linked phase — just draw chain
+          const chain = scene.add.graphics();
+          chain.setDepth(14);
+          visual.chain = chain;
+          visual.chainColor = chainColor;
+          visual.isLink = true;
+          visual.linkedPhase = 'linked';
+          visual.sprite = chain; // for cleanup
+          visual.followOwner = false;
+        } else {
+          // Flight phase — purple projectile
+          const glow = scene.add.sprite(spell.x, spell.y, 'fx-aura');
+          glow.setDepth(14);
+          glow.setScale(0.9);
+          glow.setAlpha(0.25);
+          glow.setTint(glowColor);
+          if (scene.anims.exists('fx-aura-play')) {
+            glow.play({ key: 'fx-aura-play', repeat: -1 });
+          }
+
+          const sprite = scene.add.sprite(spell.x, spell.y, spriteKey);
+          sprite.setScale(scale);
+          sprite.setDepth(15);
+          if (animKey && scene.anims.exists(animKey)) {
+            sprite.play({ key: animKey, repeat: -1 });
+          }
+          sprite.setRotation(Math.atan2(spell.vy || 0, spell.vx || 0));
+
+          const chain = scene.add.graphics();
+          chain.setDepth(14);
+
+          visual.sprite = sprite;
+          visual.glow = glow;
+          visual.chain = chain;
+          visual.chainColor = chainColor;
+          visual.glowColor = glowColor;
+          visual.isLink = true;
+          visual.linkedPhase = 'flight';
+          visual.vx = spell.vx || 0;
+          visual.vy = spell.vy || 0;
+          visual.serverX = spell.x;
+          visual.serverY = spell.y;
+
+          this._spawnBurst(spell.x, spell.y, glowColor);
+        }
+        break;
+      }
+
+      case SPELL_TYPES.TETHER: {
+        const fx = def.fx || {};
+        const spriteKey = fx.sprite || 'fx-kunai';
+        const scale = fx.scale || 1.2;
+        const chainColor = fx.chainColor || 0x997755;
+
+        if (spell.phase === 'tethered') {
+          // Already tethered — just draw chain
+          const chain = scene.add.graphics();
+          chain.setDepth(14);
+          // Small anchor marker on ground
+          const anchor = scene.add.circle(spell.anchorX || 0, spell.anchorY || 0, 4, chainColor, 0.5);
+          anchor.setDepth(3);
+          anchor.setStrokeStyle(1, chainColor, 0.7);
+          visual.chain = chain;
+          visual.anchor = anchor;
+          visual.chainColor = chainColor;
+          visual.isTether = true;
+          visual.tetherPhase = 'tethered';
+          visual.sprite = chain; // for cleanup
+        } else {
+          // Flight phase — small projectile
+          const sprite = scene.add.sprite(spell.x, spell.y, spriteKey);
+          sprite.setScale(scale);
+          sprite.setDepth(16);
+          sprite.setRotation(Math.atan2(spell.vy || 0, spell.vx || 0));
+
+          const chain = scene.add.graphics();
+          chain.setDepth(14);
+
+          visual.sprite = sprite;
+          visual.chain = chain;
+          visual.chainColor = chainColor;
+          visual.isTether = true;
+          visual.tetherPhase = 'flight';
+          visual.vx = spell.vx || 0;
+          visual.vy = spell.vy || 0;
+          visual.serverX = spell.x;
+          visual.serverY = spell.y;
+        }
+        break;
+      }
+
       default: {
         const color = (def.fx && def.fx.color) || 0xff00ff;
         const marker = scene.add.circle(spell.x, spell.y, spell.radius || 20, color, 0.6);
@@ -865,6 +989,14 @@ export class SpellVisualManager {
           buffType: spell.buffType || null,
           isMeteor: spell.isMeteor || false,
           impactDelay: spell.impactDelay,
+          // Link/Tether fields
+          phase: spell.phase || null,
+          anchorX: spell.anchorX || 0,
+          anchorY: spell.anchorY || 0,
+          linkedPlayerId: spell.linkedPlayerId || null,
+          linkedX: spell.linkedX || 0,
+          linkedY: spell.linkedY || 0,
+          pushRadius: spell.pushRadius || 0,
         });
       }
     }
@@ -1016,6 +1148,80 @@ export class SpellVisualManager {
         if (visual.glow && !visual.glow.destroyed) {
           visual.glow.x = spell.x;
           visual.glow.y = spell.y;
+        }
+      }
+
+      // LINK (Rabıta): update phase + chain positions
+      if (visual.type === SPELL_TYPES.LINK) {
+        if (spell.phase === 'linked' && visual.linkedPhase !== 'linked') {
+          // Transitioned from flight → linked: hide projectile sprite, keep chain
+          visual.linkedPhase = 'linked';
+          if (visual.sprite && !visual.sprite.destroyed && visual.sprite !== visual.chain) {
+            visual.sprite.setVisible(false);
+          }
+          if (visual.glow && !visual.glow.destroyed) {
+            visual.glow.setVisible(false);
+          }
+        }
+        if (spell.phase === 'flight') {
+          visual.serverX = spell.x;
+          visual.serverY = spell.y;
+          visual.vx = spell.vx || 0;
+          visual.vy = spell.vy || 0;
+          if (visual.sprite && !visual.sprite.destroyed) {
+            visual.sprite.x = spell.x;
+            visual.sprite.y = spell.y;
+          }
+          if (visual.glow && !visual.glow.destroyed) {
+            visual.glow.x = spell.x;
+            visual.glow.y = spell.y;
+          }
+        }
+        // Draw chain between the two linked players
+        if (spell.phase === 'linked' && visual.chain && !visual.chain.destroyed) {
+          visual.chain.clear();
+          visual.chain.lineStyle(3, visual.chainColor || 0xcc44aa, 0.5);
+          visual.chain.beginPath();
+          visual.chain.moveTo(spell.x, spell.y);
+          visual.chain.lineTo(spell.linkedX || 0, spell.linkedY || 0);
+          visual.chain.strokePath();
+        }
+      }
+
+      // TETHER (Kement): update chain from owner to anchor
+      if (visual.type === SPELL_TYPES.TETHER) {
+        if (spell.phase === 'tethered' && visual.tetherPhase !== 'tethered') {
+          // Transitioned from flight → tethered: hide projectile, create anchor marker
+          visual.tetherPhase = 'tethered';
+          if (visual.sprite && !visual.sprite.destroyed && visual.sprite !== visual.chain) {
+            visual.sprite.setVisible(false);
+          }
+          // Create anchor marker if not already present
+          if (!visual.anchor) {
+            const chainColor = visual.chainColor || 0x997755;
+            visual.anchor = scene.add.circle(spell.anchorX || 0, spell.anchorY || 0, 4, chainColor, 0.5);
+            visual.anchor.setDepth(3);
+            visual.anchor.setStrokeStyle(1, chainColor, 0.7);
+          }
+        }
+        if (spell.phase === 'flight') {
+          visual.serverX = spell.x;
+          visual.serverY = spell.y;
+          visual.vx = spell.vx || 0;
+          visual.vy = spell.vy || 0;
+          if (visual.sprite && !visual.sprite.destroyed) {
+            visual.sprite.x = spell.x;
+            visual.sprite.y = spell.y;
+          }
+        }
+        // Draw rope from owner to anchor
+        if (spell.phase === 'tethered' && visual.chain && !visual.chain.destroyed) {
+          visual.chain.clear();
+          visual.chain.lineStyle(2.5, visual.chainColor || 0x997755, 0.6);
+          visual.chain.beginPath();
+          visual.chain.moveTo(spell.x, spell.y); // spell.x/y = owner position during tethered
+          visual.chain.lineTo(spell.anchorX || 0, spell.anchorY || 0);
+          visual.chain.strokePath();
         }
       }
     }
@@ -1247,6 +1453,7 @@ export class SpellVisualManager {
     if (visual.arrival && !visual.arrival.destroyed) visual.arrival.destroy();
     if (visual.zone && !visual.zone.destroyed) visual.zone.destroy();
     if (visual.shadow && !visual.shadow.destroyed) visual.shadow.destroy();
+    if (visual.anchor && !visual.anchor.destroyed) visual.anchor.destroy();
   }
 
   clearAllVisuals() {

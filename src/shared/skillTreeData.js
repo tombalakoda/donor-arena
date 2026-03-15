@@ -397,6 +397,107 @@ export const SKILL_TREES = {
       { cost: 10, name: 'Yıkım Topu', description: 'Daha hızlı, engelleri yıkar', mods: { speed: 1.5, cooldown: -2500, destroysObstacles: true } },
     ],
   },
+
+  // ═══════════════════════════════════════════════════════════════
+  // W — SACMA & SEMA (new W spells, 2 tiers each)
+  // ═══════════════════════════════════════════════════════════════
+  'sacma': {
+    base: {
+      type: 'projectile',
+      damage: 1,
+      knockbackForce: 0.018,     // very weak per pellet — mid poke, not a kill tool
+      cooldown: 4500,
+      speed: 7,
+      range: 150,                // very short range — close-quarters only
+      radius: 2,                 // tiny pellets
+      lifetime: 900,
+      piercing: false,
+      projectileCount: 7,        // seven tiny pellets
+      coneAngle: 0.70,           // ~40 degree spread
+    },
+    tiers: [
+      { cost: 6, name: 'Sıkı Nişan', description: 'Daha çok parça, daralan hunı', mods: { projectileCount: 2, coneAngle: -0.15 } },
+      { cost: 10, name: 'Kurşun Yağmuru', description: 'Daha kısa bekleme, daha sert itme', mods: { cooldown: -800, knockbackForce: 0.006 } },
+    ],
+  },
+
+  'sema': {
+    base: {
+      type: 'buff',
+      cooldown: 10000,
+      buffDuration: 2500,
+      pushRadius: 50,            // push enemies within 50px
+      pushForce: 0.012,          // gentle per-tick push (NOT knockback)
+      speedPenalty: 0.3,         // 30% slower while spinning
+      deflectsProjectiles: true, // bounces enemy projectiles away
+      isSema: true,
+    },
+    tiers: [
+      { cost: 6, name: 'Dönen Pervane', description: 'Daha uzun, daha geniş itme', mods: { buffDuration: 1000, pushRadius: 15 } },
+      { cost: 10, name: 'Kasırga', description: 'Hız cezası kalkar, son anda patlama', mods: { speedPenalty: -0.3, burstPushForce: 0.06 } },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // E — RABITA & KEMENT (new E spells, 2 tiers each)
+  // ═══════════════════════════════════════════════════════════════
+  'rabita': {
+    base: {
+      type: 'link',
+      damage: 2,
+      knockbackForce: 0,         // no KB on hit — the link IS the weapon
+      cooldown: 12000,
+      speed: 8,
+      range: 300,
+      radius: 7,
+      lifetime: 1500,            // projectile phase
+      linkDuration: 4000,        // shared-KB phase
+      linkedKbMultiplier: 0,     // 0 = equal sharing, T1 adds 0.25 (enemy gets 25% more)
+    },
+    tiers: [
+      { cost: 6, name: 'Ağır Bağ', description: 'Bağlanan daha çok savrulur, daha uzun süre', mods: { linkedKbMultiplier: 0.25, linkDuration: 1000 } },
+      { cost: 10, name: 'Kader Ortağı', description: 'Daha kısa bekleme, çok daha uzun bağ', mods: { cooldown: -2500, linkDuration: 1000 } },
+    ],
+  },
+
+  'kement': {
+    base: {
+      type: 'tether',
+      cooldown: 11000,
+      speed: 10,
+      range: 200,                // cast range
+      radius: 8,
+      lifetime: 1500,            // projectile flight phase
+      tetherLength: 140,         // rope length
+      tetherDuration: 3500,      // how long the rope lasts
+      pullStrength: 0.002,       // soft elastic pull-back force multiplier
+    },
+    tiers: [
+      { cost: 6, name: 'Sağlam Urgan', description: 'Daha uzun süre, kısa bekleme', mods: { tetherDuration: 2000, cooldown: -2000 } },
+      { cost: 10, name: 'Kısa İp', description: 'Daha kısa ip, daha sıkı çekim', mods: { tetherLength: -40, pullStrength: 0.003 } },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // R — CEKIM (new R spell, 2 tiers)
+  // ═══════════════════════════════════════════════════════════════
+  'cekim': {
+    base: {
+      type: 'zone',
+      cooldown: 12000,
+      range: 250,
+      zoneRadius: 55,
+      zoneDuration: 3500,
+      zoneDamage: 0,             // no damage — purely positional
+      pullForce: 0.010,          // per-tick pull toward center
+      slowAmount: 0,
+      isGravityWell: true,
+    },
+    tiers: [
+      { cost: 6, name: 'Derin Kuyu', description: 'Daha güçlü çekim, daha geniş alan', mods: { pullForce: 0.004, zoneRadius: 15 } },
+      { cost: 10, name: 'Kara Delik', description: 'Bitince dışa patlama', mods: { burstPushForce: 0.08, burstPushRadius: 70 } },
+    ],
+  },
 };
 
 /**

@@ -1,5 +1,8 @@
+import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER, PHYSICS } from '../../../shared/constants.js';
+
+const { Body } = Matter;
 
 export const zoneHandler = {
   spawn(ctx, playerId, spellId, stats, targetX, targetY, originX, originY) {
@@ -35,6 +38,11 @@ export const zoneHandler = {
       impactTriggered: false,
       burnZoneDuration: stats.burnZoneDuration || 0,
       burnSlowAmount: stats.burnSlowAmount || 0,
+      // Gravity well (Çekim)
+      pullForce: stats.pullForce || 0,
+      isGravityWell: stats.isGravityWell || false,
+      burstPushForce: stats.burstPushForce || 0,
+      burstPushRadius: stats.burstPushRadius || 0,
     };
 
     ctx.activeSpells.push(spell);
@@ -130,6 +138,45 @@ export const zoneHandler = {
             spellId: spell.type,
           });
         }
+
+        // Gravity well: pull toward center (soft force, NOT knockback)
+        if (spell.pullForce > 0) {
+          const pullNx = dist > 0 ? -dx / dist : 0;
+          const pullNy = dist > 0 ? -dy / dist : 0;
+          Body.applyForce(body, body.position, {
+            x: pullNx * spell.pullForce,
+            y: pullNy * spell.pullForce,
+          });
+        }
+      }
+    }
+  },
+
+  /**
+   * Called when a gravity well zone expires — burst push outward (T2: Kara Delik).
+   */
+  onExpire(ctx, spell) {
+    if (!spell.burstPushForce || spell.burstPushForce <= 0) return;
+    const burstRadius = spell.burstPushRadius || spell.radius;
+    for (const [playerId, body] of ctx.physics.playerBodies) {
+      if (playerId === spell.ownerId) continue;
+      if (ctx.isEliminated(playerId)) continue;
+      const targetEffects = ctx.statusEffects.get(playerId);
+      if (targetEffects && targetEffects.intangible) continue;
+      const dx = body.position.x - spell.x;
+      const dy = body.position.y - spell.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < burstRadius + PLAYER.RADIUS) {
+        const nx = dist > 0 ? dx / dist : 0;
+        const ny = dist > 0 ? dy / dist : 1;
+        const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
+        const force = spell.burstPushForce * (1 - dist / (burstRadius + PLAYER.RADIUS));
+        ctx.physics.applyKnockback(playerId,
+          nx * Math.max(force, spell.burstPushForce * 0.3) * kbMult,
+          ny * Math.max(force, spell.burstPushForce * 0.3) * kbMult,
+          ctx.getDamageTaken(playerId),
+          spell.ownerId,
+        );
       }
     }
   },

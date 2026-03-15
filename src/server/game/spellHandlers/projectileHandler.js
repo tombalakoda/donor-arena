@@ -10,8 +10,9 @@ export const projectileHandler = {
     const ny = dy / dist;
 
     const rawCount = stats.projectileCount || 1;
-    const projectileCount = Math.min(5, Math.max(1, Math.floor(rawCount)));
-    const spreadAngle = projectileCount > 1 ? 0.15 : 0;
+    const projectileCount = Math.min(10, Math.max(1, Math.floor(rawCount)));
+    const coneAngle = stats.coneAngle || (projectileCount > 1 ? 0.52 : 0);
+    const spreadAngle = projectileCount > 1 ? coneAngle / Math.max(1, projectileCount - 1) : 0;
     const clampedSpeed = ctx.clampSpeed(stats.speed);
 
     const spells = [];

@@ -202,6 +202,11 @@ export class ServerPhysics {
         forceMagnitude *= (1 + statusEffects.speedBoost.amount);
       }
 
+      // Sema: speed penalty while whirling
+      if (statusEffects.sema) {
+        forceMagnitude *= (1 - statusEffects.sema.speedPenalty);
+      }
+
       Body.applyForce(body, body.position, {
         x: nx * forceMagnitude,
         y: ny * forceMagnitude,
@@ -218,6 +223,9 @@ export class ServerPhysics {
     }
     if (statusEffects.speedBoost) {
       effectiveMaxSpeed *= (1 + statusEffects.speedBoost.amount);
+    }
+    if (statusEffects.sema) {
+      effectiveMaxSpeed *= (1 - statusEffects.sema.speedPenalty);
     }
 
     const vel = body.velocity;

@@ -289,6 +289,38 @@ export class ServerSpell {
         }
         delete effects.intangible;
       }
+      // Sema: check if expired, apply burst push on end
+      if (effects.sema && now >= effects.sema.until) {
+        if (effects.sema.burstPushForce > 0) {
+          const ownerId = effects.sema.ownerId;
+          const ownerBody = this.physics.playerBodies.get(ownerId);
+          if (ownerBody) {
+            for (const [id, body] of this.physics.playerBodies) {
+              if (id === ownerId) continue;
+              if (this.isEliminated(id)) continue;
+              const dx = body.position.x - ownerBody.position.x;
+              const dy = body.position.y - ownerBody.position.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist < 65) { // burst radius
+                const nx = dist > 0 ? dx / dist : 0;
+                const ny = dist > 0 ? dy / dist : 1;
+                const kbMult = this._getKnockbackMultiplier(ownerId);
+                this.physics.applyKnockback(id,
+                  nx * effects.sema.burstPushForce * kbMult,
+                  ny * effects.sema.burstPushForce * kbMult,
+                  this.getDamageTaken(id),
+                  ownerId,
+                );
+              }
+            }
+          }
+        }
+        delete effects.sema;
+      }
+      // Linked (Rabıta): check if expired
+      if (effects.linked && now >= effects.linked.until) {
+        delete effects.linked;
+      }
       // Shield: check if expired
       if (effects.shield && (now >= effects.shield.until || effects.shield.hitsRemaining <= 0)) {
         // Reflect on break (Shield T2)
@@ -381,6 +413,11 @@ export class ServerSpell {
       spell.elapsed += deltaMs;
 
       if (spell.elapsed >= spell.lifetime) {
+        // Zone on-expire effects (e.g., gravity well burst push)
+        const expHandler = handlers[spell.spellType];
+        if (expHandler && expHandler.onExpire) {
+          expHandler.onExpire(ctx, spell);
+        }
         this._cleanupSpell(spell);
         this.removeSpell(i);
         continue;
@@ -698,6 +735,16 @@ export class ServerSpell {
       impactDelay: s.impactDelay || 0,
       impactTriggered: s.impactTriggered || false,
       buffType: s.buffType || null,
+      // Link (Rabıta)
+      linkedPlayerId: s.linkedPlayerId || null,
+      linkedX: s.linkedX || 0,
+      linkedY: s.linkedY || 0,
+      // Gravity well (Çekim)
+      isGravityWell: s.isGravityWell || false,
+      pullForce: s.pullForce || 0,
+      // Tether (Kement)
+      tetherLength: s.tetherLength || 0,
+      pushRadius: s.pushRadius || 0,
       wallRadius: s.wallRadius || 0,
       wallHp: s.obstacle ? s.obstacle.hp : 0,
       maxWallHp: s.obstacle ? s.obstacle.maxHp : 0,

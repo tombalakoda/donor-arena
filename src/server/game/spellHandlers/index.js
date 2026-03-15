@@ -12,6 +12,8 @@ import { homingHandler } from './homingHandler.js';
 import { boomerangHandler } from './boomerangHandler.js';
 import { wallHandler } from './wallHandler.js';
 import { barrelHandler } from './barrelHandler.js';
+import { linkHandler } from './linkHandler.js';
+import { tetherHandler } from './tetherHandler.js';
 
 export const handlers = {
   [SPELL_TYPES.PROJECTILE]: projectileHandler,
@@ -27,4 +29,6 @@ export const handlers = {
   [SPELL_TYPES.BOOMERANG]: boomerangHandler,
   [SPELL_TYPES.WALL]: wallHandler,
   [SPELL_TYPES.BARREL]: barrelHandler,
+  [SPELL_TYPES.LINK]: linkHandler,
+  [SPELL_TYPES.TETHER]: tetherHandler,
 };

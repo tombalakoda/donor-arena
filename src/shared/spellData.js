@@ -16,14 +16,16 @@ export const SPELL_TYPES = {
   HOMING: 'homing',
   BOOMERANG: 'boomerang',
   BARREL: 'barrel',
+  TETHER: 'tether',
+  LINK: 'link',
 };
 
 // Which spells are available in each slot
 export const SLOT_SPELLS = {
   Q: ['fireball-focus', 'fireball-speed', 'fireball-power'],
-  W: ['blink', 'dash', 'flash', 'ghost', 'swap', 'timeshift', 'grappling'],
-  E: ['frostbolt', 'blizzard', 'icewall', 'bouncer', 'shield'],
-  R: ['hook', 'lightning', 'homing', 'meteor', 'rocketswarm', 'boomerang', 'bade'],
+  W: ['blink', 'dash', 'flash', 'ghost', 'swap', 'timeshift', 'grappling', 'sacma', 'sema'],
+  E: ['frostbolt', 'blizzard', 'icewall', 'bouncer', 'shield', 'rabita', 'kement'],
+  R: ['hook', 'lightning', 'homing', 'meteor', 'rocketswarm', 'boomerang', 'bade', 'cekim'],
 };
 
 // Reverse map: spell ID → slot
@@ -193,8 +195,41 @@ export const SPELLS = {
     icon: 'icon-devir',
   },
 
+  'sacma': {
+    id: 'sacma',
+    name: 'Saçma',
+    description: 'Yakın menzil yedi parça söz yağdır.',
+    type: SPELL_TYPES.PROJECTILE,
+    slot: 'W',
+    fx: {
+      sprite: 'fx-rock',
+      animKey: 'fx-rock-play',
+      scale: 0.25,
+      sound: 'sfx-fireball',
+      color: 0xccaa44,
+      glowColor: 0xddcc66,
+    },
+    icon: 'icon-sacma',
+  },
+  'sema': {
+    id: 'sema',
+    name: 'Sema',
+    description: 'Dön, etrafındakileri it, gelen sözleri savur.',
+    type: SPELL_TYPES.BUFF,
+    slot: 'W',
+    fx: {
+      sprite: 'fx-circle',
+      animKey: 'fx-circle-play',
+      scale: 1.2,
+      sound: 'sfx-blink',
+      color: 0x44cc88,
+      glowColor: 0x66eebb,
+    },
+    icon: 'icon-sema',
+  },
+
   // ═══════════════════════════════════════════════════════════════
-  // E — DİL (5 spells)
+  // E — DİL (7 spells)
   // ═══════════════════════════════════════════════════════════════
   'frostbolt': {
     id: 'frostbolt',
@@ -277,8 +312,41 @@ export const SPELLS = {
     icon: 'spell-DefenseUpgrade',
   },
 
+  'rabita': {
+    id: 'rabita',
+    name: 'Rabıta',
+    description: 'İsabet ederse bağlan; biri itilince diğeri de uçar.',
+    type: SPELL_TYPES.LINK,
+    slot: 'E',
+    fx: {
+      sprite: 'fx-canonball',
+      animKey: 'fx-canonball-play',
+      scale: 0.7,
+      sound: 'sfx-fireball',
+      color: 0xcc44aa,
+      glowColor: 0xee66cc,
+      chainColor: 0xcc44aa,
+    },
+    icon: 'icon-rabita',
+  },
+  'kement': {
+    id: 'kement',
+    name: 'Kement',
+    description: 'İp at, tutun, savrularak sallan.',
+    type: SPELL_TYPES.TETHER,
+    slot: 'E',
+    fx: {
+      sprite: 'fx-kunai',
+      scale: 1.2,
+      sound: 'sfx-hook',
+      color: 0x886644,
+      chainColor: 0x997755,
+    },
+    icon: 'icon-kement',
+  },
+
   // ═══════════════════════════════════════════════════════════════
-  // R — BEL (7 spells)
+  // R — BEL (8 spells)
   // ═══════════════════════════════════════════════════════════════
   'hook': {
     id: 'hook',
@@ -405,6 +473,22 @@ export const SPELLS = {
       glowColor: 0xcc8844,
     },
     icon: 'icon-bade',
+  },
+  'cekim': {
+    id: 'cekim',
+    name: 'Çekim',
+    description: 'Girdap kur, herkesi merkeze çek.',
+    type: SPELL_TYPES.ZONE,
+    slot: 'R',
+    fx: {
+      sprite: 'fx-circle',
+      animKey: 'fx-circle-play',
+      scale: 1.5,
+      sound: 'sfx-meteor',
+      color: 0x8822cc,
+      glowColor: 0xaa44ee,
+    },
+    icon: 'icon-cekim',
   },
 };
 

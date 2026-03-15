@@ -1,4 +1,8 @@
+import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
+import { PLAYER } from '../../../shared/constants.js';
+
+const { Body } = Matter;
 
 export const buffHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY) {
@@ -38,6 +42,19 @@ export const buffHandler = {
       };
     }
 
+    // Sema: whirling push aura + projectile deflection
+    if (stats.isSema) {
+      effects.sema = {
+        until: now + duration,
+        pushRadius: stats.pushRadius || 50,
+        pushForce: stats.pushForce || 0.012,
+        speedPenalty: stats.speedPenalty || 0,
+        deflectsProjectiles: stats.deflectsProjectiles || false,
+        burstPushForce: stats.burstPushForce || 0,
+        ownerId: playerId,
+      };
+    }
+
     // Flash trail (T2: Blazing Trail)
     const leaveTrail = stats.leaveTrail || false;
 
@@ -51,7 +68,9 @@ export const buffHandler = {
       lifetime: duration + 100,
       elapsed: 0,
       active: true,
-      buffType: stats.intangible ? 'ghost' : stats.shieldHits ? 'shield' : 'flash',
+      buffType: stats.isSema ? 'sema' : stats.intangible ? 'ghost' : stats.shieldHits ? 'shield' : 'flash',
+      pushRadius: stats.pushRadius || 0,
+      pushForce: stats.pushForce || 0,
       leaveTrail,
       trailSlowAmount: stats.trailSlowAmount || 0,
       trailSlowDuration: stats.trailSlowDuration || 0,
@@ -71,6 +90,48 @@ export const buffHandler = {
       spell.x = ownerBody.position.x;
       spell.y = ownerBody.position.y;
     }
+    // Sema: push nearby enemies + deflect projectiles
+    if (spell.buffType === 'sema' && ownerBody) {
+      const pr = spell.pushRadius;
+      const pf = spell.pushForce;
+
+      // Push nearby enemies (gentle force, NOT knockback)
+      for (const [playerId, body] of ctx.physics.playerBodies) {
+        if (playerId === spell.ownerId) continue;
+        if (ctx.isEliminated(playerId)) continue;
+        const targetEffects = ctx.statusEffects.get(playerId);
+        if (targetEffects && targetEffects.intangible) continue;
+        const dx = body.position.x - ownerBody.position.x;
+        const dy = body.position.y - ownerBody.position.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < pr + PLAYER.RADIUS && dist > 0) {
+          const nx = dx / dist;
+          const ny = dy / dist;
+          Body.applyForce(body, body.position, { x: nx * pf, y: ny * pf });
+        }
+      }
+
+      // Deflect enemy projectiles within push radius
+      for (const activeSpell of ctx.activeSpells) {
+        if (activeSpell === spell) continue;
+        if (activeSpell.ownerId === spell.ownerId) continue;
+        // Only deflect moving spell types
+        const st = activeSpell.spellType;
+        if (st !== SPELL_TYPES.PROJECTILE && st !== 'homing' && st !== 'swap' && st !== 'boomerang') continue;
+        // Skip recently deflected
+        if (activeSpell._deflectedAt && now - activeSpell._deflectedAt < 500) continue;
+        const dx = activeSpell.x - ownerBody.position.x;
+        const dy = activeSpell.y - ownerBody.position.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < pr) {
+          activeSpell.vx = -activeSpell.vx;
+          activeSpell.vy = -activeSpell.vy;
+          activeSpell.ownerId = spell.ownerId;
+          activeSpell._deflectedAt = now;
+        }
+      }
+    }
+
     // Flash trail logic (only for trail-enabled buffs)
     if (spell.leaveTrail && spell.trailPositions && ownerBody) {
       spell.trailPositions.push({ x: ownerBody.position.x, y: ownerBody.position.y, time: now });
