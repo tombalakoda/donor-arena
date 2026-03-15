@@ -298,6 +298,11 @@ export class ItemSystem {
     return this.nazar;
   }
 
+  /** Update last attack time for Saat idle-CDR tracking. */
+  updateLastAttackTime(time) {
+    this.lastAttackTime = time;
+  }
+
   /**
    * Spend Nazar on an action.
    * @param {string} action - 'reroll' | 'extra' | 'hint'
@@ -334,8 +339,24 @@ export class ItemSystem {
     }
 
     if (action === 'reroll') {
-      // Client must specify which material to reroll — handled at Room level
-      return { ok: true };
+      // Remove one random material and replace with a different one
+      const owned = Object.entries(this.materials).filter(([, count]) => count > 0);
+      if (owned.length === 0) {
+        this.nazar += cost; // refund
+        return { ok: false, reason: 'no_materials' };
+      }
+      // Pick a random owned material to remove
+      const [removeType] = owned[Math.floor(Math.random() * owned.length)];
+      this.materials[removeType]--;
+      // Pick a different random material to add
+      let newType = this.getRandomMaterialType();
+      let attempts = 0;
+      while (newType === removeType && attempts < 10) {
+        newType = this.getRandomMaterialType();
+        attempts++;
+      }
+      this.addMaterial(newType);
+      return { ok: true, removed: removeType, added: newType };
     }
 
     return { ok: false, reason: 'unknown' };
@@ -433,6 +454,12 @@ export class ItemSystem {
       if (key === 'roundDamageReductionPerRound' || key === 'roundDamageReductionCap') {
         // Store these for Kale computation
         stats[key] = val;
+        continue;
+      }
+      // Override keys replace the base value entirely (e.g., burnDamageOverride → burnDamage)
+      if (key.endsWith('Override')) {
+        const baseKey = key.slice(0, -8); // strip 'Override'
+        stats[baseKey] = val;
         continue;
       }
       if (typeof val === 'boolean') {

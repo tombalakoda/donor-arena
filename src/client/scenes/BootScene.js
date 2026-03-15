@@ -379,7 +379,6 @@ export class BootScene extends Phaser.Scene {
     this.load.image('icon-giybet', 'assets/ui/icon-giybet.png');
     this.load.image('icon-hasret', 'assets/ui/icon-hasret.png');
     this.load.image('icon-kosma', 'assets/ui/icon-kosma.png');
-    this.load.image('icon-nazar', 'assets/ui/icon-nazar.png');
     this.load.image('icon-segirtme', 'assets/ui/icon-segirtme.png');
     this.load.image('icon-sitem', 'assets/ui/icon-sitem.png');
     this.load.image('icon-uzunhava', 'assets/ui/icon-uzunhava.png');

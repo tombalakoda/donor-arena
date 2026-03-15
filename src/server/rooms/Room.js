@@ -53,6 +53,12 @@ export class Room {
       const prog = this.progressions.get(playerId);
       return prog ? prog.items.getItemStats() : null;
     });
+    // Callback for Saat idle-CDR: update lastAttackTime on the ItemSystem instance
+    this.spells.itemStatsUpdateAttackTime = (playerId, time) => {
+      const prog = this.progressions.get(playerId);
+      if (prog) prog.items.updateLastAttackTime(time);
+    };
+
     this.rounds = new RoundManager();
     this.progressions = new Map(); // playerId -> PlayerProgression
     this.tickInterval = null;
@@ -222,6 +228,11 @@ export class Room {
       player.socket.removeAllListeners(MSG.CLIENT_SHOP_UPGRADE_TIER);
       player.socket.removeAllListeners(MSG.CLIENT_SANDBOX_SHOP_TOGGLE);
       player.socket.removeAllListeners(MSG.CLIENT_START_GAME);
+      player.socket.removeAllListeners(MSG.CLIENT_CRAFT_ITEM);
+      player.socket.removeAllListeners(MSG.CLIENT_DISASSEMBLE_ITEM);
+      player.socket.removeAllListeners(MSG.CLIENT_EQUIP_ITEM);
+      player.socket.removeAllListeners(MSG.CLIENT_UNEQUIP_ITEM);
+      player.socket.removeAllListeners(MSG.CLIENT_NAZAR_SPEND);
     }
 
     this.players.delete(playerId);
@@ -378,7 +389,11 @@ export class Room {
         for (const hit of spell.hits) {
           const target = this.players.get(hit.id);
           if (target) {
-            const finalDamage = applyDamage(target, hit.damage, spell.type);
+            const aProg = this.progressions.get(playerId);
+            const tProg = this.progressions.get(hit.id);
+            const attackerItems = aProg ? aProg.items.getItemStats() : null;
+            const targetItems = tProg ? tProg.items.getItemStats() : null;
+            const finalDamage = applyDamage(target, hit.damage, spell.type, attackerItems, targetItems);
             this.trackDamage(playerId, finalDamage);
 
             if (target.hp <= 0 && !target.eliminated) {

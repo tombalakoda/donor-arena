@@ -297,7 +297,7 @@ export const HAZINE = {
   'hz-cehennem': {
     id: 'hz-cehennem', name: 'Cehennem',
     requirement: { type: 'same', tag: 'fire', count: 3 },
-    effect: { burnDamage: 2, burnDuration: 2000 },
+    effect: { burnDamageOverride: 2, burnDurationOverride: 2000 },
     description: 'Yanma hasari 2 HP/s, 2s olur',
   },
   'hz-titan': {
@@ -401,12 +401,24 @@ export function computeActiveHazine(equipped) {
         active.push(hzId);
       }
     } else if (req.type === 'cross') {
-      // Need both tags present across equipped items (in different slots)
+      // Need both tags present across equipped items in DIFFERENT slots
+      // (a single dual-tagged item should not activate a cross-tag Hazine alone)
       const [tagA, tagB] = req.tags;
       const slotsA = tagSlots[tagA];
       const slotsB = tagSlots[tagB];
       if (slotsA && slotsB && slotsA.size > 0 && slotsB.size > 0) {
-        active.push(hzId);
+        // Ensure at least one slot in B is not in A (different items)
+        let hasDifferentSlot = false;
+        for (const s of slotsB) {
+          if (!slotsA.has(s)) { hasDifferentSlot = true; break; }
+        }
+        if (!hasDifferentSlot) {
+          // Check reverse: at least one slot in A not in B
+          for (const s of slotsA) {
+            if (!slotsB.has(s)) { hasDifferentSlot = true; break; }
+          }
+        }
+        if (hasDifferentSlot) active.push(hzId);
       }
     }
   }

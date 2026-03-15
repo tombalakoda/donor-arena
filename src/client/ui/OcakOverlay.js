@@ -220,6 +220,7 @@ export class OcakOverlay {
 
     // Nazar buttons
     const nazarActions = [
+      { label: 'Değiştir', action: 'reroll', cost: ITEM_CONSTANTS.NAZAR_COST_REROLL },
       { label: '+1 Malzeme', action: 'extra', cost: ITEM_CONSTANTS.NAZAR_COST_EXTRA_MATERIAL },
       { label: 'İpucu', action: 'hint', cost: ITEM_CONSTANTS.NAZAR_COST_RECIPE_HINT },
     ];

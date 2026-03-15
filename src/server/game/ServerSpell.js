@@ -246,16 +246,14 @@ export class ServerSpell {
       // Kasirga Hazine: speed boost after casting any spell
       if (casterItems.postCastSpeedBuff > 0 && casterItems.postCastSpeedDuration > 0) {
         this.applyStatusEffect(playerId, 'speedBoost', {
-          multiplier: 1 + casterItems.postCastSpeedBuff,
+          amount: casterItems.postCastSpeedBuff,
           until: Date.now() + casterItems.postCastSpeedDuration,
         });
       }
 
       // Track last attack time for Saat (idle cooldown reduction)
-      // lastAttackTime is stored on the stats object and points to ItemSystem's field
-      if (casterItems.idleCooldownReduction > 0) {
-        // Update via the stats cache (will be reflected on next getItemStats call)
-        casterItems.lastAttackTime = Date.now();
+      if (casterItems.idleCooldownReduction > 0 && this.itemStatsUpdateAttackTime) {
+        this.itemStatsUpdateAttackTime(playerId, Date.now());
       }
     }
 
