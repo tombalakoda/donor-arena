@@ -1,5 +1,6 @@
 import Matter from 'matter-js';
 import { PLAYER, ARENA } from '../../shared/constants.js';
+import { getPassive } from '../../shared/characterPassives.js';
 
 const { Engine, World, Bodies, Body } = Matter;
 
@@ -13,6 +14,7 @@ export class ServerPhysics {
     this.playerStates = new Map(); // playerId -> pre-allocated { x, y, vx, vy, kb }
     this.knockbackUntil = new Map(); // playerId -> timestamp when knockback grace ends
     this.lastKnockbackFrom = new Map(); // playerId -> { attackerId, timestamp } — for ring-out kill credit
+    this.characterIds = new Map(); // playerId -> characterId (for passive lookups)
   }
 
   addPlayer(playerId, x, y) {
@@ -42,6 +44,7 @@ export class ServerPhysics {
       this.playerStates.delete(playerId);
       this.knockbackUntil.delete(playerId);
       this.lastKnockbackFrom.delete(playerId);
+      this.characterIds.delete(playerId);
     }
   }
 
@@ -69,8 +72,12 @@ export class ServerPhysics {
     const maxHp = PLAYER.MAX_HP || 100;
     const vulnerability = baseMult + (damageTaken / maxHp) * scale;
 
-    const fx = forceX * vulnerability;
-    const fy = forceY * vulnerability;
+    // Character passive: knockback resistance reduces incoming KB
+    const passive = getPassive(this.characterIds.get(playerId));
+    const kbResist = 1 - (passive.knockbackResist || 0);
+
+    const fx = forceX * vulnerability * kbResist;
+    const fy = forceY * vulnerability * kbResist;
 
     // Combo detection: if already in knockback, boost force + extend grace
     const now = Date.now();

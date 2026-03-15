@@ -1,4 +1,5 @@
 import { SPELL_TYPES } from '../../../shared/spellData.js';
+import { isIntangible, tryShieldAbsorb } from './defenseUtils.js';
 
 export const instantHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY) {
@@ -11,8 +12,7 @@ export const instantHandler = {
     for (const [id, body] of ctx.physics.playerBodies) {
       if (id === playerId) continue;
       if (ctx.isEliminated(id)) continue;
-      const targetEffects = ctx.statusEffects.get(id);
-      if (targetEffects && targetEffects.intangible) continue;
+      if (isIntangible(ctx, id)) continue;
       const dx = body.position.x - originX;
       const dy = body.position.y - originY;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -29,15 +29,7 @@ export const instantHandler = {
     // Hit ALL targets in range at full power
     const kbMult = ctx.getKnockbackMultiplier(playerId);
     for (const t of targets) {
-      // Shield absorption — skip this target if shielded
-      const tEffects = ctx.statusEffects.get(t.id);
-      if (tEffects && tEffects.shield && tEffects.shield.hitsRemaining > 0) {
-        tEffects.shield.hitsRemaining--;
-        tEffects.shield.lastHitData = {
-          attackerId: playerId,
-          damage: stats.damage || 3,
-          knockbackForce: stats.knockbackForce || 0.03,
-        };
+      if (tryShieldAbsorb(ctx, t.id, playerId, stats.damage || 3, stats.knockbackForce || 0.03)) {
         continue;
       }
       const nx = t.dist > 0 ? t.dx / t.dist : 0;

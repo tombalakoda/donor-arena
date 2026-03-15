@@ -1,5 +1,6 @@
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
+import { isIntangible, tryShieldAbsorb } from './defenseUtils.js';
 
 export const projectileHandler = {
   spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY) {
@@ -114,29 +115,20 @@ export const projectileHandler = {
       if (playerId === spell.ownerId) continue;
       if (ctx.isEliminated(playerId)) continue;
 
-      // Intangible players: projectiles pass through
-      const targetEffects = ctx.statusEffects.get(playerId);
-      if (targetEffects && targetEffects.intangible) continue;
+      if (isIntangible(ctx, playerId)) continue;
 
       // Shield: absorb hit instead of taking damage
-      if (targetEffects && targetEffects.shield && targetEffects.shield.hitsRemaining > 0) {
-        const dx = body.position.x - spell.x;
-        const dy = body.position.y - spell.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < spell.radius + PLAYER.RADIUS) {
-          targetEffects.shield.hitsRemaining--;
-          targetEffects.shield.lastHitData = {
-            attackerId: spell.ownerId,
-            damage: spell.damage,
-            knockbackForce: spell.knockbackForce,
-          };
-          if (!spell.piercing) {
-            spell.active = false;
-            ctx.removeSpell(i);
-            return 'break';
-          }
-          continue;
+      const dx2 = body.position.x - spell.x;
+      const dy2 = body.position.y - spell.y;
+      const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+      if (dist2 < spell.radius + PLAYER.RADIUS &&
+          tryShieldAbsorb(ctx, playerId, spell.ownerId, spell.damage, spell.knockbackForce)) {
+        if (!spell.piercing) {
+          spell.active = false;
+          ctx.removeSpell(i);
+          return 'break';
         }
+        continue;
       }
 
       const dx = body.position.x - spell.x;

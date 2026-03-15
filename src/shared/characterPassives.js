@@ -47,8 +47,8 @@ export const CHARACTER_PASSIVES = {
   'fighter-white': {
     id: 'rush',
     name: 'Koçaklama',
-    description: 'Hareket sözleri daha uzağa ulaşır',
-    mobilityRangeBonus: 0.20,
+    description: 'İtilince daha az savrulur',
+    knockbackResist: 0.15,
   },
 };
 

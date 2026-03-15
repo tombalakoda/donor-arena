@@ -405,7 +405,7 @@ export const SKILL_TREES = {
     base: {
       type: 'projectile',
       damage: 1,
-      knockbackForce: 0.018,     // very weak per pellet — mid poke, not a kill tool
+      knockbackForce: 0.012,     // very weak per pellet — 7 pellets combo-stack, keep low
       cooldown: 4500,
       speed: 7,
       range: 150,                // very short range — close-quarters only
@@ -453,6 +453,8 @@ export const SKILL_TREES = {
       lifetime: 1500,            // projectile phase
       linkDuration: 4000,        // shared-KB phase
       linkedKbMultiplier: 0,     // 0 = equal sharing, T1 adds 0.25 (enemy gets 25% more)
+      linkForwardForce: 0.008,   // Body.applyForce factor for KB forwarding
+      linkForwardKb: 0.003,      // applyKnockback factor for KB forwarding
     },
     tiers: [
       { cost: 6, name: 'Ağır Bağ', description: 'Bağlanan daha çok savrulur, daha uzun süre', mods: { linkedKbMultiplier: 0.25, linkDuration: 1000 } },

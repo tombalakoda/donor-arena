@@ -3,122 +3,95 @@ Date: 2026-03-15
 Project: Asiklar Meydane (Arena2) — 2D top-down multiplayer arena game
 
 ## Summary
-This is a well-built multiplayer game with clean architecture, solid server-authority design, and thorough input validation. The codebase is in good shape overall. The most important issue is that the game silently hangs or crashes when things go wrong — there is no graceful error recovery during gameplay. A few pieces of old code were left behind after recent system changes (slot unlock, kill mechanics) and should be cleaned up. GameScene.js at ~2,400 lines is getting unwieldy and will slow down future development if not broken up soon.
+The codebase is in good shape. Previous critical issues (crash recovery, NaN validation, cleanup duplication, dead code) have been addressed since the last audit. The project now has 27 spells across 15 handler types, with robust server-authoritative design and thorough input validation. The main concerns are organizational: two large files (GameScene.js at ~1,850 lines, SpellVisualManager.js at ~1,470 lines) are accumulating complexity, and shield/intangible status checks are duplicated across ~8 spell handlers. No security vulnerabilities or broken mechanics were found.
 
 ## Overall Health
-🟡 Needs Attention
+🟢 Good
 
 ---
 
 ## Findings
 
-### 🔴 Critical — Fix Before Going Further
-
-**Game crashes if anything unexpected happens during play**
-What this means: The main gameplay loop on the client (GameScene.js `update()`) has no safety net. If any single piece of game logic encounters bad data — a missing sprite, an undefined value, a physics glitch — the entire game freezes for that player with no way to recover except refreshing the browser.
-Why it matters: In a multiplayer game with 8 players, edge cases happen constantly. A single corrupted state update from the server could freeze a player's game permanently mid-match.
-What to do: Wrap the client-side game update loop in a try-catch that logs the error and attempts to continue, similar to how the server-side GameLoop already does this.
-
----
-
-**Corrupted physics data (NaN positions) silently spreads to all players**
-What this means: If the physics engine produces an invalid position (NaN — "not a number"), the server broadcasts that corrupted data to every connected player without checking it first. The ring damage calculation also silently skips players with corrupted positions, making them effectively invincible.
-Why it matters: One physics glitch could make a player invisible, invincible, or cause visual chaos for everyone in the match. This is hard to debug because it happens silently.
-What to do: Add a validation check in GameLoop's state broadcast — if any player's position or velocity contains NaN or Infinity, reset them to a safe position (arena center) and log a warning.
-
----
-
 ### 🟡 Important — Address Soon
 
-**GameScene.js is 2,400 lines and growing**
-What this means: The main gameplay file handles everything — player movement, spell casting, arena rendering, spectator mode, overlays, input handling, camera, and more. It is the single largest file in the project by far.
-Why it matters: Every time you add or change a feature, you risk accidentally breaking something unrelated because everything is tangled together. Finding specific code takes longer, and bugs become harder to track down.
-What to do: Extract logical sections into separate manager files. Good candidates: SpectatorManager (spectator mode logic), InputManager (keyboard/mouse handling), ArenaRenderer (floor tiles, obstacles, decorations). This can be done incrementally — one section at a time.
+**Shield and intangible status checks are copy-pasted across 8+ spell handlers**
+What this means: Every spell handler that can hit a player (projectile, homing, boomerang, link, etc.) contains nearly identical code to check whether the target has a shield or is intangible (untouchable). If you change how shields work, you'd need to update 8+ files — and missing one creates a bug where that spell ignores shields.
+Why it matters: This is the single biggest maintainability risk in the spell system. Every new damage-dealing spell requires remembering to copy this block.
+What to do: Extract a shared `checkTargetDefenses(ctx, playerId, attackerId, damage, knockbackForce)` function into a utility file and call it from each handler.
 
 ---
 
-**Old slot-unlock code left behind after redesign**
-What this means: When the slot system was changed from "buy with SP" to "auto-unlock at round milestones," several pieces of the old system were left in place: the `canUnlockSlot()` and `unlockSlot()` functions (which now always return false), the server handler that listens for unlock requests (which the client never sends), and three unused network message types (`CLIENT_READY`, `SERVER_SPELL_CONFIRM`, `SERVER_SPELL_DENY`).
-Why it matters: Dead code creates confusion — someone reading the code later might think these features still work or try to build on them. It also adds unnecessary complexity.
-What to do: Remove the dead `canUnlockSlot()`, `unlockSlot()` functions, the `handleShopUnlockSlot()` handler in Room.js, and the three unused message types.
+**SpellVisualManager.js is 1,470 lines with a giant switch statement**
+What this means: All 15 spell types have their visual creation, sync, and cleanup logic in one file with a massive switch statement. Each new spell type adds 70-200 lines.
+Why it matters: Finding and modifying visual code for a specific spell type means scrolling through 1,400+ lines. Adding the 5 new spells just pushed this further.
+What to do: Consider splitting visual handlers into separate files (one per spell type) that register into a map, mirroring the server-side handler pattern.
 
 ---
 
-**Menu-to-game cleanup logic is copy-pasted in three places**
-What this means: The code that handles "leave the game and go back to the menu" — disconnecting from the server, stopping sounds, fading the camera — is written nearly identically in PauseMenu.js, MatchEndOverlay.js (twice: once for "menu" and once for "play again").
-Why it matters: If you change how cleanup works (for example, adding a "save stats" step), you'd need to remember to update it in three separate places. Missing one creates bugs that only appear in specific exit paths.
-What to do: Extract a shared `cleanupAndTransition(scene, nextScene)` function into UIHelpers.js and call it from all three locations.
+**GameScene.js is still the largest file (~1,850 lines)**
+What this means: The main gameplay scene handles player state, input, camera, rendering coordination, spectator mode, overlays, and more.
+Why it matters: Every gameplay change touches this file, increasing the chance of unintended side effects.
+What to do: Extract logical sections incrementally — spectator mode, input handling, or local player state management would each reduce complexity meaningfully.
 
 ---
 
-**Race condition in shop during player disconnect**
-What this means: If a player disconnects from the server at the exact moment they're upgrading a spell in the shop, the server could try to access their progression data after it's been deleted. This would cause the server to crash for that game room.
-Why it matters: A server crash affects all 8 players in that room, not just the one who disconnected. Under normal play this is very unlikely, but under bad network conditions (which is when disconnects happen most) it becomes more plausible.
-What to do: Add a null-check on `progression` in all three shop handler functions in Room.js before calling methods on it.
-
----
-
-**Server startup doesn't validate its configuration**
-What this means: The server reads its port number and allowed website origins from environment variables but doesn't check if they're valid. Setting the port to a non-number (like `PORT=abc`) crashes the server with an unhelpful error. A typo in the allowed origins could accidentally block or allow connections from the wrong websites.
-Why it matters: This makes deployment mistakes harder to diagnose. Instead of a clear "invalid port" message, you'd get a cryptic Node.js error.
-What to do: Add startup validation: check that PORT is a number between 1 and 65535, and that CORS_ORIGINS entries look like valid URLs.
+**CORS origins from environment are not validated**
+What this means: The server reads allowed website origins from an environment variable and passes them directly to the networking library without checking if they're valid URLs.
+Why it matters: A typo in deployment configuration could silently allow connections from unintended sources, or block legitimate ones with an unhelpful error.
+What to do: Add a basic URL format check (3-4 lines) before passing origins to socket.io.
 
 ---
 
 ### 🟢 Good to Know — Low Priority
 
-**Two characters have identical passive abilities**
-What this means: Ninja-Green and Fighter-White both have the exact same passive ability — 20% bonus range on movement spells (blink, dash, etc.), with the same description text.
-Why it matters: This isn't a bug — it may be intentional. But it means players choosing between these two characters get no gameplay difference from their passive, which could feel like a missed opportunity for variety.
-What to do: Consider whether one of them should have a slightly different passive (e.g., different bonus percentage, or a different ability entirely) to make the choice more interesting.
+**Two characters have very similar passive abilities**
+What this means: Ninja-Green ("Shadow Step") and Fighter-White ("Rush") both give a 20% range bonus on movement spells with near-identical effects.
+Why it matters: Players choosing between these two characters get no gameplay difference from their passive. Not a bug, but a missed opportunity for variety.
+What to do: Consider differentiating one passive (e.g., speed boost instead of range, or a different percentage).
 
 ---
 
-**Font name hardcoded in GameScene.js instead of using the design system**
-What this means: Two places in GameScene.js type out the font name directly (`'Press Start 2P'`) instead of using the centralized font constant from the design system (UIConfig.js).
-Why it matters: If the font ever changes, these two spots would be missed and show the wrong font.
-What to do: Replace the hardcoded strings with `FONT.FAMILY_HEADING` from UIConfig.js.
+**No PROJECT.md or README.md exists**
+What this means: There is no written overview of the game's architecture, round lifecycle, spell system design, or how to add new spells. DESIGN_SYSTEM.md covers visual design well, and .claude/memory/MEMORY.md has technical notes, but neither explains the overall system.
+Why it matters: A new developer (or future you) would need 2-3 hours of code reading to understand how the game works. Key balance decisions (why knockback scale is 1.8, why SP base is 3/round) are not documented anywhere.
+What to do: Create a README.md with quick-start instructions and a brief architecture section. Add "Design Note" comments next to key constants explaining the reasoning.
 
 ---
 
-**Unused imports in overlay files**
-What this means: PauseMenu.js and MatchEndOverlay.js import `SPACE` and `NINE` from UIConfig but never use them. This is leftover from copy-paste during development.
-Why it matters: Doesn't affect functionality, but clutters the code and could confuse future readers.
-What to do: Remove the unused imports.
-
----
-
-**No ping timeout detection**
-What this means: The client pings the server every 2 seconds to measure latency, but doesn't detect when the server stops responding. If the server silently dies (no disconnect event), the client would keep playing with stale data indefinitely.
-Why it matters: Players would see their game "freeze" with no explanation. The game wouldn't tell them the connection was lost.
-What to do: Add a watchdog — if no pong response comes back within 10 seconds, treat it as a disconnect and show the connection error screen.
+**Link handler KB forwarding guard is fragile**
+What this means: The Rabita (Bond) spell uses a flag called `linkKbGuard` to prevent infinite loops when forwarding knockback between linked players. It works correctly now, but the mechanism depends on the flag being set and cleared within the same tick.
+Why it matters: If future changes introduce nested or deferred knockback processing, the guard could fail and create a feedback loop.
+What to do: No action needed now, but add a comment documenting the guard mechanism so future changes don't accidentally break it.
 
 ---
 
 ## What's Working Well
 
-- **Server-authoritative design**: All game logic (damage, knockback, spells, scoring) runs on the server. Clients can't cheat by modifying their local game — the server always has the final say.
-- **Input validation is thorough**: Player names are sanitized against injection attacks. Character IDs are whitelisted. Movement coordinates are bounds-checked. Rate limiting prevents spam on joins, inputs, spells, and shop actions.
-- **Spell handler architecture is clean**: Each spell type has its own handler file with a consistent spawn/update pattern. Adding a new spell type is straightforward.
-- **Hidden tab support**: The Web Worker fallback keeps the game running even when the browser tab is in the background — a common issue that many web games ignore.
-- **No hardcoded secrets**: All sensitive configuration uses environment variables. No API keys, passwords, or tokens in the codebase.
+- **All previous critical issues resolved**: Try-catch in GameScene.update(), NaN validation in state broadcast, ping timeout detection, shared cleanup utility, and dead code removal — all addressed since the last audit.
+- **New spells are well-integrated**: All 5 new spells (Cekim, Sacma, Sema, Rabita, Kement) follow existing handler patterns, have proper cleanup on disconnect/elimination, and include edge case protection (null checks, division-by-zero guards).
+- **Server-authoritative design**: All game logic runs on the server. Clients cannot cheat.
+- **Input validation is thorough**: Names sanitized, coordinates bounds-checked, IDs whitelisted, shop actions rate-limited.
+- **Edge case handling is strong**: Division by zero prevented with `|| 1` fallback, array modification during iteration uses reverse indexing + deferred removal, eliminated players skipped consistently across all handlers.
+- **SP economy is balanced**: Conservative design prevents snowball (3 SP/round base + 4 SP per kill), all players can progress, no obvious exploitation paths.
+- **Knockback vulnerability scaling is excellent**: 1.0x at full HP to ~2.78x at critical HP creates satisfying Smash Bros-style finisher mechanics.
+- **Ring shrink pacing is sensible**: Early freedom (2.5 px/s) → mid engagement → late aggression (6 px/s cap).
 
 ---
 
 ## Debt Level
-Building Up
+Building Up (improved from last audit)
 
-The project has a strong foundation with clean server/client separation and a well-designed spell system. However, GameScene.js has grown into a monolith at 2,400 lines, dead code from recent system changes hasn't been cleaned up, and cleanup logic is duplicated across overlays. None of these are urgent, but they'll compound if left unaddressed — each new feature will be slightly harder to add than the last.
+The project has clean server/client separation, a well-designed spell handler system, and consistent patterns. The main debt sources are file size (GameScene.js, SpellVisualManager.js) and duplicated shield/intangible checks across handlers. These are organizational rather than functional — the code works correctly, but future changes will be harder than they need to be.
 
 ## Documentation Status
-The project has a detailed DESIGN_SYSTEM.md covering visual design tokens and UI patterns. The .claude/memory/MEMORY.md file contains extensive technical notes and learnings. However, there is no PROJECT.md, README.md, or SESSION_LOG.md. A new developer (or future you) would need to read the code directly to understand the game's architecture, round lifecycle, or spell system. The in-code comments are adequate but focused on "what" rather than "why."
+DESIGN_SYSTEM.md covers visual design comprehensively. .claude/memory/MEMORY.md contains valuable technical learnings. Inline comments are adequate for "what" but sparse on "why." Missing: README.md (getting started), PROJECT.md (architecture overview), balance reasoning comments in constants.js/skillTreeData.js.
 
 ## Recommended Next Steps
-1. **Add try-catch to GameScene.update()** and NaN validation to GameLoop state broadcast — these prevent silent crashes and data corruption during live play.
-2. **Add null-checks in Room.js shop handlers** — prevents server crash from disconnect race condition (one-line fix in three places).
-3. **Remove dead slot-unlock code** — clean up `canUnlockSlot`, `unlockSlot`, `handleShopUnlockSlot`, and unused message types.
-4. **Extract cleanup logic** into a shared utility function in UIHelpers.js.
-5. **Start breaking up GameScene.js** — extract spectator mode, input handling, or arena rendering into separate files. Do one at a time; each extraction makes the next one easier.
+1. **Extract shield/intangible check logic** into a shared utility — reduces duplication across 8+ handlers, makes future defense mechanics easier to add.
+2. **Split SpellVisualManager.js** into per-type visual handlers mirroring the server pattern — each new spell type would get its own file.
+3. **Start decomposing GameScene.js** — extract spectator mode or input handling as a first step.
+4. **Add CORS origin validation** in server.js — 3-4 lines to prevent misconfiguration issues.
+5. **Create README.md** with quick-start guide and architecture overview — helps future development sessions start faster.
 
 ---
 *Generated by Code Auditor skill. Findings reflect the state of the project at the time of the audit.*

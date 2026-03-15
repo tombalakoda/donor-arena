@@ -1,6 +1,7 @@
 import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
+import { isIntangible } from './defenseUtils.js';
 
 const { Body } = Matter;
 
@@ -99,8 +100,7 @@ export const buffHandler = {
       for (const [playerId, body] of ctx.physics.playerBodies) {
         if (playerId === spell.ownerId) continue;
         if (ctx.isEliminated(playerId)) continue;
-        const targetEffects = ctx.statusEffects.get(playerId);
-        if (targetEffects && targetEffects.intangible) continue;
+        if (isIntangible(ctx, playerId)) continue;
         const dx = body.position.x - ownerBody.position.x;
         const dy = body.position.y - ownerBody.position.y;
         const dist = Math.sqrt(dx * dx + dy * dy);

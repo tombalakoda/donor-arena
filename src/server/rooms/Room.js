@@ -85,6 +85,7 @@ export class Room {
     });
 
     this.physics.addPlayer(playerId, spawn.x, spawn.y);
+    this.physics.characterIds.set(playerId, charId);
     this.spells.initPlayer(playerId);
     this.rounds.initPlayer(playerId);
 

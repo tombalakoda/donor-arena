@@ -2,6 +2,7 @@ import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
 import { getPassive } from '../../../shared/characterPassives.js';
+import { isIntangible, tryShieldAbsorb } from './defenseUtils.js';
 
 const { Body } = Matter;
 
@@ -48,8 +49,7 @@ export const dashHandler = {
     for (const [id, body] of ctx.physics.playerBodies) {
       if (id === playerId) continue;
       if (ctx.isEliminated(id)) continue;
-      const targetEffects = ctx.statusEffects.get(id);
-      if (targetEffects && targetEffects.intangible) continue;
+      if (isIntangible(ctx, id)) continue;
 
       const px = body.position.x - originX;
       const py = body.position.y - originY;
@@ -61,14 +61,7 @@ export const dashHandler = {
       const distToPath = Math.sqrt(ddx * ddx + ddy * ddy);
 
       if (distToPath < dashWidth + PLAYER.RADIUS) {
-        // Shield absorption
-        if (targetEffects && targetEffects.shield && targetEffects.shield.hitsRemaining > 0) {
-          targetEffects.shield.hitsRemaining--;
-          targetEffects.shield.lastHitData = {
-            attackerId: playerId,
-            damage: stats.dashDamage || 3,
-            knockbackForce: stats.dashKnockback || 0.02,
-          };
+        if (tryShieldAbsorb(ctx, id, playerId, stats.dashDamage || 3, stats.dashKnockback || 0.02)) {
           continue;
         }
         const knockback = (stats.dashKnockback || 0.02) * ctx.getKnockbackMultiplier(playerId);

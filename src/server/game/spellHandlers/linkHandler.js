@@ -1,6 +1,7 @@
 import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
+import { isIntangible, tryShieldAbsorb } from './defenseUtils.js';
 
 const { Body } = Matter;
 
@@ -40,6 +41,8 @@ export const linkHandler = {
       phase: 'flight',
       linkDuration: stats.linkDuration || 4000,
       linkedKbMultiplier: stats.linkedKbMultiplier || 0,
+      linkForwardForce: stats.linkForwardForce || 0.008,
+      linkForwardKb: stats.linkForwardKb || 0.003,
       linkedPlayerId: null,
       linkedX: 0,
       linkedY: 0,
@@ -65,30 +68,18 @@ export const linkHandler = {
       for (const [playerId, body] of ctx.physics.playerBodies) {
         if (playerId === spell.ownerId) continue;
         if (ctx.isEliminated(playerId)) continue;
-        const targetEffects = ctx.statusEffects.get(playerId);
-        if (targetEffects && targetEffects.intangible) continue;
-
-        // Shield absorption
-        if (targetEffects && targetEffects.shield && targetEffects.shield.hitsRemaining > 0) {
-          const dx = body.position.x - spell.x;
-          const dy = body.position.y - spell.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < spell.radius + PLAYER.RADIUS) {
-            targetEffects.shield.hitsRemaining--;
-            targetEffects.shield.lastHitData = {
-              attackerId: spell.ownerId,
-              damage: spell.damage,
-              knockbackForce: spell.knockbackForce,
-            };
-            spell.active = false;
-            ctx.removeSpell(i);
-            return 'break';
-          }
-        }
+        if (isIntangible(ctx, playerId)) continue;
 
         const dx = body.position.x - spell.x;
         const dy = body.position.y - spell.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < spell.radius + PLAYER.RADIUS &&
+            tryShieldAbsorb(ctx, playerId, spell.ownerId, spell.damage, spell.knockbackForce)) {
+          spell.active = false;
+          ctx.removeSpell(i);
+          return 'break';
+        }
 
         if (dist < spell.radius + PLAYER.RADIUS) {
           // Hit! Transition to linked phase
@@ -116,6 +107,7 @@ export const linkHandler = {
               kbMultiplier: 0, // owner gets base KB forwarding
             };
           }
+          const targetEffects = ctx.statusEffects.get(playerId);
           if (targetEffects) {
             targetEffects.linked = {
               partnerId: spell.ownerId,
@@ -162,7 +154,12 @@ export const linkHandler = {
       spell.linkedY = targetBody.position.y;
 
       // ── KB forwarding ──
-      // Detect if either player received new knockback this tick
+      // Detect if either player received new knockback this tick.
+      // linkKbGuard prevents infinite recursion: when we forward KB to the partner,
+      // that triggers applyKnockback which updates knockbackUntil — without this
+      // guard, the next check would see the new timestamp and forward it back,
+      // creating an infinite loop. The guard is set before forwarding and cleared
+      // after, ensuring only one direction of forwarding happens per tick.
       if (!spell.linkKbGuard) {
         const currentKbOwner = ctx.physics.knockbackUntil.get(spell.ownerId) || 0;
         const currentKbTarget = ctx.physics.knockbackUntil.get(spell.linkedPlayerId) || 0;
@@ -173,13 +170,13 @@ export const linkHandler = {
           const vel = ownerBody.velocity;
           const mult = 0.5 + (spell.linkedKbMultiplier || 0); // target may get extra
           Body.applyForce(targetBody, targetBody.position, {
-            x: vel.x * mult * 0.008,
-            y: vel.y * mult * 0.008,
+            x: vel.x * mult * spell.linkForwardForce,
+            y: vel.y * mult * spell.linkForwardForce,
           });
           // Also trigger knockback grace on target
           ctx.physics.applyKnockback(spell.linkedPlayerId,
-            vel.x * mult * 0.003,
-            vel.y * mult * 0.003,
+            vel.x * mult * spell.linkForwardKb,
+            vel.y * mult * spell.linkForwardKb,
             ctx.getDamageTaken(spell.linkedPlayerId),
             spell.ownerId,
           );
@@ -192,12 +189,12 @@ export const linkHandler = {
           const vel = targetBody.velocity;
           const mult = 0.5; // owner gets base forwarding
           Body.applyForce(ownerBody, ownerBody.position, {
-            x: vel.x * mult * 0.008,
-            y: vel.y * mult * 0.008,
+            x: vel.x * mult * spell.linkForwardForce,
+            y: vel.y * mult * spell.linkForwardForce,
           });
           ctx.physics.applyKnockback(spell.ownerId,
-            vel.x * mult * 0.003,
-            vel.y * mult * 0.003,
+            vel.x * mult * spell.linkForwardKb,
+            vel.y * mult * spell.linkForwardKb,
             ctx.getDamageTaken(spell.ownerId),
             spell.linkedPlayerId,
           );

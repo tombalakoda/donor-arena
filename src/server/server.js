@@ -19,9 +19,16 @@ app.use(express.static(path.join(__dirname, '../../dist')));
 const httpServer = createServer(app);
 
 // CORS: use explicit origins from env var, or allow all origins (safe for same-origin deploys like Railway)
-const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',')
-  : true; // true = allow all origins (client is served from same server)
+let ALLOWED_ORIGINS = true; // true = allow all origins (client is served from same server)
+if (process.env.CORS_ORIGINS) {
+  const origins = process.env.CORS_ORIGINS.split(',').map(o => o.trim()).filter(Boolean);
+  const invalid = origins.filter(o => !/^https?:\/\/.+/.test(o));
+  if (invalid.length > 0) {
+    console.error(`[CORS] Invalid origins (must start with http:// or https://): ${invalid.join(', ')}`);
+    process.exit(1);
+  }
+  ALLOWED_ORIGINS = origins;
+}
 
 const io = new Server(httpServer, {
   cors: {

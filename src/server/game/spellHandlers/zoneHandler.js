@@ -1,6 +1,7 @@
 import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER, PHYSICS } from '../../../shared/constants.js';
+import { isIntangible, tryShieldAbsorb } from './defenseUtils.js';
 
 const { Body } = Matter;
 
@@ -60,20 +61,12 @@ export const zoneHandler = {
         for (const [playerId, body] of ctx.physics.playerBodies) {
           if (playerId === spell.ownerId) continue;
           if (ctx.isEliminated(playerId)) continue;
-          const targetEffects = ctx.statusEffects.get(playerId);
-          if (targetEffects && targetEffects.intangible) continue;
+          if (isIntangible(ctx, playerId)) continue;
           const dx = body.position.x - spell.x;
           const dy = body.position.y - spell.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < spell.radius + PLAYER.RADIUS) {
-            // Shield absorption
-            if (targetEffects && targetEffects.shield && targetEffects.shield.hitsRemaining > 0) {
-              targetEffects.shield.hitsRemaining--;
-              targetEffects.shield.lastHitData = {
-                attackerId: spell.ownerId,
-                damage: spell.damage,
-                knockbackForce: spell.knockbackForce,
-              };
+            if (tryShieldAbsorb(ctx, playerId, spell.ownerId, spell.damage, spell.knockbackForce)) {
               continue;
             }
             const nx = dist > 0 ? dx / dist : 0;
@@ -102,21 +95,14 @@ export const zoneHandler = {
     for (const [playerId, body] of ctx.physics.playerBodies) {
       if (playerId === spell.ownerId) continue;
       if (ctx.isEliminated(playerId)) continue;
-      const targetEffects = ctx.statusEffects.get(playerId);
-      if (targetEffects && targetEffects.intangible) continue;
+      if (isIntangible(ctx, playerId)) continue;
       const dx = body.position.x - spell.x;
       const dy = body.position.y - spell.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < spell.radius) {
-        // Shield absorption — absorb one zone tick
-        if (targetEffects && targetEffects.shield && targetEffects.shield.hitsRemaining > 0) {
-          targetEffects.shield.hitsRemaining--;
-          targetEffects.shield.lastHitData = {
-            attackerId: spell.ownerId,
-            damage: spell.isBurning ? 1 : spell.damage,
-            knockbackForce: spell.knockbackForce || 0,
-          };
+        if (tryShieldAbsorb(ctx, playerId, spell.ownerId,
+            spell.isBurning ? 1 : spell.damage, spell.knockbackForce || 0)) {
           continue;
         }
         // Apply slow
@@ -161,8 +147,7 @@ export const zoneHandler = {
     for (const [playerId, body] of ctx.physics.playerBodies) {
       if (playerId === spell.ownerId) continue;
       if (ctx.isEliminated(playerId)) continue;
-      const targetEffects = ctx.statusEffects.get(playerId);
-      if (targetEffects && targetEffects.intangible) continue;
+      if (isIntangible(ctx, playerId)) continue;
       const dx = body.position.x - spell.x;
       const dy = body.position.y - spell.y;
       const dist = Math.sqrt(dx * dx + dy * dy);

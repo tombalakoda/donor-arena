@@ -1,5 +1,6 @@
 import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
+import { isIntangible, tryShieldAbsorb } from './defenseUtils.js';
 
 const { Body } = Matter;
 
@@ -39,20 +40,12 @@ export const recallHandler = {
       for (const [id, pBody] of ctx.physics.playerBodies) {
         if (id === playerId) continue;
         if (ctx.isEliminated(id)) continue;
-        const targetEffects = ctx.statusEffects.get(id);
-        if (targetEffects && targetEffects.intangible) continue;
+        if (isIntangible(ctx, id)) continue;
         const dx = pBody.position.x - originX;
         const dy = pBody.position.y - originY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < departPushRadius) {
-          // Shield absorption
-          if (targetEffects && targetEffects.shield && targetEffects.shield.hitsRemaining > 0) {
-            targetEffects.shield.hitsRemaining--;
-            targetEffects.shield.lastHitData = {
-              attackerId: playerId,
-              damage: 0,
-              knockbackForce: departPushForce,
-            };
+          if (tryShieldAbsorb(ctx, id, playerId, 0, departPushForce)) {
             continue;
           }
           const nx = dist > 0 ? dx / dist : 0;

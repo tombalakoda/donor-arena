@@ -1,5 +1,6 @@
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
+import { isIntangible, tryShieldAbsorb } from './defenseUtils.js';
 
 // Diminishing returns: each subsequent swarm hit on the same target
 // applies this multiplier to KB (0.7 = 30% less per hit)
@@ -73,8 +74,7 @@ export const homingHandler = {
       for (const [playerId, body] of ctx.physics.playerBodies) {
         if (playerId === spell.ownerId) continue;
         if (ctx.isEliminated(playerId)) continue;
-        const targetEffects = ctx.statusEffects.get(playerId);
-        if (targetEffects && targetEffects.intangible) continue;
+        if (isIntangible(ctx, playerId)) continue;
         const dx = body.position.x - spell.x;
         const dy = body.position.y - spell.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -115,8 +115,7 @@ export const homingHandler = {
       for (const [playerId, body] of ctx.physics.playerBodies) {
         if (playerId === spell.ownerId) continue;
         if (ctx.isEliminated(playerId)) continue;
-        const targetEffects = ctx.statusEffects.get(playerId);
-        if (targetEffects && targetEffects.intangible) continue;
+        if (isIntangible(ctx, playerId)) continue;
         const dx = body.position.x - spell.x;
         const dy = body.position.y - spell.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -169,31 +168,20 @@ export const homingHandler = {
     for (const [playerId, body] of ctx.physics.playerBodies) {
       if (playerId === spell.ownerId) continue;
       if (ctx.isEliminated(playerId)) continue;
-      const targetEffects = ctx.statusEffects.get(playerId);
-      if (targetEffects && targetEffects.intangible) continue;
-
-      // Shield absorption
-      if (targetEffects && targetEffects.shield && targetEffects.shield.hitsRemaining > 0) {
-        const dx = body.position.x - spell.x;
-        const dy = body.position.y - spell.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < spell.radius + PLAYER.RADIUS) {
-          targetEffects.shield.hitsRemaining--;
-          targetEffects.shield.lastHitData = {
-            attackerId: spell.ownerId,
-            damage: spell.damage,
-            knockbackForce: spell.knockbackForce,
-          };
-          if (spell.swarmState) delete spell.swarmState.targetAssignments[spell.id];
-          spell.active = false;
-          ctx.removeSpell(i);
-          return 'break';
-        }
-      }
+      if (isIntangible(ctx, playerId)) continue;
 
       const dx = body.position.x - spell.x;
       const dy = body.position.y - spell.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Shield absorption
+      if (dist < spell.radius + PLAYER.RADIUS &&
+          tryShieldAbsorb(ctx, playerId, spell.ownerId, spell.damage, spell.knockbackForce)) {
+        if (spell.swarmState) delete spell.swarmState.targetAssignments[spell.id];
+        spell.active = false;
+        ctx.removeSpell(i);
+        return 'break';
+      }
 
       if (dist < spell.radius + PLAYER.RADIUS) {
         const nx = dist > 0 ? dx / dist : 0;

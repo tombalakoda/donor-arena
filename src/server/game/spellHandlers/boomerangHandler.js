@@ -1,5 +1,6 @@
 import { SPELL_TYPES } from '../../../shared/spellData.js';
 import { PLAYER } from '../../../shared/constants.js';
+import { isIntangible } from './defenseUtils.js';
 
 // Speed curve multipliers (applied to base spell.speed)
 const OUTBOUND_MAX_SPEED_MULT = 1.8;   // throw: fast start
@@ -146,8 +147,7 @@ export const boomerangHandler = {
       if (playerId === spell.ownerId) continue;
       if (ctx.isEliminated(playerId)) continue;
       if (spell.hitIds.includes(playerId)) continue; // Already hit this pass
-      const targetEffects = ctx.statusEffects.get(playerId);
-      if (targetEffects && targetEffects.intangible) continue;
+      if (isIntangible(ctx, playerId)) continue;
 
       // Skip return hits if hitsOnReturn not enabled (but always hit during overshoot)
       if (spell.returning && !spell.passedCaster && !spell.hitsOnReturn) continue;
