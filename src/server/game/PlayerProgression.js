@@ -1,6 +1,7 @@
 import { SP } from '../../shared/constants.js';
 import { SKILL_TREES, computeSpellStats, getUpgradeCost, getMaxTier } from '../../shared/skillTreeData.js';
 import { SLOT_SPELLS, SPELL_TO_SLOT } from '../../shared/spellData.js';
+import { ItemSystem } from './ItemSystem.js';
 
 /**
  * Server-side progression tracker for a single player.
@@ -40,6 +41,9 @@ export class PlayerProgression {
 
     // Damage tracking for SP calculation (reset each round)
     this.roundDamageDealt = 0;
+
+    // Item system (materials, crafting, equipment, Hazine, Nazar)
+    this.items = new ItemSystem(playerId);
   }
 
   // --- SP Management ---
@@ -259,6 +263,7 @@ export class PlayerProgression {
         E: this.spells.E ? { ...this.spells.E } : null,
         R: this.spells.R ? { ...this.spells.R } : null,
       },
+      ...this.items.getState(),
     };
   }
 }

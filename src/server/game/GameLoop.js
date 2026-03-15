@@ -92,6 +92,12 @@ export class GameLoop {
           room.broadcast(MSG.SERVER_OBSTACLE_EVENT, { destroyed });
         }
 
+        // Process burn damage ticks from item effects (Yangin Hazine)
+        this.processBurnTicks();
+
+        // Track Nazar from KB events
+        this.trackNazarFromKB();
+
         // Check ring damage (skip in sandbox)
         if (!room.sandbox) {
           this.checkRingDamage();
@@ -114,11 +120,90 @@ export class GameLoop {
     const room = this.room;
 
     for (const hit of hits) {
+      // Get item stats for attacker and target
+      const attackerProg = room.progressions.get(hit.attackerId);
+      const attackerItems = attackerProg ? attackerProg.items.getItemStats() : null;
+
       // Check player targets
       const target = room.players.get(hit.targetId);
       if (target && !target.eliminated) {
-        const finalDamage = applyDamage(target, hit.damage, hit.spellId);
+        const targetProg = room.progressions.get(hit.targetId);
+        const targetItems = targetProg ? targetProg.items.getItemStats() : null;
+
+        // Build enriched attacker item stats with runtime callbacks for conditional checks
+        let enrichedAttackerItems = null;
+        if (attackerItems) {
+          enrichedAttackerItems = { ...attackerItems };
+
+          // First-hit check: has attacker dealt a hit this round yet?
+          if (attackerItems.firstHitBonusDamage > 0 && attackerProg) {
+            enrichedAttackerItems._firstHitCheck = () => {
+              if (!attackerProg.items.firstHitDealtThisRound) {
+                attackerProg.items.firstHitDealtThisRound = true;
+                return true;
+              }
+              return false;
+            };
+          }
+
+          // Low HP check for attacker (Berserker Hazine)
+          if (attackerItems.lowHpDamageBonus > 0) {
+            const attacker = room.players.get(hit.attackerId);
+            if (attacker) {
+              enrichedAttackerItems._attackerHpCheck = () => ({
+                hp: attacker.hp,
+                maxHp: attacker.maxHp,
+              });
+            }
+          }
+
+          // Target slowed check (Piyano: bonus damage vs slowed)
+          if (attackerItems.slowBonusDamage > 0) {
+            enrichedAttackerItems._targetIsSlowed = () => {
+              const effects = room.spells.getStatusEffects(hit.targetId);
+              return !!(effects && effects.slow);
+            };
+          }
+        }
+
+        const finalDamage = applyDamage(target, hit.damage, hit.spellId, enrichedAttackerItems, targetItems);
         room.trackDamage(hit.attackerId, finalDamage);
+
+        // --- Post-damage item effects ---
+        if (attackerItems) {
+          const now = Date.now();
+
+          // Burn on hit (Yangin Hazine: damage-dealing spells leave a burn)
+          if (attackerItems.burnOnHit && attackerItems.burnDamage > 0 && attackerItems.burnDuration > 0) {
+            // Apply burn as a status effect on the target
+            const targetEffects = room.spells.getStatusEffects(hit.targetId);
+            if (targetEffects) {
+              const burnEnd = now + attackerItems.burnDuration;
+              // Only extend burn, don't stack
+              if (!targetEffects.burn || burnEnd > targetEffects.burn.until) {
+                targetEffects.burn = {
+                  damage: attackerItems.burnDamage,
+                  until: burnEnd,
+                  attackerId: hit.attackerId,
+                };
+              }
+            }
+          }
+
+          // Slow on hit (Mutlak Sifir: all spells apply a small slow)
+          if (attackerItems.slowOnHit > 0 && attackerItems.slowOnHitDuration > 0) {
+            let slowDuration = attackerItems.slowOnHitDuration;
+            // Permafrost Hazine: slow effects applied last 30% longer
+            if (attackerItems.slowDurationMult && attackerItems.slowDurationMult !== 1.0) {
+              slowDuration *= attackerItems.slowDurationMult;
+            }
+            room.spells.applyStatusEffect(hit.targetId, 'slow', {
+              amount: attackerItems.slowOnHit,
+              until: now + slowDuration,
+            }, hit.spellId);
+          }
+        }
+
         if (target.hp <= 0) {
           target.eliminated = true;
           room.onPlayerEliminated(hit.targetId, hit.attackerId, 'spell');
@@ -136,6 +221,64 @@ export class GameLoop {
           }
         }
       }
+    }
+  }
+
+  /**
+   * Process burn damage ticks from item effects (Yangin/Cehennem Hazine).
+   * Burns deal damage per second, checked each tick.
+   */
+  processBurnTicks() {
+    const room = this.room;
+    const now = Date.now();
+
+    for (const [playerId, player] of room.players) {
+      if (player.eliminated) continue;
+      const effects = room.spells.getStatusEffects(playerId);
+      if (!effects || !effects.burn) continue;
+
+      if (now < effects.burn.until) {
+        // Burn damage per tick (scaled by tick rate)
+        const burnDmg = effects.burn.damage * (PHYSICS.TICK_MS / 1000);
+        // Burn can't kill — floor at 1 HP (same as spell damage)
+        player.hp = Math.max(1, player.hp - burnDmg);
+        if (effects.burn.attackerId) {
+          room.trackDamage(effects.burn.attackerId, burnDmg);
+        }
+      } else {
+        delete effects.burn;
+      }
+    }
+  }
+
+  /**
+   * Track Nazar bead awards from knockback events.
+   * Players earn +1 Nazar when they enter KB grace period.
+   */
+  trackNazarFromKB() {
+    const room = this.room;
+    const now = Date.now();
+
+    for (const [playerId, player] of room.players) {
+      if (player.eliminated) continue;
+      const prog = room.progressions.get(playerId);
+      if (!prog) continue;
+
+      const kbUntil = room.physics.knockbackUntil.get(playerId) || 0;
+
+      // Track if player just entered KB (new KB event)
+      if (!player._lastKbUntil) player._lastKbUntil = 0;
+      if (kbUntil > player._lastKbUntil && kbUntil > now) {
+        // New KB event — award 1 Nazar
+        prog.items.addNazar(1);
+
+        // Hayalet Hazine: become semi-transparent for 1.5s after taking KB
+        const itemStats = prog.items.getItemStats();
+        if (itemStats && itemStats.hayaletActive) {
+          player.hayaletUntil = now + 1500;
+        }
+      }
+      player._lastKbUntil = kbUntil;
     }
   }
 
@@ -160,6 +303,12 @@ export class GameLoop {
         const overshoot = distFromCenter - ringRadius;
         const damage = (DAMAGE.RING_BASE + overshoot * overshoot * DAMAGE.RING_SCALE) * (PHYSICS.TICK_MS / 1000);
         player.hp = Math.max(0, player.hp - damage);
+
+        // Nazar: award fractional nazar for ring damage (0.5 per second)
+        const prog = room.progressions.get(playerId);
+        if (prog) {
+          prog.items.addNazarFractional(0.5 * (PHYSICS.TICK_MS / 1000));
+        }
 
         if (player.hp <= 0 && !player.eliminated) {
           player.eliminated = true;
@@ -192,6 +341,7 @@ export class GameLoop {
           name: player.name,
           eliminated: player.eliminated,
           intangible: room.spells.isIntangible(playerId),
+          hayalet: !!(player.hayaletUntil && Date.now() < player.hayaletUntil),
         });
       }
     }

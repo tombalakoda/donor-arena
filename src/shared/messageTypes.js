@@ -17,6 +17,13 @@ export const MSG = {
   CLIENT_SHOP_CHOOSE_SPELL: 'c:shopChooseSpell',
   CLIENT_SHOP_UPGRADE_TIER: 'c:shopUpgradeTier',
 
+  // Client -> Server (crafting / items)
+  CLIENT_CRAFT_ITEM: 'c:craft',
+  CLIENT_DISASSEMBLE_ITEM: 'c:disassemble',
+  CLIENT_EQUIP_ITEM: 'c:equip',
+  CLIENT_UNEQUIP_ITEM: 'c:unequip',
+  CLIENT_NAZAR_SPEND: 'c:nazar',
+
   // Client -> Server (lobby)
   CLIENT_LIST_ROOMS: 'c:listRooms',
   CLIENT_START_GAME: 'c:startGame',

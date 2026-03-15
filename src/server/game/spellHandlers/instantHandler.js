@@ -27,14 +27,32 @@ export const instantHandler = {
     targets.sort((a, b) => a.dist - b.dist);
 
     // Hit ALL targets in range at full power
-    const kbMult = ctx.getKnockbackMultiplier(playerId);
+    let kbMult = ctx.getKnockbackMultiplier(playerId);
+    const attackerItems = ctx.getItemStats(playerId);
+    if (attackerItems) {
+      // KB bonus vs slowed targets (Santur + Buzul Hazine)
+      // Applied per-target below
+    }
+
     for (const t of targets) {
       if (tryShieldAbsorb(ctx, t.id, playerId, stats.damage || 3, stats.knockbackForce || 0.03)) {
         continue;
       }
       const nx = t.dist > 0 ? t.dx / t.dist : 0;
       const ny = t.dist > 0 ? t.dy / t.dist : 1;
-      const force = (stats.knockbackForce || 0.03) * kbMult;
+      let targetKbMult = kbMult;
+
+      // Per-target item KB modifiers
+      if (attackerItems) {
+        if (attackerItems.kbBonusVsSlowed > 0) {
+          const tEffects = ctx.statusEffects.get(t.id);
+          if (tEffects && tEffects.slow) {
+            targetKbMult *= (1 + attackerItems.kbBonusVsSlowed);
+          }
+        }
+      }
+
+      const force = (stats.knockbackForce || 0.03) * targetKbMult;
       ctx.physics.applyKnockback(t.id, nx * force, ny * force, ctx.getDamageTaken(t.id), playerId);
       hits.push({ id: t.id, damage: stats.damage || 3 });
     }

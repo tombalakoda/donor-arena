@@ -1,6 +1,7 @@
 import { PLAYER, ARENA } from '../../shared/constants.js';
 import { SPELLS } from '../../shared/spellData.js';
 import { computeSpellStats } from '../../shared/skillTreeData.js';
+import { MATERIALS, HAZINE } from '../../shared/itemData.js';
 import {
   COLOR, FONT, SPACE, NINE, DEPTH, ALPHA, SCREEN,
   getHpTint, textStyle,
@@ -72,6 +73,16 @@ export class HUDManager {
 
     // Spectator
     this._spectateElements = [];
+
+    // Hazine badges (in-game HUD, below spell slots)
+    this._hazineBadges = [];
+    this._lastHazineIds = [];
+
+    // Material drop notifications (floating icons at round end)
+    this._materialNotifications = [];
+
+    // Discovery banners
+    this._discoveryBanner = null;
 
     // Misc
     this.announcementText = null;
@@ -885,6 +896,245 @@ export class HUDManager {
   }
 
   // ═══════════════════════════════════════════════════════════
+  // MATERIAL DROP NOTIFICATIONS
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Show floating material icons rising from bottom-center when materials are awarded.
+   * @param {string[]} drops - array of material IDs, e.g. ['buz', 'koz', 'buz']
+   */
+  showMaterialDrops(drops) {
+    if (!drops || drops.length === 0) return;
+    const scene = this.scene;
+
+    // Group drops by type for condensed display
+    const counts = {};
+    for (const mat of drops) {
+      counts[mat] = (counts[mat] || 0) + 1;
+    }
+
+    const entries = Object.entries(counts);
+    const totalWidth = entries.length * 60;
+    const startX = SCREEN.CX - totalWidth / 2 + 30;
+    const baseY = SCREEN.H - 120;
+
+    // Play material drop sound
+    try { scene.sound.play('sfx-material-drop', { volume: 0.4 * getSfxVolume() }); } catch (_) { /* */ }
+
+    entries.forEach(([matId, count], i) => {
+      const mat = MATERIALS[matId];
+      if (!mat) return;
+
+      const x = startX + i * 60;
+      const y = baseY;
+      const delay = i * 150;
+
+      // Material sprite icon (16x16 pixel art, scaled up)
+      const spriteKey = `mat-${matId}`;
+      const icon = scene.textures.exists(spriteKey)
+        ? scene.add.image(x, y, spriteKey).setDisplaySize(24, 24)
+        : scene.add.circle(x, y, 10, mat.color); // fallback circle
+      icon.setScrollFactor(0).setDepth(DEPTH.OVERLAY_TOP).setAlpha(0);
+
+      // Material name + count text
+      const label = scene.add.text(x, y + 18, `${mat.name}${count > 1 ? ' x' + count : ''}`, textStyle({
+        fontSize: '8px', fontFamily: FONT.FAMILY_HEADING,
+      }, {
+        fill: '#ffffff',
+        stroke: '#000000', strokeThickness: 2,
+      })).setScrollFactor(0).setDepth(DEPTH.OVERLAY_TOP).setOrigin(0.5, 0).setAlpha(0);
+
+      // "+1" floating text
+      const plusText = scene.add.text(x, y - 16, `+${count}`, textStyle({
+        fontSize: '10px', fontFamily: FONT.FAMILY_HEADING,
+      }, {
+        fill: '#ffdd66',
+        stroke: '#000000', strokeThickness: 2,
+      })).setScrollFactor(0).setDepth(DEPTH.OVERLAY_TOP).setOrigin(0.5, 0.5).setAlpha(0);
+
+      // Animate in: pop up, then float up and fade
+      scene.tweens.add({
+        targets: [icon, label, plusText],
+        alpha: 1,
+        delay,
+        duration: 200,
+        onComplete: () => {
+          scene.tweens.add({
+            targets: [icon, label, plusText],
+            y: `-=40`,
+            alpha: 0,
+            delay: 1200,
+            duration: 800,
+            onComplete: () => {
+              icon.destroy();
+              label.destroy();
+              plusText.destroy();
+            },
+          });
+        },
+      });
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // HAZINE BADGES (in-game HUD)
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Update active Hazine badges displayed below spell slots.
+   * @param {string[]} hazineIds - array of active Hazine IDs
+   */
+  updateHazineBadges(hazineIds) {
+    if (!hazineIds) hazineIds = [];
+
+    // Check if changed
+    const same = hazineIds.length === this._lastHazineIds.length &&
+      hazineIds.every((id, i) => id === this._lastHazineIds[i]);
+    if (same) return;
+    this._lastHazineIds = [...hazineIds];
+
+    // Clear old badges
+    for (const badge of this._hazineBadges) {
+      if (badge.bg && !badge.bg.destroyed) badge.bg.destroy();
+      if (badge.text && !badge.text.destroyed) badge.text.destroy();
+    }
+    this._hazineBadges = [];
+
+    if (hazineIds.length === 0) return;
+
+    // Play Hazine activation sound when new badges appear
+    try { this.scene.sound.play('sfx-hazine-activate', { volume: 0.5 * getSfxVolume() }); } catch (_) { /* */ }
+
+    const scene = this.scene;
+    const badgeW = 70;
+    const badgeH = 18;
+    const gap = 4;
+    const totalW = hazineIds.length * badgeW + (hazineIds.length - 1) * gap;
+    const startX = SCREEN.CX - totalW / 2 + badgeW / 2;
+    const badgeY = SCREEN.H - 80; // below spell slots
+
+    hazineIds.forEach((hzId, i) => {
+      const hz = HAZINE[hzId];
+      if (!hz) return;
+
+      const x = startX + i * (badgeW + gap);
+
+      // Badge background (gold-tinted panel)
+      const bg = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH.HUD_BG);
+      bg.fillStyle(0x2a1a0a, 0.7);
+      bg.fillRoundedRect(x - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 3);
+      bg.lineStyle(1, 0xC8963E, 0.8);
+      bg.strokeRoundedRect(x - badgeW / 2, badgeY - badgeH / 2, badgeW, badgeH, 3);
+
+      // Badge text
+      const text = scene.add.text(x, badgeY, hz.name, textStyle({
+        fontSize: '7px', fontFamily: FONT.FAMILY_HEADING,
+      }, {
+        fill: COLOR.ACCENT_GOLD,
+        stroke: '#000000', strokeThickness: 1,
+      })).setScrollFactor(0).setDepth(DEPTH.HUD_TEXT).setOrigin(0.5, 0.5);
+
+      // Subtle glow pulse
+      scene.tweens.add({
+        targets: text,
+        alpha: { from: 0.8, to: 1 },
+        duration: 1500,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+
+      this._hazineBadges.push({ bg, text });
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // DISCOVERY BANNERS
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * Show a discovery banner for a new recipe or Hazine.
+   * @param {string} type - 'recipe' | 'hazine'
+   * @param {string} name - display name of the discovered item/combo
+   * @param {string} [description] - optional effect description
+   */
+  showDiscoveryBanner(type, name, description) {
+    const scene = this.scene;
+
+    // Clear existing banner
+    if (this._discoveryBanner) {
+      for (const el of this._discoveryBanner) {
+        if (el && !el.destroyed) el.destroy();
+      }
+    }
+    this._discoveryBanner = [];
+
+    const isHazine = type === 'hazine';
+    const titleText = isHazine
+      ? `HAZİNE KEŞFEDİLDİ: ${name}`
+      : `YENİ TARİF KEŞFEDİLDİ: ${name}`;
+    const titleColor = isHazine ? COLOR.ACCENT_GOLD : COLOR.ACCENT_SUCCESS;
+
+    // Play discovery sound
+    const sfxKey = isHazine ? 'sfx-discover-hazine' : 'sfx-discover-recipe';
+    try { scene.sound.play(sfxKey, { volume: 0.6 * getSfxVolume() }); } catch (_) { /* */ }
+    const bannerY = SCREEN.H * 0.2;
+
+    // Background bar
+    const barW = 500;
+    const barH = description ? 44 : 28;
+    const bg = scene.add.graphics().setScrollFactor(0).setDepth(DEPTH.OVERLAY_TOP - 1);
+    bg.fillStyle(0x0a0a0a, 0.75);
+    bg.fillRoundedRect(SCREEN.CX - barW / 2, bannerY - barH / 2, barW, barH, 4);
+    bg.lineStyle(2, isHazine ? 0xC8963E : 0x3A8A5A, 0.9);
+    bg.strokeRoundedRect(SCREEN.CX - barW / 2, bannerY - barH / 2, barW, barH, 4);
+    this._discoveryBanner.push(bg);
+
+    // Title
+    const title = scene.add.text(SCREEN.CX, bannerY - (description ? 8 : 0), titleText, textStyle({
+      fontSize: '10px', fontFamily: FONT.FAMILY_HEADING,
+    }, {
+      fill: titleColor,
+      stroke: '#000000', strokeThickness: 2,
+    })).setScrollFactor(0).setDepth(DEPTH.OVERLAY_TOP).setOrigin(0.5, 0.5).setAlpha(0);
+    this._discoveryBanner.push(title);
+
+    // Description (if provided)
+    if (description) {
+      const desc = scene.add.text(SCREEN.CX, bannerY + 10, description, textStyle({
+        fontSize: '7px', fontFamily: FONT.FAMILY_HEADING,
+      }, {
+        fill: '#cccccc',
+        stroke: '#000000', strokeThickness: 1,
+      })).setScrollFactor(0).setDepth(DEPTH.OVERLAY_TOP).setOrigin(0.5, 0.5).setAlpha(0);
+      this._discoveryBanner.push(desc);
+    }
+
+    // Animate in
+    bg.setAlpha(0);
+    scene.tweens.add({
+      targets: this._discoveryBanner,
+      alpha: 1,
+      duration: 300,
+      onComplete: () => {
+        // Hold for 3s, then fade
+        scene.tweens.add({
+          targets: this._discoveryBanner,
+          alpha: 0,
+          delay: isHazine ? 3000 : 2500,
+          duration: 600,
+          onComplete: () => {
+            for (const el of this._discoveryBanner) {
+              if (el && !el.destroyed) el.destroy();
+            }
+            this._discoveryBanner = [];
+          },
+        });
+      },
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════
   // MAIN UPDATE
   // ═══════════════════════════════════════════════════════════
 
@@ -951,6 +1201,21 @@ export class HUDManager {
 
     // Announcement
     if (this.announcementText && !this.announcementText.destroyed) this.announcementText.destroy();
+
+    // Hazine badges
+    for (const badge of this._hazineBadges) {
+      if (badge.bg && !badge.bg.destroyed) badge.bg.destroy();
+      if (badge.text && !badge.text.destroyed) badge.text.destroy();
+    }
+    this._hazineBadges = [];
+
+    // Discovery banner
+    if (this._discoveryBanner) {
+      for (const el of this._discoveryBanner) {
+        if (el && !el.destroyed) el.destroy();
+      }
+      this._discoveryBanner = [];
+    }
 
     // Leaderboard & Spectator
     this._hideLeaderboard();

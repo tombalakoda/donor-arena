@@ -162,7 +162,16 @@ export class NetworkManager {
 
   join(playerName, characterId, mode = 'normal', roomId = null) {
     if (!this.connected) return;
-    this.socket.emit(MSG.CLIENT_JOIN, { playerName, characterId, mode, roomId });
+    // Load persisted discoveries from localStorage
+    let discoveredRecipes = [];
+    let discoveredHazine = [];
+    try {
+      const r = localStorage.getItem('arena2_recipes');
+      const h = localStorage.getItem('arena2_hazine');
+      if (r) discoveredRecipes = JSON.parse(r);
+      if (h) discoveredHazine = JSON.parse(h);
+    } catch (e) { /* ignore parse errors */ }
+    this.socket.emit(MSG.CLIENT_JOIN, { playerName, characterId, mode, roomId, discoveredRecipes, discoveredHazine });
   }
 
   sendStartGame() {
@@ -198,6 +207,32 @@ export class NetworkManager {
   sendShopUpgradeTier(slot) {
     if (!this.connected) return;
     this.socket.emit(MSG.CLIENT_SHOP_UPGRADE_TIER, { slot });
+  }
+
+  // Crafting / Item system
+  sendCraftItem(recipeId) {
+    if (!this.connected) return;
+    this.socket.emit(MSG.CLIENT_CRAFT_ITEM, { recipeId });
+  }
+
+  sendEquipItem(instanceId) {
+    if (!this.connected) return;
+    this.socket.emit(MSG.CLIENT_EQUIP_ITEM, { instanceId });
+  }
+
+  sendUnequipItem(slot) {
+    if (!this.connected) return;
+    this.socket.emit(MSG.CLIENT_UNEQUIP_ITEM, { slot });
+  }
+
+  sendDisassembleItem(instanceId, source) {
+    if (!this.connected) return;
+    this.socket.emit(MSG.CLIENT_DISASSEMBLE_ITEM, { instanceId, source });
+  }
+
+  sendNazarSpend(action) {
+    if (!this.connected) return;
+    this.socket.emit(MSG.CLIENT_NAZAR_SPEND, { action });
   }
 
   disconnect() {

@@ -18,7 +18,10 @@ export class Room {
     this.lobby = options.lobby || false;
     this.hostId = null;
     this.players = new Map();
-    this.physics = new ServerPhysics();
+    this.physics = new ServerPhysics((playerId) => {
+      const prog = this.progressions.get(playerId);
+      return prog ? prog.items.getItemStats() : null;
+    });
 
     // Arena maps are loaded once at startup by RoomManager and shared
     this.arenaMaps = options.arenaMaps || [];
@@ -45,6 +48,10 @@ export class Room {
       // Get character ID for passive lookups in ServerSpell
       const p = this.players.get(playerId);
       return p ? p.characterId : null;
+    }, (playerId) => {
+      // Item stats lookup for ServerSpell
+      const prog = this.progressions.get(playerId);
+      return prog ? prog.items.getItemStats() : null;
     });
     this.rounds = new RoundManager();
     this.progressions = new Map(); // playerId -> PlayerProgression
@@ -64,7 +71,7 @@ export class Room {
     this.gameLoop = new GameLoop(this);
   }
 
-  addPlayer(socket, playerName, characterId) {
+  addPlayer(socket, playerName, characterId, options = {}) {
     const playerId = socket.id;
     const spawnPositions = getSpawnPositions(MATCH.MAX_PLAYERS);
     const spawnIdx = this.players.size;
@@ -91,6 +98,12 @@ export class Room {
 
     // Create progression tracker
     this.progressions.set(playerId, new PlayerProgression(playerId));
+
+    // Load persisted discoveries from client
+    const progression = this.progressions.get(playerId);
+    if (options.discoveredRecipes || options.discoveredHazine) {
+      progression.items.loadDiscoveries(options.discoveredRecipes, options.discoveredHazine);
+    }
 
     const playerInfo = {
       id: playerId,
@@ -121,7 +134,6 @@ export class Room {
       this.hostId = playerId;
     }
 
-    const progression = this.progressions.get(playerId);
     socket.emit(MSG.SERVER_JOINED, {
       playerId,
       players: allPlayers,
@@ -146,6 +158,23 @@ export class Room {
     });
     socket.on(MSG.CLIENT_SHOP_UPGRADE_TIER, (data) => {
       this.handleShopUpgradeTier(playerId, data);
+    });
+
+    // Listen for crafting/item actions
+    socket.on(MSG.CLIENT_CRAFT_ITEM, (data) => {
+      this.handleCraftItem(playerId, data);
+    });
+    socket.on(MSG.CLIENT_DISASSEMBLE_ITEM, (data) => {
+      this.handleDisassembleItem(playerId, data);
+    });
+    socket.on(MSG.CLIENT_EQUIP_ITEM, (data) => {
+      this.handleEquipItem(playerId, data);
+    });
+    socket.on(MSG.CLIENT_UNEQUIP_ITEM, (data) => {
+      this.handleUnequipItem(playerId, data);
+    });
+    socket.on(MSG.CLIENT_NAZAR_SPEND, (data) => {
+      this.handleNazarSpend(playerId, data);
     });
 
     // Sandbox: give starting SP, unlock all slots, and shop toggle
@@ -426,6 +455,132 @@ export class Room {
     }
   }
 
+  // --- Crafting / Item Handlers ---
+
+  handleCraftItem(playerId, data) {
+    if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
+    const player = this.players.get(playerId);
+    if (!player) return;
+    const now = Date.now();
+    if (now - (player.lastShopAction || 0) < 100) return;
+    player.lastShopAction = now;
+
+    if (!data || typeof data.recipeId !== 'string') return;
+
+    const progression = this.progressions.get(playerId);
+    if (!progression) return;
+
+    const result = progression.items.craft(data.recipeId);
+    if (result.ok) {
+      this.sendProgressionUpdate(playerId);
+      console.log(`[CRAFT] ${playerId} crafted ${data.recipeId}${result.newDiscovery ? ' (NEW DISCOVERY!)' : ''}`);
+    }
+  }
+
+  handleDisassembleItem(playerId, data) {
+    if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
+    const player = this.players.get(playerId);
+    if (!player) return;
+    const now = Date.now();
+    if (now - (player.lastShopAction || 0) < 100) return;
+    player.lastShopAction = now;
+
+    if (!data || typeof data.instanceId !== 'string' || !['equipped', 'stash'].includes(data.source)) return;
+
+    const progression = this.progressions.get(playerId);
+    if (!progression) return;
+
+    const result = progression.items.disassemble(data.instanceId, data.source);
+    if (result.ok) {
+      this.sendProgressionUpdate(playerId);
+      console.log(`[CRAFT] ${playerId} disassembled item, got ${result.returned.join(', ')}`);
+    }
+  }
+
+  handleEquipItem(playerId, data) {
+    if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
+    const player = this.players.get(playerId);
+    if (!player) return;
+    const now = Date.now();
+    if (now - (player.lastShopAction || 0) < 100) return;
+    player.lastShopAction = now;
+
+    if (!data || typeof data.instanceId !== 'string') return;
+
+    const progression = this.progressions.get(playerId);
+    if (!progression) return;
+
+    const result = progression.items.equip(data.instanceId);
+    if (result.ok) {
+      // Update maxHP if item modifies it
+      this._applyItemMaxHp(playerId, progression);
+      this.sendProgressionUpdate(playerId);
+      console.log(`[CRAFT] ${playerId} equipped item to ${result.slot}`);
+    }
+  }
+
+  handleUnequipItem(playerId, data) {
+    if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
+    const player = this.players.get(playerId);
+    if (!player) return;
+    const now = Date.now();
+    if (now - (player.lastShopAction || 0) < 100) return;
+    player.lastShopAction = now;
+
+    const VALID_SLOTS = new Set(['saz', 'yadigar', 'pabuc']);
+    if (!data || !VALID_SLOTS.has(data.slot)) return;
+
+    const progression = this.progressions.get(playerId);
+    if (!progression) return;
+
+    const result = progression.items.unequip(data.slot);
+    if (result.ok) {
+      this._applyItemMaxHp(playerId, progression);
+      this.sendProgressionUpdate(playerId);
+      console.log(`[CRAFT] ${playerId} unequipped ${data.slot}`);
+    }
+  }
+
+  handleNazarSpend(playerId, data) {
+    if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
+    const player = this.players.get(playerId);
+    if (!player) return;
+
+    if (!data || !['reroll', 'extra', 'hint'].includes(data.action)) return;
+
+    const progression = this.progressions.get(playerId);
+    if (!progression) return;
+
+    const result = progression.items.spendNazar(data.action);
+    if (result.ok) {
+      this.sendProgressionUpdate(playerId);
+      console.log(`[NAZAR] ${playerId} spent nazar on ${data.action}`);
+    }
+  }
+
+  _applyItemMaxHp(playerId, progression) {
+    const player = this.players.get(playerId);
+    if (!player) return;
+    const passive = getPassive(player.characterId);
+    const baseMaxHp = PLAYER.MAX_HP + (passive.bonusHp || 0);
+    const itemStats = progression.items.getItemStats();
+    const newMaxHp = baseMaxHp + (itemStats.maxHpBonus || 0);
+
+    if (player.maxHp !== newMaxHp) {
+      player.maxHp = newMaxHp;
+      // Clamp HP to new max
+      if (player.hp > newMaxHp) player.hp = newMaxHp;
+    }
+
+    // Apply friction modifier (Takunya: -30% friction = slide further)
+    if (itemStats.frictionMult && itemStats.frictionMult !== 1.0) {
+      const body = this.physics.playerBodies.get(playerId);
+      if (body) {
+        body.frictionAir = PLAYER.FRICTION_AIR * itemStats.frictionMult;
+      }
+    }
+  }
+
   // --- Damage Tracking ---
 
   trackDamage(attackerId, amount) {
@@ -536,6 +691,23 @@ export class Room {
 
         this.resetPlayersForRound();
         this.resetRoundTracking();
+
+        // Reset per-round item tracking
+        for (const [playerId] of this.players) {
+          const progression = this.progressions.get(playerId);
+          if (progression) {
+            progression.items.onRoundStart();
+            // Apply Korsanlik HP penalty (start at 85%)
+            const itemStats = progression.items.getItemStats();
+            if (itemStats.korsanlikActive) {
+              const player = this.players.get(playerId);
+              if (player) {
+                player.hp = Math.floor(player.maxHp * 0.85);
+              }
+            }
+          }
+        }
+
         this.broadcast(MSG.SERVER_ROUND_START, {
           round: event.round,
           totalRounds: this.rounds.getState().totalRounds,
@@ -619,6 +791,72 @@ export class Room {
           spAwards[id] = { earned: info.earned + underdogBonus, underdogBonus, total: progression.sp, stats: info.stats };
         }
 
+        // Step 4: Award materials, Nazar, and item-based SP/material bonuses
+        const materialAwards = {};
+        for (const [id, player] of this.players) {
+          const progression = this.progressions.get(id);
+          if (!progression) continue;
+          const items = progression.items;
+          const itemStats = items.getItemStats();
+          const drops = [];
+
+          // Base: 1 random material
+          const baseMat = items.getRandomMaterialType();
+          items.addMaterial(baseMat);
+          drops.push(baseMat);
+
+          // Bonus per ring-out kill
+          const kills = this.roundRingOutKills.get(id) || 0;
+          for (let k = 0; k < kills; k++) {
+            const mat = items.getRandomMaterialType();
+            items.addMaterial(mat);
+            drops.push(mat);
+          }
+
+          // Round win bonus
+          if (id === winnerId) {
+            const mat = items.getRandomMaterialType();
+            items.addMaterial(mat);
+            drops.push(mat);
+          }
+
+          // Item bonus: Corap (+1 material per round)
+          if (itemStats.materialBonusPerRound > 0) {
+            for (let m = 0; m < itemStats.materialBonusPerRound; m++) {
+              const mat = items.getRandomMaterialType();
+              items.addMaterial(mat);
+              drops.push(mat);
+            }
+          }
+
+          // Korsanlik Hazine: double all drops
+          if (itemStats.korsanlikActive) {
+            const extraDrops = [...drops]; // duplicate
+            for (const mat of extraDrops) {
+              items.addMaterial(mat);
+              drops.push(mat);
+            }
+          }
+
+          // Nazar: eliminated players get +2
+          if (player.eliminated) {
+            items.addNazar(2);
+          }
+
+          // Item SP bonuses
+          if (itemStats.spBonusPerRound > 0) {
+            progression.awardSP(itemStats.spBonusPerRound);
+          }
+          if (itemStats.spBonusPerKill > 0 && kills > 0) {
+            progression.awardSP(itemStats.spBonusPerKill * kills);
+          }
+
+          // Round lifecycle for items
+          items.onRoundEnd(!player.eliminated);
+
+          materialAwards[id] = drops;
+        }
+
         const winner = winnerId ? this.players.get(winnerId) : null;
         this.broadcast(MSG.SERVER_ROUND_END, {
           round: event.round,
@@ -627,6 +865,7 @@ export class Room {
           scores: this.rounds.getScores(),
           timeUp: event.timeUp,
           spAwards,
+          materialAwards,
         });
         console.log(`Room ${this.id}: Round ${event.round} ended. Winner: ${winner?.name || 'none'}`);
         break;

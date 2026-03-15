@@ -5,7 +5,9 @@ import { getPassive } from '../../shared/characterPassives.js';
 const { Engine, World, Bodies, Body } = Matter;
 
 export class ServerPhysics {
-  constructor() {
+  constructor(itemStatsLookup = null) {
+    // Optional function: (playerId) => itemStats object or null
+    this.itemStatsLookup = itemStatsLookup;
     this.engine = Engine.create({
       gravity: { x: 0, y: 0 },
     });
@@ -74,10 +76,24 @@ export class ServerPhysics {
 
     // Character passive: knockback resistance reduces incoming KB
     const passive = getPassive(this.characterIds.get(playerId));
-    const kbResist = 1 - (passive.knockbackResist || 0);
+    let kbResist = 1 - (passive.knockbackResist || 0);
 
-    const fx = forceX * vulnerability * kbResist;
-    const fy = forceY * vulnerability * kbResist;
+    // Item stats: attacker KB dealt mult & target KB taken mult & ignore resist
+    const targetItems = this.itemStatsLookup ? this.itemStatsLookup(playerId) : null;
+    const attackerItems = (attackerId && this.itemStatsLookup) ? this.itemStatsLookup(attackerId) : null;
+
+    // Deprem Hazine: ignore portion of target's KB resist
+    if (attackerItems && attackerItems.ignoreKbResistPct > 0) {
+      const resistPortion = 1 - kbResist; // how much resist they have (e.g. 0.15)
+      const ignored = resistPortion * attackerItems.ignoreKbResistPct;
+      kbResist = kbResist + ignored; // reduce the resistance effect
+    }
+
+    let kbDealtMult = attackerItems ? (attackerItems.kbDealtMult || 1.0) : 1.0;
+    const kbTakenMult = targetItems ? (targetItems.kbTakenMult || 1.0) : 1.0;
+
+    const fx = forceX * vulnerability * kbResist * kbDealtMult * kbTakenMult;
+    const fy = forceY * vulnerability * kbResist * kbDealtMult * kbTakenMult;
 
     // Combo detection: if already in knockback, boost force + extend grace
     const now = Date.now();
@@ -150,7 +166,10 @@ export class ServerPhysics {
         const vel = body.velocity;
         const currentSpeed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
         if (currentSpeed > 0.5) {
-          const diStrength = PLAYER.DI_STRENGTH || 0.15;
+          let diStrength = PLAYER.DI_STRENGTH || 0.15;
+          // Item DI bonus
+          const diItemStats = this.itemStatsLookup ? this.itemStatsLookup(playerId) : null;
+          if (diItemStats && diItemStats.diMult) diStrength *= diItemStats.diMult;
           const dx = input.targetX - body.position.x;
           const dy = input.targetY - body.position.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -214,6 +233,12 @@ export class ServerPhysics {
         forceMagnitude *= (1 - statusEffects.sema.speedPenalty);
       }
 
+      // Item speed modifier
+      const moveItems = this.itemStatsLookup ? this.itemStatsLookup(playerId) : null;
+      if (moveItems && moveItems.moveSpeedMult !== 1.0) {
+        forceMagnitude *= moveItems.moveSpeedMult;
+      }
+
       Body.applyForce(body, body.position, {
         x: nx * forceMagnitude,
         y: ny * forceMagnitude,
@@ -233,6 +258,12 @@ export class ServerPhysics {
     }
     if (statusEffects.sema) {
       effectiveMaxSpeed *= (1 - statusEffects.sema.speedPenalty);
+    }
+
+    // Item max speed modifier
+    const speedItems = this.itemStatsLookup ? this.itemStatsLookup(playerId) : null;
+    if (speedItems && speedItems.moveSpeedMult !== 1.0) {
+      effectiveMaxSpeed *= speedItems.moveSpeedMult;
     }
 
     const vel = body.velocity;

@@ -348,6 +348,24 @@ export class BootScene extends Phaser.Scene {
     this.load.image('icon-sound-off', 'assets/ui/icon-sound-off.png');
     this.load.image('icon-scoreboard', 'assets/ui/icon-scoreboard.png');
 
+    // --- Crafting / Item system icons ---
+    // Material icons (16x16 pixel art)
+    this.load.image('mat-buz',      'assets/ui/items/mat-buz.png');
+    this.load.image('mat-koz',      'assets/ui/items/mat-koz.png');
+    this.load.image('mat-agir',     'assets/ui/items/mat-agir.png');
+    this.load.image('mat-telek',    'assets/ui/items/mat-telek.png');
+    this.load.image('mat-demir',    'assets/ui/items/mat-demir.png');
+    this.load.image('mat-kehribar', 'assets/ui/items/mat-kehribar.png');
+    this.load.image('mat-altin',    'assets/ui/items/mat-altin.png');
+    this.load.image('mat-gam',      'assets/ui/items/mat-gam.png');
+    // Slot icons
+    this.load.image('slot-saz',     'assets/ui/items/slot-saz.png');
+    this.load.image('slot-yadigar', 'assets/ui/items/slot-yadigar.png');
+    this.load.image('slot-pabuc',   'assets/ui/items/slot-pabuc.png');
+    // Misc item UI
+    this.load.image('icon-ocak',    'assets/ui/items/icon-ocak.png');
+    this.load.image('icon-nazar',   'assets/ui/items/icon-nazar.png');
+
     // --- Custom spell icons ---
     this.load.image('icon-mani', 'assets/ui/icon-mani.png');
     this.load.image('icon-devir', 'assets/ui/icon-devir.png');
@@ -421,6 +439,18 @@ export class BootScene extends Phaser.Scene {
     this.load.audio('sfx-wall', 'assets/audio/sfx/Elemental/Water10.wav');
     this.load.audio('sfx-bouncer', 'assets/audio/sfx/bounce/Bounce.wav');
     this.load.audio('sfx-rocket', 'assets/audio/sfx/whoosh/Whoosh2.wav');
+    // --- Crafting / Item system SFX ---
+    this.load.audio('sfx-craft',            'assets/audio/sfx/crafting/craft.wav');
+    this.load.audio('sfx-discover-recipe',  'assets/audio/sfx/crafting/discover-recipe.wav');
+    this.load.audio('sfx-discover-hazine',  'assets/audio/sfx/crafting/discover-hazine.wav');
+    this.load.audio('sfx-hazine-activate',  'assets/audio/sfx/crafting/hazine-activate.wav');
+    this.load.audio('sfx-material-drop',    'assets/audio/sfx/crafting/material-drop.wav');
+    this.load.audio('sfx-equip',            'assets/audio/sfx/crafting/equip.wav');
+    this.load.audio('sfx-unequip',          'assets/audio/sfx/crafting/unequip.wav');
+    this.load.audio('sfx-disassemble',      'assets/audio/sfx/crafting/disassemble.wav');
+    this.load.audio('sfx-nazar-spend',      'assets/audio/sfx/crafting/nazar-spend.wav');
+    this.load.audio('sfx-stash-full',       'assets/audio/sfx/crafting/stash-full.wav');
+
     // Background music (single track for menu + fight)
     this.load.audio('music-menu', 'assets/audio/music/mesnoremix.mp3');
     this.load.audio('music-fight', 'assets/audio/music/mesnoremix.mp3');

@@ -144,7 +144,49 @@ export const projectileHandler = {
         const dist = Math.sqrt(dx * dx + dy * dy);
         const nx = dist > 0 ? dx / dist : 0;
         const ny = dist > 0 ? dy / dist : 1;
-        const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
+        let kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
+
+        // Item KB modifiers
+        const attackerItems = ctx.getItemStats(spell.ownerId);
+        if (attackerItems) {
+          // KB bonus vs slowed targets (Santur + Buzul Hazine)
+          if (attackerItems.kbBonusVsSlowed > 0) {
+            const targetEffects = ctx.statusEffects.get(playerId);
+            if (targetEffects && targetEffects.slow) {
+              kbMult *= (1 + attackerItems.kbBonusVsSlowed);
+            }
+          }
+          // First KB bonus (Sessiz Olum Hazine)
+          if (attackerItems.firstKbBonusForce > 0) {
+            const prog = attackerItems._getItemSystem ? attackerItems._getItemSystem() : null;
+            if (prog && !prog.firstKbDealtThisRound) {
+              kbMult *= (1 + attackerItems.firstKbBonusForce);
+              prog.firstKbDealtThisRound = true;
+            }
+          }
+          // Max speed KB bonus (Basmak: at max speed, spells deal +KB)
+          if (attackerItems.maxSpeedKbBonus > 0) {
+            const ownerBody = ctx.physics.playerBodies.get(spell.ownerId);
+            if (ownerBody) {
+              const speed = Math.sqrt(ownerBody.velocity.x ** 2 + ownerBody.velocity.y ** 2);
+              const maxSpeed = PLAYER.SPEED * 0.05; // same as speed clamping
+              if (speed >= maxSpeed * 0.9) { // 90% of max counts as "at max speed"
+                kbMult *= (1 + attackerItems.maxSpeedKbBonus);
+              }
+            }
+          }
+          // KB at max range (Kudum + Isik Topu Hazine)
+          if (attackerItems.kbBonusAtMaxRange > 0) {
+            const travelDist = Math.sqrt(
+              (spell.x - spell.originX) ** 2 + (spell.y - spell.originY) ** 2
+            );
+            const maxRange = spell.lifetime * Math.sqrt(spell.vx ** 2 + spell.vy ** 2) / 20; // approx max travel
+            if (maxRange > 0 && travelDist / maxRange >= 0.7) {
+              kbMult *= (1 + attackerItems.kbBonusAtMaxRange);
+            }
+          }
+        }
+
         ctx.physics.applyKnockback(playerId,
           nx * spell.knockbackForce * kbMult,
           ny * spell.knockbackForce * kbMult,
@@ -156,9 +198,26 @@ export const projectileHandler = {
 
         // Status effects
         if (spell.slowAmount > 0 && spell.slowDuration > 0) {
+          let slowDur = spell.slowDuration;
+          // Permafrost Hazine: attacker's slow effects last longer
+          if (attackerItems && attackerItems.slowDurationMult && attackerItems.slowDurationMult !== 1.0) {
+            slowDur *= attackerItems.slowDurationMult;
+          }
+          // Buz Kalesi Hazine: while sliding, slow-applying spells have bonus slow amount
+          let slowAmt = spell.slowAmount;
+          if (attackerItems && attackerItems.slidingSlowBonus > 0) {
+            const ownerBody = ctx.physics.playerBodies.get(spell.ownerId);
+            if (ownerBody) {
+              const speed = Math.sqrt(ownerBody.velocity.x ** 2 + ownerBody.velocity.y ** 2);
+              const maxSpeed = PLAYER.SPEED * 0.05;
+              if (speed >= maxSpeed * 0.8) {
+                slowAmt += attackerItems.slidingSlowBonus;
+              }
+            }
+          }
           ctx.applyStatusEffect(playerId, 'slow', {
-            amount: spell.slowAmount,
-            until: now + spell.slowDuration,
+            amount: slowAmt,
+            until: now + slowDur,
           }, spell.type);
         }
         if (spell.rootDuration > 0) {

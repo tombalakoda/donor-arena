@@ -15,12 +15,14 @@ export class ServerSpell {
    * @param {function} isEliminated - callback (playerId) => boolean — skip eliminated targets
    * @param {function} getCharacterId - callback (playerId) => characterId — for passive lookups
    */
-  constructor(physics, getDamageTaken = () => 0, obstacleManager = null, isEliminated = () => false, getCharacterId = () => null) {
+  constructor(physics, getDamageTaken = () => 0, obstacleManager = null, isEliminated = () => false, getCharacterId = () => null, itemStatsLookup = null) {
     this.physics = physics;
     this.getDamageTaken = getDamageTaken;
     this.obstacleManager = obstacleManager;
     this.isEliminated = isEliminated;
     this.getCharacterId = getCharacterId;
+    // Optional: (playerId) => itemStats object or null
+    this.itemStatsLookup = itemStatsLookup;
     this.nextSpellId = 1;
     this.activeSpells = [];
     this.cooldowns = new Map(); // playerId -> { spellId: remainingMs }
@@ -105,6 +107,7 @@ export class ServerSpell {
       isEliminated: this.isEliminated,
       getDamageTaken: this.getDamageTaken,
       getCharacterId: this.getCharacterId,
+      getItemStats: this.itemStatsLookup || (() => null),
       checkObstacleHit: this.checkObstacleHit.bind(this),
       applyStatusEffect: this.applyStatusEffect.bind(this),
       handleExplosion: this.handleExplosion.bind(this),
@@ -152,7 +155,22 @@ export class ServerSpell {
 
     // Character passive: cooldown reduction
     const casterPassive = getPassive(this.getCharacterId(playerId));
-    const cdMultiplier = 1 - (casterPassive.cdReduction || 0);
+    let cdMultiplier = 1 - (casterPassive.cdReduction || 0);
+
+    // Item cooldown modifier
+    const casterItems = this.itemStatsLookup ? this.itemStatsLookup(playerId) : null;
+    if (casterItems) {
+      if (casterItems.cooldownMult && casterItems.cooldownMult !== 1.0) {
+        cdMultiplier *= casterItems.cooldownMult;
+      }
+      // Saat: idle cooldown reduction (after not attacking for 3s)
+      if (casterItems.idleCooldownReduction > 0) {
+        const lastAttack = casterItems.lastAttackTime || 0;
+        if (Date.now() - lastAttack > 3000) {
+          cdMultiplier *= (1 - casterItems.idleCooldownReduction);
+        }
+      }
+    }
 
     if (maxCharges > 1) {
       const charges = this.chargeTracking.get(playerId);
@@ -191,23 +209,57 @@ export class ServerSpell {
       return { channeling: true, playerId, spellId, duration: stats.castTime };
     }
 
+    // Apply item modifiers to spell stats before spawning
+    if (casterItems) {
+      // Projectile speed modifier (Kudum)
+      if (casterItems.projectileSpeedMult && casterItems.projectileSpeedMult !== 1.0) {
+        if (stats.speed) stats = { ...stats, speed: stats.speed * casterItems.projectileSpeedMult };
+      }
+    }
+
     const ctx = this._buildContext();
 
     // Route to handler — each handler has its own spawn signature
+    let result;
     switch (effectiveType) {
       case SPELL_TYPES.ZONE:
-        return handler.spawn(ctx, playerId, spellId, stats, targetX, targetY, originX, originY);
+        result = handler.spawn(ctx, playerId, spellId, stats, targetX, targetY, originX, originY);
+        break;
       case SPELL_TYPES.INSTANT:
       case SPELL_TYPES.BUFF:
-        return handler.spawn(ctx, playerId, spellId, stats, originX, originY);
+        result = handler.spawn(ctx, playerId, spellId, stats, originX, originY);
+        break;
       case SPELL_TYPES.RECALL:
-        return handler.spawn(ctx, playerId, spellId, stats, originX, originY);
+        result = handler.spawn(ctx, playerId, spellId, stats, originX, originY);
+        break;
       case SPELL_TYPES.WALL:
-        return handler.spawn(ctx, playerId, spellId, stats, targetX, targetY, originX, originY);
+        result = handler.spawn(ctx, playerId, spellId, stats, targetX, targetY, originX, originY);
+        break;
       default:
         // PROJECTILE, BLINK, DASH, HOOK, SWAP, HOMING, BOOMERANG, BARREL
-        return handler.spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY);
+        result = handler.spawn(ctx, playerId, spellId, stats, originX, originY, targetX, targetY);
+        break;
     }
+
+    // Post-cast effects from items
+    if (casterItems && result) {
+      // Kasirga Hazine: speed boost after casting any spell
+      if (casterItems.postCastSpeedBuff > 0 && casterItems.postCastSpeedDuration > 0) {
+        this.applyStatusEffect(playerId, 'speedBoost', {
+          multiplier: 1 + casterItems.postCastSpeedBuff,
+          until: Date.now() + casterItems.postCastSpeedDuration,
+        });
+      }
+
+      // Track last attack time for Saat (idle cooldown reduction)
+      // lastAttackTime is stored on the stats object and points to ItemSystem's field
+      if (casterItems.idleCooldownReduction > 0) {
+        // Update via the stats cache (will be reflected on next getItemStats call)
+        casterItems.lastAttackTime = Date.now();
+      }
+    }
+
+    return result;
   }
 
   // ═══════════════════════════════════════════════════════
@@ -525,12 +577,27 @@ export class ServerSpell {
     // Character passive: slow/root resistance (applies to ALL slow/root effects)
     if ((type === 'slow' || type === 'root')) {
       const targetPassive = getPassive(this.getCharacterId(playerId));
+      const now = Date.now();
+      let durationMult = 1.0;
+
       if (targetPassive.slowResist) {
-        const now = Date.now();
+        durationMult *= (1 - targetPassive.slowResist);
+      }
+
+      // Item: slow resist multiplier (Cevsen: slows last 25% shorter; Kelepce: +20% resist)
+      const targetItems = this.itemStatsLookup ? this.itemStatsLookup(playerId) : null;
+      if (targetItems && targetItems.slowResistMult && targetItems.slowResistMult !== 1.0) {
+        durationMult *= targetItems.slowResistMult;
+      }
+
+      if (durationMult !== 1.0) {
         const originalDuration = data.until - now;
-        data.until = now + originalDuration * (1 - targetPassive.slowResist);
+        data.until = now + originalDuration * durationMult;
       }
     }
+
+    // Attacker item: slow duration multiplier (Permafrost Hazine: slows applied last 30% longer)
+    // This is handled at the point where slows are applied (in spell handlers / processSpellHits)
 
     if (type === 'slow') {
       // Stronger amount always wins. Equal amount: longer duration wins.

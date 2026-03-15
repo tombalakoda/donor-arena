@@ -6,6 +6,7 @@ import { computeSpellStats } from '../../shared/skillTreeData.js';
 import { NetworkManager } from '../systems/NetworkManager.js';
 import { UI_FONT } from '../config.js';
 import { FONT } from '../ui/UIConfig.js';
+import { RECIPES, HAZINE } from '../../shared/itemData.js';
 import { ShopOverlay } from '../ui/ShopOverlay.js';
 import { PauseMenu } from '../ui/PauseMenu.js';
 import { MatchEndOverlay } from '../ui/MatchEndOverlay.js';
@@ -79,6 +80,10 @@ export class GameScene extends Phaser.Scene {
     this.lastPhase = null;        // Track phase transitions for lobby
     this.isHost = false;
     this.roomId = null;
+
+    // Discovery tracking (for banners)
+    this._knownRecipes = new Set();
+    this._knownHazine = new Set();
   }
 
   init(data) {
@@ -460,7 +465,17 @@ export class GameScene extends Phaser.Scene {
     if (snapshot.timeRemaining !== undefined) this.timeRemaining = snapshot.timeRemaining;
     if (snapshot.countdownRemaining !== undefined) this.countdownRemaining = snapshot.countdownRemaining;
     if (snapshot.shopTimeRemaining !== undefined) this.shopTimeRemaining = snapshot.shopTimeRemaining;
-    if (snapshot.progression) this.progression = snapshot.progression;
+    if (snapshot.progression) {
+      // Seed discoveries on first progression received (avoid false banners)
+      if (!this.progression && snapshot.progression.discoveredRecipes) {
+        this._seedKnownDiscoveries(snapshot.progression);
+      }
+      this.progression = snapshot.progression;
+      // Update Hazine badges if progression has active Hazine
+      if (this.hudManager && this.progression.hazineActive) {
+        this.hudManager.updateHazineBadges(this.progression.hazineActive);
+      }
+    }
 
     // Sync map index for obstacles (handles late join / reconnection)
     if (snapshot.mapIndex !== undefined && this.arenaRenderer && snapshot.mapIndex !== this.arenaRenderer.currentMapIndex) {
@@ -518,6 +533,17 @@ export class GameScene extends Phaser.Scene {
             : (this.remotePlayers.get(s.id)?.name || s.id.slice(-4)),
       }));
       this.hudManager.updateLeaderboard(this.cachedScores, this.localPlayerId);
+    }
+
+    // Material drop notification for local player
+    if (data.materialAwards && this.localPlayerId && data.materialAwards[this.localPlayerId]) {
+      const drops = data.materialAwards[this.localPlayerId];
+      if (drops.length > 0) {
+        // Delay slightly so round-end announcement plays first
+        this.time.delayedCall(600, () => {
+          this.hudManager.showMaterialDrops(drops);
+        });
+      }
     }
   }
 
@@ -598,9 +624,30 @@ export class GameScene extends Phaser.Scene {
   }
 
   handleShopOpen(data) {
-    if (data.progression) this.progression = data.progression;
+    if (data.progression) {
+      this.progression = data.progression;
+      // Seed known discoveries from initial state (don't trigger banners for existing)
+      this._seedKnownDiscoveries(data.progression);
+    }
     if (this.shopOverlay) {
       this.shopOverlay.show(this.progression, data.shopDuration || 20);
+    }
+    // Update Hazine badges
+    if (this.hudManager && this.progression && this.progression.hazineActive) {
+      this.hudManager.updateHazineBadges(this.progression.hazineActive);
+    }
+  }
+
+  _seedKnownDiscoveries(progression) {
+    if (progression.discoveredRecipes) {
+      for (const id of progression.discoveredRecipes) {
+        this._knownRecipes.add(id);
+      }
+    }
+    if (progression.discoveredHazine) {
+      for (const id of progression.discoveredHazine) {
+        this._knownHazine.add(id);
+      }
     }
   }
 
@@ -610,6 +657,53 @@ export class GameScene extends Phaser.Scene {
     this.aimingSlot = null;           // Clear aim state on spell changes
     if (this.shopOverlay && this.shopOverlay.visible) {
       this.shopOverlay.updateProgression(data);
+    }
+    // Update Hazine badges
+    if (this.hudManager && data.hazineActive) {
+      this.hudManager.updateHazineBadges(data.hazineActive);
+    }
+    // Detect new discoveries and show banners
+    this._checkDiscoveries(data);
+  }
+
+  _checkDiscoveries(data) {
+    let anyNew = false;
+
+    // Check for new recipe discoveries
+    if (data.discoveredRecipes) {
+      for (const recipeId of data.discoveredRecipes) {
+        if (!this._knownRecipes.has(recipeId)) {
+          this._knownRecipes.add(recipeId);
+          anyNew = true;
+          const recipe = RECIPES[recipeId];
+          if (recipe && this.hudManager) {
+            this.hudManager.showDiscoveryBanner('recipe', recipe.name, recipe.description);
+          }
+        }
+      }
+    }
+
+    // Check for new Hazine discoveries
+    if (data.discoveredHazine) {
+      for (const hzId of data.discoveredHazine) {
+        if (!this._knownHazine.has(hzId)) {
+          this._knownHazine.add(hzId);
+          anyNew = true;
+          const hz = HAZINE[hzId];
+          if (hz && this.hudManager) {
+            // Hazine discovery takes priority over recipe discovery
+            this.hudManager.showDiscoveryBanner('hazine', hz.name, hz.description);
+          }
+        }
+      }
+    }
+
+    // Persist discoveries to localStorage
+    if (anyNew) {
+      try {
+        localStorage.setItem('arena2_recipes', JSON.stringify([...this._knownRecipes]));
+        localStorage.setItem('arena2_hazine', JSON.stringify([...this._knownHazine]));
+      } catch (e) { /* ignore quota errors */ }
     }
   }
 

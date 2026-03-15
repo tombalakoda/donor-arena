@@ -16,6 +16,7 @@ import { SP } from '../../shared/constants.js';
 import { COLOR, FONT, SPACE, DEPTH, ALPHA, SLOT_COLOR, SCREEN, textStyle } from './UIConfig.js';
 import { createBar, createDimmer, createText, createTexturedButton, animateIn } from './UIHelpers.js';
 import { getSfxVolume } from '../config.js';
+import { OcakOverlay } from './OcakOverlay.js';
 
 // ─── Constants ───────────────────────────────────────────
 const D = DEPTH.OVERLAY_DIM;
@@ -123,6 +124,7 @@ export class ShopOverlay {
     this.shopTimer = 0;
     this.shopDuration = 20;
     this.activeSlot = 'Q';
+    this.activeTab = 'spells'; // 'spells' | 'ocak'
     this.chrome = [];     // persistent: dimmer, header
     this.content = [];    // rebuilt on tab switch / spell change
     this.previewSpellId = null;
@@ -130,6 +132,8 @@ export class ShopOverlay {
     this._spText = null;
     this._timerBar = null;
     this._scrollOffset = 0;
+    this._ocakOverlay = new OcakOverlay(scene);
+    this._tabButtons = []; // tab toggle buttons (chrome-level)
   }
 
   // ═══════════════════════════════════════════════════════
@@ -142,6 +146,7 @@ export class ShopOverlay {
     this.shopDuration = shopDuration || 20;
     this.shopTimer = this.shopDuration;
     this.activeSlot = this._pickDefaultSlot();
+    this.activeTab = 'spells';
     this._scrollOffset = this._getChosenIndex();
     this._build();
   }
@@ -155,8 +160,12 @@ export class ShopOverlay {
     this.progression = progression;
     this.previewSpellId = null;
     if (this.visible) {
-      this._destroyContent();
-      this._buildContent();
+      if (this.activeTab === 'ocak') {
+        this._ocakOverlay.updateProgression(progression);
+      } else {
+        this._destroyContent();
+        this._buildContent();
+      }
       this._updateSP();
     }
   }
@@ -208,13 +217,53 @@ export class ShopOverlay {
     const leftEdge = CX - HEADER_W / 2;
     const rightEdge = CX + HEADER_W / 2;
 
-    // Title (centered, pixel font)
-    const title = createText(s, CX, HEADER_Y, 'HÜNER DÜKKÂNI', FONT.H2, {
-      fill: SHOP_WHITE, depth: D + 3,
-      stroke: '#000000', strokeThickness: 3,
-    });
-    this.chrome.push(title);
-    animateIn(s, title, { from: 'slideDown', delay: 50, duration: 250 });
+    // Tab toggle buttons (Buyular / Ocak)
+    const tabY = HEADER_Y;
+    const tabW = 130;
+    const tabH = 28;
+    const tabGap = 10;
+    const tabStartX = CX - (2 * tabW + tabGap) / 2 + tabW / 2;
+
+    const tabDefs = [
+      { id: 'spells', label: 'HÜNERLER' },
+      { id: 'ocak', label: 'OCAK' },
+    ];
+
+    for (let i = 0; i < tabDefs.length; i++) {
+      const tab = tabDefs[i];
+      const tx = tabStartX + i * (tabW + tabGap);
+      const isActive = this.activeTab === tab.id;
+
+      const tabBg = s.add.sprite(tx, tabY, 'ui-shop-btn', isActive ? 1 : 0)
+        .setDisplaySize(tabW, tabH).setScrollFactor(0).setDepth(D + 3);
+      if (isActive) tabBg.setTint(tab.id === 'ocak' ? 0xFFAA44 : 0x44BBFF);
+      else tabBg.setAlpha(0.6);
+      this.chrome.push(tabBg);
+
+      const tabLabel = s.add.text(tx, tabY, tab.label,
+        textStyle({ fontSize: '10px', fontFamily: SHOP_FONT }, {
+          fill: isActive ? SHOP_WHITE : '#AAAAAA',
+          stroke: '#000000', strokeThickness: isActive ? 3 : 2,
+        })
+      ).setScrollFactor(0).setDepth(D + 4).setOrigin(0.5);
+      this.chrome.push(tabLabel);
+
+      const tabHit = s.add.rectangle(tx, tabY, tabW, tabH)
+        .setScrollFactor(0).setDepth(D + 5).setAlpha(0.001)
+        .setInteractive({ useHandCursor: true });
+      tabHit.on('pointerdown', () => {
+        if (this.activeTab !== tab.id) {
+          this._playSfx('sfx-move');
+          this.activeTab = tab.id;
+          this._rebuildAll();
+        }
+      });
+      this.chrome.push(tabHit);
+      this._tabButtons.push(tabBg, tabLabel, tabHit);
+
+      animateIn(s, tabBg, { from: 'slideDown', delay: 30 + i * 30, duration: 200 });
+      animateIn(s, tabLabel, { from: 'slideDown', delay: 30 + i * 30, duration: 200 });
+    }
 
     // SP counter (left)
     const sp = this.progression ? this.progression.sp : 0;
@@ -255,6 +304,13 @@ export class ShopOverlay {
   //  CONTENT — rebuilt on tab switch / spell change
   // ═══════════════════════════════════════════════════════
   _buildContent() {
+    if (this.activeTab === 'ocak') {
+      // Build Ocak (forge) tab content
+      this._ocakOverlay.build(this.progression);
+      return;
+    }
+
+    // Spells tab — original spell shop content
     // Always build center slot tabs (they're content, rebuilt on switch)
     this._buildSlotTabs();
 
@@ -912,6 +968,7 @@ export class ShopOverlay {
       }
     }
     this.content = [];
+    this._ocakOverlay.destroy();
   }
 
   destroy() {
@@ -923,8 +980,10 @@ export class ShopOverlay {
     }
     this.chrome = [];
     this.content = [];
+    this._tabButtons = [];
     this._timerText = null;
     this._spText = null;
     this._timerBar = null;
+    this._ocakOverlay.destroy();
   }
 }

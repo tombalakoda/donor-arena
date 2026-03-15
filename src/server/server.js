@@ -59,7 +59,7 @@ io.on('connection', (socket) => {
       currentRoom = null;
     }
 
-    const { playerName, characterId, mode, roomId } = data || {};
+    const { playerName, characterId, mode, roomId, discoveredRecipes, discoveredHazine } = data || {};
 
     // Sanitize playerName: type check, strip HTML/control chars/RTL overrides, max 20 chars
     let safeName = null;
@@ -110,7 +110,7 @@ io.on('connection', (socket) => {
       }
       currentRoom = roomManager.createLobbyRoom();
     }
-    currentRoom.addPlayer(socket, safeName, safeCharacterId);
+    currentRoom.addPlayer(socket, safeName, safeCharacterId, { discoveredRecipes, discoveredHazine });
     console.log(`${socket.id} joined ${currentRoom.id} (${currentRoom.playerCount} players) mode: ${mode || 'normal'}`);
   });
 
