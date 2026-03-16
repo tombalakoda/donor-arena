@@ -56,9 +56,9 @@ export class OcakOverlay {
    * Build the Ocak overlay content (called when tab switches to Ocak).
    * Does NOT build dimmer/header/timer — those belong to ShopOverlay's chrome.
    */
-  build(progression) {
+  build(progression, preserveSelection = false) {
     this.progression = progression;
-    this.selectedItem = null;
+    if (!preserveSelection) this.selectedItem = null;
     this._buildLeftColumn();
     this._buildCenterColumn();
     this._buildRightColumn();
@@ -680,11 +680,9 @@ export class OcakOverlay {
   // ═══════════════════════════════════════════════════════
 
   _rebuildRight() {
-    // Only rebuild right column content
-    // Since we don't track which elements belong to which column,
-    // we rebuild everything
+    // Rebuild all columns while preserving current selection
     this.destroy();
-    this.build(this.progression);
+    this.build(this.progression, true);
   }
 
   _canAffordRecipe(recipe, materials) {

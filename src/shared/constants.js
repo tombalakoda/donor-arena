@@ -61,6 +61,7 @@ export const SANDBOX = {
   DUMMY_COUNT: 4,              // Number of training dummies to spawn
   DUMMY_HP: 100,               // HP per dummy
   DUMMY_RESPAWN_DELAY: 3000,   // 3 seconds before dummy respawns
+  STARTING_MATERIALS: 5,       // 5 of each material to test crafting
 };
 
 export const SP = {

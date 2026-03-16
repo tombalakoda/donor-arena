@@ -8,6 +8,7 @@ import { PHYSICS, MATCH, PLAYER, SANDBOX, ARENA, SP } from '../../shared/constan
 import { getPassive } from '../../shared/characterPassives.js';
 import { SPELL_TYPES } from '../../shared/spellData.js';
 import { GameLoop } from '../game/GameLoop.js';
+import { MATERIAL_IDS } from '../../shared/itemData.js';
 import { getSpawnPositions } from '../game/utils.js';
 import { applyDamage } from '../game/damageUtils.js';
 
@@ -191,6 +192,13 @@ export class Room {
         // Unlock all spell slots immediately in sandbox
         for (const slot of ['W', 'E', 'R']) {
           progression.autoUnlockSlot(slot);
+        }
+        // Give starting materials for crafting
+        const items = progression.items;
+        for (const matId of MATERIAL_IDS) {
+          for (let i = 0; i < SANDBOX.STARTING_MATERIALS; i++) {
+            items.addMaterial(matId);
+          }
         }
       }
       socket.on(MSG.CLIENT_SANDBOX_SHOP_TOGGLE, () => {
