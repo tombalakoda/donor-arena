@@ -391,75 +391,125 @@ export class OcakOverlay {
     }
 
     const allRecipes = [...craftableRecipes, ...discoverableRecipes];
-    const maxVisible = 4;
     const isStashFull = stash.length >= ITEM_CONSTANTS.MAX_STASH_SIZE;
 
+    // Scrollable recipe list
+    const recH = 28;
+    const recGap = 4;
+    const recipeAreaTop = y;
+    const recipeAreaBottom = COL_Y + PANEL_H / 2 - 8;
+    const recipeAreaH = recipeAreaBottom - recipeAreaTop;
+    const totalContentH = allRecipes.length * (recH + recGap);
+    const needsScroll = totalContentH > recipeAreaH;
+
+    // Scroll state for recipes
+    if (!this._recipeScroll) this._recipeScroll = 0;
+    // Clamp scroll
+    const maxScroll = Math.max(0, totalContentH - recipeAreaH);
+    this._recipeScroll = Math.min(this._recipeScroll, maxScroll);
+    this._recipeScroll = Math.max(0, this._recipeScroll);
+
+    // Container for recipe items (we'll mask it)
+    const recipeContainer = s.add.container(0, -this._recipeScroll).setScrollFactor(0).setDepth(D + 2);
+    this.elements.push(recipeContainer);
+
     if (allRecipes.length === 0) {
-      const noRecipe = s.add.text(MID_X, y + 10, 'Yeterli malzeme yok',
+      const noRecipe = s.add.text(MID_X, recipeAreaTop + 10, 'Yeterli malzeme yok',
         textStyle({ fontSize: '8px', fontFamily: SHOP_FONT }, {
           fill: '#666666', strokeThickness: 1,
         })
-      ).setScrollFactor(0).setDepth(D + 3).setOrigin(0.5, 0);
-      this.elements.push(noRecipe);
+      ).setScrollFactor(0).setOrigin(0.5, 0);
+      recipeContainer.add(noRecipe);
     } else {
-      for (const { id, recipe, discovered } of allRecipes.slice(0, maxVisible)) {
-        const recH = 28;
-
+      let ry = recipeAreaTop;
+      for (const { id, recipe, discovered } of allRecipes) {
         // Recipe row background
-        const recBg = s.add.graphics().setScrollFactor(0).setDepth(D + 2);
+        const recBg = s.make.graphics();
         const rarityTint = RARITY_COLOR[recipe.rarity]?.tint || 0xCCCCCC;
         recBg.fillStyle(rarityTint, 0.08);
-        recBg.fillRoundedRect(MID_X - 100, y - 2, 200, recH, 3);
-        this.elements.push(recBg);
+        recBg.fillRoundedRect(MID_X - 100, ry - 2, 200, recH, 3);
+        recipeContainer.add(recBg);
 
         if (discovered) {
-          // Show recipe name + ingredients
-          const recLabel = s.add.text(MID_X - 90, y + recH / 2 - 2, recipe.name,
-            textStyle({ fontSize: '8px', fontFamily: SHOP_FONT }, {
+          // Show recipe name
+          const recLabel = s.make.text({
+            x: MID_X - 90, y: ry + recH / 2 - 2,
+            text: recipe.name,
+            style: textStyle({ fontSize: '8px', fontFamily: SHOP_FONT }, {
               fill: RARITY_COLOR[recipe.rarity]?.hex || '#FFFFFF', strokeThickness: 1,
-            })
-          ).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0.5);
-          this.elements.push(recLabel);
+            }),
+          }).setOrigin(0, 0.5);
+          recipeContainer.add(recLabel);
 
-          // Craft button
+          // Craft button — use simple text button inside container
           const btnLabel = isStashFull ? 'Dolu' : 'Yap';
-          const { elements: btnEls } = createButton(s, MID_X + 70, y + recH / 2 - 2, btnLabel, {
-            width: 50, height: 18, depth: D + 5, enabled: !isStashFull,
-            fontToken: { fontSize: '7px', fontFamily: SHOP_FONT },
-            onClick: () => {
+          const btnBg = s.make.graphics();
+          const btnW = 50, btnH2 = 18;
+          btnBg.fillStyle(isStashFull ? 0x444444 : 0x2288AA, 0.8);
+          btnBg.fillRoundedRect(MID_X + 70 - btnW / 2, ry + recH / 2 - 2 - btnH2 / 2, btnW, btnH2, 4);
+          recipeContainer.add(btnBg);
+          const btnText = s.make.text({
+            x: MID_X + 70, y: ry + recH / 2 - 2,
+            text: btnLabel,
+            style: textStyle({ fontSize: '7px', fontFamily: SHOP_FONT }, {
+              fill: isStashFull ? '#888888' : '#FFFFFF', strokeThickness: 1,
+            }),
+          }).setOrigin(0.5, 0.5);
+          recipeContainer.add(btnText);
+
+          // Craft hit zone
+          if (!isStashFull) {
+            const craftHit = s.make.zone({ x: MID_X + 70, y: ry + recH / 2 - 2, width: btnW, height: btnH2 });
+            craftHit.setInteractive({ useHandCursor: true });
+            craftHit.on('pointerup', () => {
               this._playCraftSfx('craft');
               if (s.network && s.network.connected) {
                 s.network.sendCraftItem(id);
               }
-            },
-          });
-          this.elements.push(...btnEls);
+            });
+            recipeContainer.add(craftHit);
+          }
         } else {
           // Unknown recipe — show ??? with DENE button
-          const unknownLabel = s.add.text(MID_X - 90, y + recH / 2 - 2, '??? + ???',
-            textStyle({ fontSize: '8px', fontFamily: SHOP_FONT }, {
+          const unknownLabel = s.make.text({
+            x: MID_X - 90, y: ry + recH / 2 - 2,
+            text: '??? + ???',
+            style: textStyle({ fontSize: '8px', fontFamily: SHOP_FONT }, {
               fill: '#888888', strokeThickness: 1,
-            })
-          ).setScrollFactor(0).setDepth(D + 3).setOrigin(0, 0.5);
-          this.elements.push(unknownLabel);
+            }),
+          }).setOrigin(0, 0.5);
+          recipeContainer.add(unknownLabel);
 
-          const { elements: btnEls } = createButton(s, MID_X + 70, y + recH / 2 - 2, 'Dene', {
-            width: 50, height: 18, depth: D + 5, enabled: !isStashFull,
-            fontToken: { fontSize: '7px', fontFamily: SHOP_FONT },
-            onClick: () => {
+          const btnBg = s.make.graphics();
+          const btnW = 50, btnH2 = 18;
+          btnBg.fillStyle(isStashFull ? 0x444444 : 0x2288AA, 0.8);
+          btnBg.fillRoundedRect(MID_X + 70 - btnW / 2, ry + recH / 2 - 2 - btnH2 / 2, btnW, btnH2, 4);
+          recipeContainer.add(btnBg);
+          const btnText = s.make.text({
+            x: MID_X + 70, y: ry + recH / 2 - 2,
+            text: 'Dene',
+            style: textStyle({ fontSize: '7px', fontFamily: SHOP_FONT }, {
+              fill: isStashFull ? '#888888' : '#FFFFFF', strokeThickness: 1,
+            }),
+          }).setOrigin(0.5, 0.5);
+          recipeContainer.add(btnText);
+
+          if (!isStashFull) {
+            const craftHit = s.make.zone({ x: MID_X + 70, y: ry + recH / 2 - 2, width: btnW, height: btnH2 });
+            craftHit.setInteractive({ useHandCursor: true });
+            craftHit.on('pointerup', () => {
               this._playCraftSfx('craft');
               if (s.network && s.network.connected) {
                 s.network.sendCraftItem(id);
               }
-            },
-          });
-          this.elements.push(...btnEls);
+            });
+            recipeContainer.add(craftHit);
+          }
         }
 
         // Click recipe row to see details
-        const recHit = s.add.rectangle(MID_X - 25, y + recH / 2 - 2, 140, recH)
-          .setScrollFactor(0).setDepth(D + 4).setAlpha(0.001)
-          .setInteractive({ useHandCursor: true });
+        const recHit = s.make.zone({ x: MID_X - 25, y: ry + recH / 2 - 2, width: 140, height: recH });
+        recHit.setInteractive({ useHandCursor: true });
         recHit.on('pointerup', () => {
           this._playCraftSfx('navigate');
           if (discovered) {
@@ -467,11 +517,48 @@ export class OcakOverlay {
             this._rebuildRight();
           }
         });
-        this.elements.push(recHit);
+        recipeContainer.add(recHit);
 
-        y += recH + 4;
+        ry += recH + recGap;
       }
     }
+
+    // Mask the recipe container to the visible area
+    const maskShape = s.make.graphics();
+    maskShape.fillStyle(0xffffff);
+    maskShape.fillRect(MID_X - 110, recipeAreaTop - 2, 220, recipeAreaH + 4);
+    maskShape.setScrollFactor(0);
+    const mask = maskShape.createGeometryMask();
+    recipeContainer.setMask(mask);
+    this.elements.push(maskShape);
+
+    // Scroll indicator arrows
+    if (needsScroll) {
+      if (this._recipeScroll > 0) {
+        const upArrow = s.add.text(MID_X, recipeAreaTop - 2, '▲',
+          textStyle({ fontSize: '9px' }, { fill: '#AACCDD', strokeThickness: 1 })
+        ).setScrollFactor(0).setDepth(D + 6).setOrigin(0.5, 1);
+        this.elements.push(upArrow);
+      }
+      if (this._recipeScroll < maxScroll) {
+        const downArrow = s.add.text(MID_X, recipeAreaBottom + 2, '▼',
+          textStyle({ fontSize: '9px' }, { fill: '#AACCDD', strokeThickness: 1 })
+        ).setScrollFactor(0).setDepth(D + 6).setOrigin(0.5, 0);
+        this.elements.push(downArrow);
+      }
+    }
+
+    // Scroll hit zone — catch mouse wheel in recipe area
+    const scrollZone = s.add.rectangle(MID_X, recipeAreaTop + recipeAreaH / 2, 220, recipeAreaH)
+      .setScrollFactor(0).setDepth(D + 5).setAlpha(0.001)
+      .setInteractive();
+    scrollZone.on('wheel', (_pointer, _dx, _dy, dz) => {
+      const scrollStep = recH + recGap;
+      this._recipeScroll = Phaser.Math.Clamp(this._recipeScroll + (dz > 0 ? scrollStep : -scrollStep), 0, maxScroll);
+      this.destroy();
+      this.build(this.progression, true);
+    });
+    this.elements.push(scrollZone);
   }
 
   // ═══════════════════════════════════════════════════════
