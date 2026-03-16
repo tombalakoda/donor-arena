@@ -166,6 +166,9 @@ export class Room {
     socket.on(MSG.CLIENT_SHOP_UPGRADE_TIER, (data) => {
       this.handleShopUpgradeTier(playerId, data);
     });
+    socket.on(MSG.CLIENT_SHOP_SP_TO_MATERIAL, () => {
+      this.handleShopSpToMaterial(playerId);
+    });
 
     // Listen for crafting/item actions
     socket.on(MSG.CLIENT_CRAFT_ITEM, (data) => {
@@ -234,6 +237,7 @@ export class Room {
       player.socket.removeAllListeners(MSG.CLIENT_HOOK_RELEASE);
       player.socket.removeAllListeners(MSG.CLIENT_SHOP_CHOOSE_SPELL);
       player.socket.removeAllListeners(MSG.CLIENT_SHOP_UPGRADE_TIER);
+      player.socket.removeAllListeners(MSG.CLIENT_SHOP_SP_TO_MATERIAL);
       player.socket.removeAllListeners(MSG.CLIENT_SANDBOX_SHOP_TOGGLE);
       player.socket.removeAllListeners(MSG.CLIENT_START_GAME);
       player.socket.removeAllListeners(MSG.CLIENT_CRAFT_ITEM);
@@ -467,6 +471,24 @@ export class Room {
     if (success) {
       this.sendProgressionUpdate(playerId);
       console.log(`[SHOP] ${playerId} upgraded tier for slot ${data.slot}`);
+    }
+  }
+
+  handleShopSpToMaterial(playerId) {
+    if (!this.sandbox && this.rounds.phase !== PHASE.SHOP) return;
+    const player = this.players.get(playerId);
+    if (!player) return;
+    const now = Date.now();
+    if (now - (player.lastShopAction || 0) < 100) return;
+    player.lastShopAction = now;
+
+    const progression = this.progressions.get(playerId);
+    if (!progression) return;
+
+    const success = progression.convertSpToMaterial();
+    if (success) {
+      this.sendProgressionUpdate(playerId);
+      console.log(`[SHOP] ${playerId} converted SP to material`);
     }
   }
 

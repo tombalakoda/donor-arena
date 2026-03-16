@@ -209,6 +209,11 @@ export class NetworkManager {
     this.socket.emit(MSG.CLIENT_SHOP_UPGRADE_TIER, { slot });
   }
 
+  sendShopSpToMaterial() {
+    if (!this.connected) return;
+    this.socket.emit(MSG.CLIENT_SHOP_SP_TO_MATERIAL);
+  }
+
   // Crafting / Item system
   sendCraftItem(recipeId) {
     if (!this.connected) return;

@@ -16,6 +16,7 @@ export const MSG = {
   // Client -> Server (shop)
   CLIENT_SHOP_CHOOSE_SPELL: 'c:shopChooseSpell',
   CLIENT_SHOP_UPGRADE_TIER: 'c:shopUpgradeTier',
+  CLIENT_SHOP_SP_TO_MATERIAL: 'c:shopSpToMat',
 
   // Client -> Server (crafting / items)
   CLIENT_CRAFT_ITEM: 'c:craft',

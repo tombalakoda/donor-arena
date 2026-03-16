@@ -32,6 +32,7 @@ export const swapHandler = {
       elapsed: 0,
       active: true,
       swapStunDuration: stats.swapStunDuration || 0,
+      swapThrowForce: stats.swapThrowForce || 0, // T3
     };
 
     ctx.activeSpells.push(spell);
@@ -73,9 +74,26 @@ export const swapHandler = {
           const targetPos = { x: body.position.x, y: body.position.y };
           Body.setPosition(casterBody, targetPos);
           Body.setPosition(body, casterPos);
-          // Reset velocities
+          // Reset caster velocity; enemy may get thrown (T3)
           Body.setVelocity(casterBody, { x: 0, y: 0 });
-          Body.setVelocity(body, { x: 0, y: 0 });
+
+          // T3: throw enemy away after swap
+          const throwForce = spell.swapThrowForce || 0;
+          if (throwForce > 0) {
+            // Throw direction: from caster's new position toward enemy's new position
+            const tdx = body.position.x - casterBody.position.x;
+            const tdy = body.position.y - casterBody.position.y;
+            const tDist = Math.sqrt(tdx * tdx + tdy * tdy) || 1;
+            const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
+            ctx.physics.applyKnockback(playerId,
+              (tdx / tDist) * throwForce * kbMult,
+              (tdy / tDist) * throwForce * kbMult,
+              ctx.getDamageTaken(playerId),
+              spell.ownerId,
+            );
+          } else {
+            Body.setVelocity(body, { x: 0, y: 0 });
+          }
 
           // Stun the swapped enemy (T2) — clamped to 3s max
           const stunDur = Math.min(spell.swapStunDuration || 0, 3000);

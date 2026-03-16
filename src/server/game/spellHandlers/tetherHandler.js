@@ -129,6 +129,61 @@ function applyDragConstraint(bodyA, bodyB, tetherLength, pullStrength) {
 }
 
 /**
+ * T3: check if any enemy crosses the taut rope segment between two points.
+ * Uses point-to-segment distance. 500ms per-player cooldown.
+ */
+function _checkRopeCrossers(ctx, spell, posA, posB) {
+  const { now } = ctx;
+  const segDx = posB.x - posA.x;
+  const segDy = posB.y - posA.y;
+  const segLenSq = segDx * segDx + segDy * segDy;
+  if (segLenSq < 1) return;
+
+  for (const [playerId, body] of ctx.physics.playerBodies) {
+    if (playerId === spell.ownerId || playerId === spell.anchoredPlayerId) continue;
+    if (ctx.isEliminated(playerId)) continue;
+    if (isIntangible(ctx, playerId)) continue;
+
+    // Cooldown check
+    const lastHit = spell._ropeHitCooldowns.get(playerId) || 0;
+    if (now - lastHit < 500) continue;
+
+    // Point-to-segment distance
+    const px = body.position.x - posA.x;
+    const py = body.position.y - posA.y;
+    const t = Math.max(0, Math.min(1, (px * segDx + py * segDy) / segLenSq));
+    const closestX = posA.x + t * segDx;
+    const closestY = posA.y + t * segDy;
+    const ddx = body.position.x - closestX;
+    const ddy = body.position.y - closestY;
+    const distSq = ddx * ddx + ddy * ddy;
+    const hitRadius = PLAYER.RADIUS + 4; // small rope width
+
+    if (distSq < hitRadius * hitRadius) {
+      spell._ropeHitCooldowns.set(playerId, now);
+      if (spell.tetherCutDamage > 0) {
+        ctx.pendingHits.push({
+          attackerId: spell.ownerId,
+          targetId: playerId,
+          damage: spell.tetherCutDamage,
+          spellId: spell.type,
+        });
+      }
+      if (spell.tetherCutKb > 0) {
+        const dist = Math.sqrt(distSq) || 1;
+        const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
+        ctx.physics.applyKnockback(playerId,
+          (ddx / dist) * spell.tetherCutKb * kbMult,
+          (ddy / dist) * spell.tetherCutKb * kbMult,
+          ctx.getDamageTaken(playerId),
+          spell.ownerId,
+        );
+      }
+    }
+  }
+}
+
+/**
  * Tether handler — Kement (Lasso).
  *
  * Phase 1 (flight): projectile travels toward target direction.
@@ -173,6 +228,12 @@ export const tetherHandler = {
       maxRange: stats.range || 200,
       originX,
       originY,
+      // T3: launch enemy at max tether + taut rope damages crossers
+      tetherLaunch: stats.tetherLaunch || false,
+      tetherLaunchForce: stats.tetherLaunchForce || 0,
+      tetherCutDamage: stats.tetherCutDamage || 0,
+      tetherCutKb: stats.tetherCutKb || 0,
+      _ropeHitCooldowns: new Map(), // playerId → last hit timestamp
     };
 
     ctx.activeSpells.push(spell);
@@ -257,6 +318,35 @@ export const tetherHandler = {
         // Drag constraint: when rope goes taut, one drags the other
         applyDragConstraint(ownerBody, targetBody,
           spell.tetherLength, spell.pullStrength);
+
+        // T3: launch enemy when rope is at max stretch
+        if (spell.tetherLaunch && spell.tetherLaunchForce > 0) {
+          const rdx = targetBody.position.x - ownerBody.position.x;
+          const rdy = targetBody.position.y - ownerBody.position.y;
+          const ropeDist = Math.sqrt(rdx * rdx + rdy * rdy);
+          // Trigger launch if rope stretched beyond 120% of tether length
+          if (ropeDist > spell.tetherLength * 1.2) {
+            // Launch direction: from owner toward enemy
+            const lnx = ropeDist > 0 ? rdx / ropeDist : 0;
+            const lny = ropeDist > 0 ? rdy / ropeDist : 1;
+            const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
+            ctx.physics.applyKnockback(spell.anchoredPlayerId,
+              lnx * spell.tetherLaunchForce * kbMult,
+              lny * spell.tetherLaunchForce * kbMult,
+              ctx.getDamageTaken(spell.anchoredPlayerId),
+              spell.ownerId,
+            );
+            // End the tether after launch
+            spell.active = false;
+            ctx.removeSpell(i);
+            return 'continue';
+          }
+        }
+
+        // T3: taut rope damages enemies who cross it
+        if (spell.tetherCutDamage > 0 || spell.tetherCutKb > 0) {
+          _checkRopeCrossers(ctx, spell, ownerBody.position, targetBody.position);
+        }
 
       } else {
         // ── Fixed obstacle anchor: only caster constrained ──

@@ -74,6 +74,10 @@ export const dashHandler = {
           playerId,
         );
         hits.push({ id, damage: stats.dashDamage || 3 });
+        // T3: stun on dash collision
+        if (stats.dashStunDuration > 0) {
+          ctx.applyStatusEffect(id, 'stun', { until: Date.now() + stats.dashStunDuration });
+        }
       }
     }
 
@@ -81,6 +85,18 @@ export const dashHandler = {
     if (body) {
       Body.setPosition(body, { x: destX, y: destY });
       Body.setVelocity(body, { x: nx * 3, y: ny * 3 });
+    }
+
+    // T3: post-dash speed boost
+    if (stats.postDashSpeedBoost > 0) {
+      const effects = ctx.statusEffects.get(playerId);
+      if (effects) {
+        effects.speedBoost = {
+          amount: stats.postDashSpeedBoost,
+          until: Date.now() + (stats.postDashSpeedDuration || 1500),
+          frictionReduction: 0,
+        };
+      }
     }
 
     const spell = {

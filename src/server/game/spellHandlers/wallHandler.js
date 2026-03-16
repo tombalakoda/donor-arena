@@ -13,34 +13,55 @@ export const wallHandler = {
 
     const wallRadius = stats.wallRadius || 22;
     const hp = stats.wallHp || 30;
+    const wallCount = stats.wallCount || 1;
+    const wallSpread = stats.wallFormationSpread || 35;
 
-    // Create a temporary Matter.js obstacle — player collision is automatic
-    const obstacle = ctx.obstacleManager.addTemporary(placeX, placeY, wallRadius, {
-      hp,
-      maxHp: hp,
-      ownerId: playerId,
-    });
+    // T3: place multiple walls in perpendicular formation
+    const spells = [];
+    const nx = dx / (dist || 1);
+    const ny = dy / (dist || 1);
+    // Perpendicular direction for formation spread
+    const perpX = -ny;
+    const perpY = nx;
 
-    const spell = {
-      id: ctx.nextSpellId(),
-      type: spellId,
-      spellType: SPELL_TYPES.WALL,
-      ownerId: playerId,
-      x: placeX,
-      y: placeY,
-      wallRadius,
-      lifetime: stats.wallDuration || 4000,
-      elapsed: 0,
-      active: true,
-      obstacle,
-      // Shatter effect (T2)
-      shatterSlowAmount: stats.shatterSlowAmount || 0,
-      shatterSlowDuration: stats.shatterSlowDuration || 0,
-      shatterRadius: stats.shatterRadius || 0,
-    };
+    for (let w = 0; w < wallCount; w++) {
+      let wx = placeX;
+      let wy = placeY;
+      if (wallCount > 1) {
+        const offset = (w - (wallCount - 1) / 2) * wallSpread;
+        wx += perpX * offset;
+        wy += perpY * offset;
+      }
 
-    ctx.activeSpells.push(spell);
-    return spell;
+      const obstacle = ctx.obstacleManager.addTemporary(wx, wy, wallRadius, {
+        hp,
+        maxHp: hp,
+        ownerId: playerId,
+      });
+
+      const spell = {
+        id: ctx.nextSpellId(),
+        type: spellId,
+        spellType: SPELL_TYPES.WALL,
+        ownerId: playerId,
+        x: wx,
+        y: wy,
+        wallRadius,
+        lifetime: stats.wallDuration || 4000,
+        elapsed: 0,
+        active: true,
+        obstacle,
+        // Shatter effect (T2)
+        shatterSlowAmount: stats.shatterSlowAmount || 0,
+        shatterSlowDuration: stats.shatterSlowDuration || 0,
+        shatterRadius: stats.shatterRadius || 0,
+      };
+
+      ctx.activeSpells.push(spell);
+      spells.push(spell);
+    }
+
+    return spells.length === 1 ? spells[0] : spells;
   },
 
   update(ctx, spell, i) {

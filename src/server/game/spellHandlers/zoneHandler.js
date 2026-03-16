@@ -44,6 +44,17 @@ export const zoneHandler = {
       isGravityWell: stats.isGravityWell || false,
       burstPushForce: stats.burstPushForce || 0,
       burstPushRadius: stats.burstPushRadius || 0,
+      // T3 Blizzard: burst on zone expiry
+      zoneEndBurst: stats.zoneEndBurst || false,
+      zoneEndBurstForce: stats.zoneEndBurstForce || 0,
+      zoneEndBurstRadius: stats.zoneEndBurstRadius || 0,
+      zoneKbAmp: stats.zoneKbAmp || 0,
+      // T3 Meteor: second meteor
+      secondMeteor: isMeteor ? (stats.secondMeteor || false) : false,
+      secondMeteorDelay: stats.secondMeteorDelay || 800,
+      secondMeteorOffset: stats.secondMeteorOffset || 40,
+      _secondMeteorSpawned: false,
+      _meteorStats: isMeteor ? stats : null,
     };
 
     ctx.activeSpells.push(spell);
@@ -86,6 +97,32 @@ export const zoneHandler = {
         if (spell.burnZoneDuration > 0) {
           spell.lifetime = spell.elapsed + spell.burnZoneDuration;
           spell.isBurning = true;
+        }
+      }
+      // T3: spawn second meteor after delay
+      if (spell.secondMeteor && !spell._secondMeteorSpawned && spell.impactTriggered) {
+        if (spell.elapsed >= spell.impactDelay + spell.secondMeteorDelay) {
+          spell._secondMeteorSpawned = true;
+          const offset = spell.secondMeteorOffset;
+          const angle = Math.random() * Math.PI * 2;
+          const s2 = spell._meteorStats;
+          const m2 = {
+            id: ctx.nextSpellId(), type: spell.type, spellType: SPELL_TYPES.ZONE,
+            ownerId: spell.ownerId,
+            x: spell.x + Math.cos(angle) * offset,
+            y: spell.y + Math.sin(angle) * offset,
+            radius: s2.zoneRadius || s2.impactRadius || s2.radius || 60,
+            damage: s2.zoneDamage || s2.damage || 0,
+            knockbackForce: s2.knockbackForce || 0,
+            slowAmount: s2.slowAmount || 0, slowDuration: s2.slowDuration || 1000,
+            lifetime: (s2.impactDelay || 1000) + (s2.burnZoneDuration || 0) + 500,
+            elapsed: 0, active: true,
+            isMeteor: true, impactDelay: s2.impactDelay || 1000, impactTriggered: false,
+            burnZoneDuration: s2.burnZoneDuration || 0, burnSlowAmount: s2.burnSlowAmount || 0,
+            pullForce: 0, isGravityWell: false, burstPushForce: 0, burstPushRadius: 0,
+            secondMeteor: false, _secondMeteorSpawned: true, _meteorStats: null,
+          };
+          ctx.activeSpells.push(m2);
         }
       }
       return 'continue'; // Skip normal zone tick during delay
@@ -142,6 +179,34 @@ export const zoneHandler = {
    * Called when a gravity well zone expires — burst push outward (T2: Kara Delik).
    */
   onExpire(ctx, spell) {
+    // T3 Blizzard: zone end burst
+    if (spell.zoneEndBurst && spell.zoneEndBurstForce > 0) {
+      const burstR = spell.zoneEndBurstRadius || spell.radius;
+      for (const [playerId, body] of ctx.physics.playerBodies) {
+        if (playerId === spell.ownerId) continue;
+        if (ctx.isEliminated(playerId)) continue;
+        if (isIntangible(ctx, playerId)) continue;
+        const dx = body.position.x - spell.x;
+        const dy = body.position.y - spell.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < burstR + PLAYER.RADIUS) {
+          const nx = dist > 0 ? dx / dist : 0;
+          const ny = dist > 0 ? dy / dist : 1;
+          const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
+          // zoneKbAmp: bonus KB for targets currently inside the zone
+          const ampMult = (dist < spell.radius) ? (1 + (spell.zoneKbAmp || 0)) : 1;
+          const force = spell.zoneEndBurstForce * ampMult;
+          ctx.physics.applyKnockback(playerId,
+            nx * force * kbMult,
+            ny * force * kbMult,
+            ctx.getDamageTaken(playerId),
+            spell.ownerId,
+          );
+        }
+      }
+    }
+
+    // Gravity well burst push (Çekim T2)
     if (!spell.burstPushForce || spell.burstPushForce <= 0) return;
     const burstRadius = spell.burstPushRadius || spell.radius;
     for (const [playerId, body] of ctx.physics.playerBodies) {

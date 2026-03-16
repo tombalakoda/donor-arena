@@ -312,11 +312,12 @@ export class ServerSpell {
       }
       // Intangible: check if expired, apply exit effect
       if (effects.intangible && now >= effects.intangible.until) {
-        // Ghost T2: Poltergeist — AoE push on exit
+        // Ghost T2/T3: AoE push on exit + T3 stun
         if (effects.intangible.exitPushForce > 0) {
           const ownerId = effects.intangible.ownerId;
           const ownerBody = this.physics.playerBodies.get(ownerId);
           if (ownerBody) {
+            const exitStunDur = effects.intangible.exitStunDuration || 0;
             for (const [id, body] of this.physics.playerBodies) {
               if (id === ownerId) continue;
               if (this.isEliminated(id)) continue;
@@ -333,6 +334,10 @@ export class ServerSpell {
                   this.getDamageTaken(id),
                   ownerId,
                 );
+                // T3: stun on exit push
+                if (exitStunDur > 0) {
+                  this._applyStatusEffect(id, 'stun', { until: now + exitStunDur });
+                }
               }
             }
           }
@@ -373,6 +378,30 @@ export class ServerSpell {
       }
       // Shield: check if expired
       if (effects.shield && (now >= effects.shield.until || effects.shield.hitsRemaining <= 0)) {
+        // T3: Explosion on shield break (force scales with absorbed hits)
+        if (effects.shield.hitsRemaining <= 0 && effects.shield.shieldExplosionForce > 0) {
+          const sOwnerId = effects.shield.ownerId;
+          const sOwnerBody = this.physics.playerBodies.get(sOwnerId);
+          if (sOwnerBody) {
+            const baseForce = effects.shield.shieldExplosionForce;
+            const perAbsorb = effects.shield.forcePerAbsorb || 0;
+            const totalForce = baseForce + perAbsorb * (effects.shield.absorbedCount || 0);
+            const sRadius = effects.shield.shieldExplosionRadius || 50;
+            for (const [sid, sbody] of this.physics.playerBodies) {
+              if (sid === sOwnerId) continue;
+              if (this.isEliminated(sid)) continue;
+              const sdx = sbody.position.x - sOwnerBody.position.x;
+              const sdy = sbody.position.y - sOwnerBody.position.y;
+              const sDist = Math.sqrt(sdx * sdx + sdy * sdy);
+              if (sDist < sRadius + PLAYER.RADIUS) {
+                const snx = sDist > 0 ? sdx / sDist : 0;
+                const sny = sDist > 0 ? sdy / sDist : 1;
+                const skbMult = this._getKnockbackMultiplier(sOwnerId);
+                this.physics.applyKnockback(sid, snx * totalForce * skbMult, sny * totalForce * skbMult, this.getDamageTaken(sid), sOwnerId);
+              }
+            }
+          }
+        }
         // Reflect on break (Shield T2)
         if (effects.shield.hitsRemaining <= 0 && effects.shield.reflectOnBreak && effects.shield.lastHitData) {
           const hit = effects.shield.lastHitData;

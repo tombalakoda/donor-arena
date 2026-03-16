@@ -129,7 +129,7 @@ export class ServerPhysics {
 
     // Track who knocked this player — used for ring-out kill credit (5s window)
     if (attackerId && attackerId !== playerId) {
-      this.lastKnockbackFrom.set(playerId, { attackerId, timestamp: now });
+      this.lastKnockbackFrom.set(playerId, { attackerId, timestamp: now, magnitude: forceMag });
     }
   }
 

@@ -54,6 +54,9 @@ export const hookHandler = {
       hookOriginX: 0,
       hookOriginY: 0,
 
+      // T3 Hook: double throw
+      doubleThrow: stats.doubleThrow || false,
+      throwCount: 0,
       // --- Grappling (pull-self) fields ---
       pullForce: stats.pullForce || 0.04,
       swingElapsed: 0,
@@ -71,6 +74,9 @@ export const hookHandler = {
       flightKnockback: stats.flightKnockback || 0,
       flightHitIds: [],
       launchSpeedBonus: stats.launchSpeedBonus || 0,
+      // T3: landing burst
+      arrivalBurstForce: stats.arrivalBurstForce || 0,
+      arrivalBurstRadius: stats.arrivalBurstRadius || 0,
     };
 
     ctx.activeSpells.push(spell);
@@ -158,9 +164,25 @@ export const hookHandler = {
         spell.y = hookedBody.position.y;
       }
 
-      spell.phase = 'done';
-      spell.released = true;
-      spell.lifetime = spell.elapsed + 400;
+      spell.throwCount++;
+
+      // T3: double throw — re-enter pull phase after first throw
+      if (spell.doubleThrow && spell.throwCount < 2 && hookedBody) {
+        spell.phase = 'pull';
+        spell.pullElapsed = 0;
+        spell.hookOriginX = hookedBody.position.x;
+        spell.hookOriginY = hookedBody.position.y;
+        // Re-stun for second pull+throw
+        const totalStunDuration = spell.pullDuration + spell.throwGrace + 100;
+        ctx.applyStatusEffect(spell.hookedPlayerId, 'stun', {
+          until: now + totalStunDuration,
+        });
+        spell.lifetime = spell.elapsed + spell.pullDuration + 600;
+      } else {
+        spell.phase = 'done';
+        spell.released = true;
+        spell.lifetime = spell.elapsed + 400;
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -283,6 +305,22 @@ export const hookHandler = {
         }
 
         if (spell.flightElapsed >= spell.flightDuration) {
+          // T3: AoE burst on landing
+          if (spell.arrivalBurstForce > 0 && spell.arrivalBurstRadius > 0) {
+            for (const [pid, pbody] of ctx.physics.playerBodies) {
+              if (pid === spell.ownerId) continue;
+              if (ctx.isEliminated(pid)) continue;
+              const bdx = pbody.position.x - casterBody.position.x;
+              const bdy = pbody.position.y - casterBody.position.y;
+              const bDist = Math.sqrt(bdx * bdx + bdy * bdy);
+              if (bDist < spell.arrivalBurstRadius + PLAYER.RADIUS) {
+                const bnx = bDist > 0 ? bdx / bDist : 0;
+                const bny = bDist > 0 ? bdy / bDist : 1;
+                const bkbMult = ctx.getKnockbackMultiplier(spell.ownerId);
+                ctx.physics.applyKnockback(pid, bnx * spell.arrivalBurstForce * bkbMult, bny * spell.arrivalBurstForce * bkbMult, ctx.getDamageTaken(pid), spell.ownerId);
+              }
+            }
+          }
           spell.flightActive = false;
           spell.lifetime = spell.elapsed + 100;
         }

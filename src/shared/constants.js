@@ -75,5 +75,6 @@ export const SP = {
   // Slots auto-unlock at round milestones (no SP cost):
   SLOT_UNLOCK_ROUNDS: { W: 3, E: 9, R: 13 },
   // Tier upgrade costs are defined per-tier in skillTreeData.js
-  // Q tiers: 5/6/8/10 SP.  W/E/R tiers: 6/10 SP.
+  // Q tiers: 5/6/8/10 SP.  W/E/R tiers: 6/10/14 SP.
+  SP_TO_MATERIAL_COST: 4,    // Convert 4 SP → 1 random material
 };

@@ -43,6 +43,9 @@ export const linkHandler = {
       linkedPlayerId: null,
       linkedX: 0,
       linkedY: 0,
+      // T3: KB transfer ratio (caster KB → linked enemy) & linked slow
+      kbTransfer: stats.kbTransfer || 0,
+      linkedSlowAmount: stats.linkedSlowAmount || 0,
       // KB tracking — timestamps to detect new KB events
       lastKbUntilOwner: 0,
       lastKbUntilTarget: 0,
@@ -162,6 +165,14 @@ export const linkHandler = {
       const currentKbOwner = ctx.physics.knockbackUntil.get(spell.ownerId) || 0;
       const currentKbTarget = ctx.physics.knockbackUntil.get(spell.linkedPlayerId) || 0;
 
+      // T3: continuous slow on linked enemy
+      if (spell.linkedSlowAmount > 0) {
+        ctx.applyStatusEffect(spell.linkedPlayerId, 'slow', {
+          amount: spell.linkedSlowAmount,
+          until: now + 200, // refreshed every tick
+        }, spell.type);
+      }
+
       // Owner got hit → forward to target
       if (currentKbOwner > spell.lastKbUntilOwner) {
         const kbInfo = ctx.physics.lastKnockbackFrom.get(spell.ownerId);
@@ -185,8 +196,10 @@ export const linkHandler = {
             nx = ldx / lDist;
             ny = ldy / lDist;
           }
+          // T3: kbTransfer adds a fraction of the ACTUAL KB to the linked enemy
+          const transferMult = spell.kbTransfer || 0;
           const mult = 1 + (spell.linkedKbMultiplier || 0);
-          const force = spell.linkForwardKb * mult;
+          const force = spell.linkForwardKb * mult + (kbInfo.magnitude || 0) * transferMult;
           ctx.physics.applyKnockback(spell.linkedPlayerId,
             nx * force, ny * force,
             ctx.getDamageTaken(spell.linkedPlayerId),

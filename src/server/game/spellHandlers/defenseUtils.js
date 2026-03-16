@@ -33,6 +33,7 @@ export function tryShieldAbsorb(ctx, targetId, attackerId, damage, knockbackForc
   if (!effects || !effects.shield || effects.shield.hitsRemaining <= 0) return false;
 
   effects.shield.hitsRemaining--;
+  effects.shield.absorbedCount = (effects.shield.absorbedCount || 0) + 1;
   effects.shield.lastHitData = { attackerId, damage, knockbackForce };
   return true;
 }

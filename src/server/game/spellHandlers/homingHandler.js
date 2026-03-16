@@ -56,10 +56,41 @@ export const homingHandler = {
         explosionRadius: stats.explosionRadius || 0,
         // Swarm diminishing returns (shared among all missiles in one cast)
         swarmState,
+        // T3 Rocketswarm: convergence on hit
+        convergenceOnHit: stats.convergenceOnHit || false,
+        // T3 Homing: dual missile merge
+        dualMissile: stats.dualMissile || false,
+        mergeExplosionRadius: stats.mergeExplosionRadius || 0,
+        mergeExplosionForce: stats.mergeExplosionForce || 0,
+        _dualState: null, // shared between the two dual missiles
       };
 
       ctx.activeSpells.push(spell);
       spells.push(spell);
+    }
+
+    // T3 Homing: dualMissile — spawn a second missile with mirrored angle
+    if (stats.dualMissile && !isSwarm && spells.length === 1) {
+      const dualState = { merged: false };
+      spells[0]._dualState = dualState;
+
+      const mirrorAngle = baseAngle - 0.5; // wide spread opposite direction
+      const spell2 = {
+        ...spells[0],
+        id: ctx.nextSpellId(),
+        angle: mirrorAngle,
+        vx: Math.cos(mirrorAngle) * clampedSpeed,
+        vy: Math.sin(mirrorAngle) * clampedSpeed,
+        _dualState: dualState,
+      };
+      // Fix: first missile gets positive offset
+      spells[0].angle = baseAngle + 0.5;
+      spells[0].vx = Math.cos(baseAngle + 0.5) * clampedSpeed;
+      spells[0].vy = Math.sin(baseAngle + 0.5) * clampedSpeed;
+
+      dualState.ids = [spells[0].id, spell2.id];
+      ctx.activeSpells.push(spell2);
+      spells.push(spell2);
     }
 
     return spells.length === 1 ? spells[0] : spells;
@@ -70,6 +101,16 @@ export const homingHandler = {
     let targetBody = null;
 
     if (spell.swarmState) {
+      // T3 Rocketswarm: convergence override — all missiles target the first-hit enemy
+      if (spell.swarmState.convergeTarget) {
+        const convergeBody = ctx.physics.playerBodies.get(spell.swarmState.convergeTarget);
+        if (convergeBody && !ctx.isEliminated(spell.swarmState.convergeTarget)) {
+          targetBody = convergeBody;
+          // Skip normal distributed targeting
+        }
+      }
+
+      if (!targetBody) {
       // Swarm: distributed targeting — spread missiles across all enemies in range
       const validTargets = [];
       for (const [playerId, body] of ctx.physics.playerBodies) {
@@ -110,6 +151,7 @@ export const homingHandler = {
         // No targets in range — clear assignment
         delete spell.swarmState.targetAssignments[spell.id];
       }
+      } // end if (!targetBody)
     } else {
       // Non-swarm (single homing missile): keep existing nearest-target behavior
       let nearestDist = spell.trackingRange;
@@ -147,6 +189,48 @@ export const homingHandler = {
     const prevY = spell.y;
     spell.x += spell.vx;
     spell.y += spell.vy;
+
+    // T3 Homing: dual missile merge detection
+    if (spell._dualState && !spell._dualState.merged && spell.mergeExplosionRadius > 0) {
+      const partnerId = spell._dualState.ids.find(id => id !== spell.id);
+      const partner = ctx.activeSpells.find(s => s.id === partnerId && s.active);
+      if (partner) {
+        const mdx = partner.x - spell.x;
+        const mdy = partner.y - spell.y;
+        const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
+        // Merge when close + past initial separation phase (elapsed > 500ms)
+        if (mDist < 25 && spell.elapsed > 500) {
+          spell._dualState.merged = true;
+          const mergeX = (spell.x + partner.x) / 2;
+          const mergeY = (spell.y + partner.y) / 2;
+          // AoE explosion at merge point
+          for (const [pid, pbody] of ctx.physics.playerBodies) {
+            if (pid === spell.ownerId) continue;
+            if (ctx.isEliminated(pid)) continue;
+            if (isIntangible(ctx, pid)) continue;
+            const edx = pbody.position.x - mergeX;
+            const edy = pbody.position.y - mergeY;
+            const eDist = Math.sqrt(edx * edx + edy * edy);
+            if (eDist < spell.mergeExplosionRadius + PLAYER.RADIUS) {
+              const enx = eDist > 0 ? edx / eDist : 0;
+              const eny = eDist > 0 ? edy / eDist : 1;
+              const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
+              ctx.physics.applyKnockback(pid,
+                enx * spell.mergeExplosionForce * kbMult,
+                eny * spell.mergeExplosionForce * kbMult,
+                ctx.getDamageTaken(pid), spell.ownerId,
+              );
+              ctx.pendingHits.push({ attackerId: spell.ownerId, targetId: pid, damage: spell.damage * 2, spellId: spell.type });
+            }
+          }
+          // Deactivate both missiles
+          spell.active = false;
+          partner.active = false;
+          ctx.removeSpell(i);
+          return 'continue';
+        }
+      }
+    }
 
     // Obstacle collision
     const hitObs = ctx.checkObstacleHit(spell.x, spell.y, spell.radius);
@@ -214,6 +298,11 @@ export const homingHandler = {
         // Explosion on impact (Warhead T2)
         if (spell.explosionRadius > 0) {
           ctx.handleExplosion(spell, body.position.x, body.position.y, playerId);
+        }
+
+        // T3 Rocketswarm: on hit, all other missiles converge to this target
+        if (spell.convergenceOnHit && spell.swarmState && !spell.swarmState.convergeTarget) {
+          spell.swarmState.convergeTarget = playerId;
         }
 
         if (spell.swarmState) delete spell.swarmState.targetAssignments[spell.id];

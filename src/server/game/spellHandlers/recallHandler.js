@@ -36,7 +36,11 @@ export const recallHandler = {
     const departPushForce = stats.departurePushForce || 0;
     const departPushRadius = stats.departurePushRadius || 0;
     const hits = [];
+    const departDamage = stats.departureDamage || 0;       // T3
+    const departSlowAmt = stats.departureSlowAmount || 0;  // T3
+    const departSlowDur = stats.departureSlowDuration || 0; // T3
     if (departPushForce > 0 && departPushRadius > 0) {
+      const now2 = Date.now();
       for (const [id, pBody] of ctx.physics.playerBodies) {
         if (id === playerId) continue;
         if (ctx.isEliminated(id)) continue;
@@ -45,14 +49,21 @@ export const recallHandler = {
         const dy = pBody.position.y - originY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < departPushRadius) {
-          if (tryShieldAbsorb(ctx, id, playerId, 0, departPushForce)) {
+          if (tryShieldAbsorb(ctx, id, playerId, departDamage, departPushForce)) {
             continue;
           }
           const nx = dist > 0 ? dx / dist : 0;
           const ny = dist > 0 ? dy / dist : 1;
           const kbMult = ctx.getKnockbackMultiplier(playerId);
           ctx.physics.applyKnockback(id, nx * departPushForce * kbMult, ny * departPushForce * kbMult, ctx.getDamageTaken(id), playerId);
-          hits.push({ id, damage: 0 });
+          hits.push({ id, damage: departDamage });
+          // T3: slow enemies caught in departure blast
+          if (departSlowAmt > 0 && departSlowDur > 0) {
+            ctx.applyStatusEffect(id, 'slow', {
+              amount: departSlowAmt,
+              until: now2 + departSlowDur,
+            }, spellId);
+          }
         }
       }
     }

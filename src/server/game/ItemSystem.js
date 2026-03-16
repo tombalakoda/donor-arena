@@ -65,6 +65,12 @@ export class ItemSystem {
     return MATERIAL_IDS[Math.floor(Math.random() * MATERIAL_IDS.length)];
   }
 
+  addRandomMaterial() {
+    const type = this.getRandomMaterialType();
+    this.addMaterial(type);
+    return type;
+  }
+
   // ─── CRAFTING ────────────────────────────────────────────
 
   canCraft(recipeId) {

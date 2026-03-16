@@ -51,15 +51,37 @@ export const projectileHandler = {
         // Explosion data
         explosionRadius: stats.explosionRadius || 0,
         stunDuration: stats.stunDuration || 0,
+        // T3 Frostbolt: ice prison zone on hit
+        icePrison: stats.icePrison || false,
+        icePrisonDuration: stats.icePrisonDuration || 1500,
+        icePrisonRadius: stats.icePrisonRadius || 30,
         // Bouncer data
         maxBounces: stats.maxBounces || 0,
         bounceCount: 0,
         destroysSpells: stats.destroysSpells || false,
         kbPerBounce: stats.kbPerBounce || 0,
+        // T3 Bouncer: split on bounce
+        splitOnBounce: stats.splitOnBounce || false,
+        splitCount: stats.splitCount || 2,
+        splitDamageMult: stats.splitDamageMult || 0.5,
+        splitKbMult: stats.splitKbMult || 0.6,
       };
 
       ctx.activeSpells.push(spell);
       spells.push(spell);
+    }
+
+    // T3 (Sacma): schedule a second wave burst after delay
+    if (stats.secondWave && spells.length > 0) {
+      spells[0]._secondWave = true;
+      spells[0]._secondWaveDelay = stats.secondWaveDelay || 300;
+      spells[0]._secondWaveConeAngle = stats.secondWaveConeAngle || 0;
+      spells[0]._secondWaveSpawned = false;
+      spells[0]._waveStats = stats;
+      spells[0]._waveOriginX = originX;
+      spells[0]._waveOriginY = originY;
+      spells[0]._waveTargetX = targetX;
+      spells[0]._waveTargetY = targetY;
     }
 
     return spells;
@@ -67,6 +89,37 @@ export const projectileHandler = {
 
   update(ctx, spell, i) {
     const { now } = ctx;
+
+    // T3 (Sacma): second wave burst after delay
+    if (spell._secondWave && !spell._secondWaveSpawned && spell.elapsed >= spell._secondWaveDelay) {
+      spell._secondWaveSpawned = true;
+      const s = spell._waveStats;
+      const dx2 = spell._waveTargetX - spell._waveOriginX;
+      const dy2 = spell._waveTargetY - spell._waveOriginY;
+      const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 1;
+      const baseAngle2 = Math.atan2(dy2 / dist2, dx2 / dist2);
+      const count2 = Math.min(10, Math.max(1, Math.floor(s.projectileCount || 7)));
+      const cone2 = (s.coneAngle || 0.52) + (spell._secondWaveConeAngle || 0);
+      const spread2 = count2 > 1 ? cone2 / Math.max(1, count2 - 1) : 0;
+      const speed2 = ctx.clampSpeed(s.speed);
+      const ownerBody = ctx.physics.playerBodies.get(spell.ownerId);
+      const ox = ownerBody ? ownerBody.position.x : spell._waveOriginX;
+      const oy = ownerBody ? ownerBody.position.y : spell._waveOriginY;
+      for (let j = 0; j < count2; j++) {
+        let a = baseAngle2;
+        if (count2 > 1) a += (j - (count2 - 1) / 2) * spread2;
+        const p2 = {
+          id: ctx.nextSpellId(), type: spell.type, spellType: SPELL_TYPES.PROJECTILE,
+          ownerId: spell.ownerId, x: ox, y: oy, originX: ox, originY: oy,
+          vx: Math.cos(a) * speed2, vy: Math.sin(a) * speed2,
+          radius: s.radius || 8, damage: s.damage || 0, knockbackForce: s.knockbackForce || 0,
+          lifetime: s.lifetime || 2000, piercing: s.piercing || false, elapsed: 0, active: true,
+          slowAmount: 0, slowDuration: 0, rootDuration: 0, explosionRadius: 0, stunDuration: 0,
+          maxBounces: 0, bounceCount: 0, destroysSpells: false, kbPerBounce: 0,
+        };
+        ctx.activeSpells.push(p2);
+      }
+    }
 
     // Store previous position for swept collision test
     const prevX = spell.x;
@@ -106,6 +159,28 @@ export const projectileHandler = {
         // Grow knockback per bounce (Bouncer T2)
         if (spell.kbPerBounce) {
           spell.knockbackForce += spell.kbPerBounce;
+        }
+        // T3 Bouncer: split into smaller copies on bounce
+        if (spell.splitOnBounce && spell.splitCount > 0) {
+          const curSpeed = Math.sqrt(spell.vx * spell.vx + spell.vy * spell.vy) || 1;
+          const baseAngle = Math.atan2(spell.vy, spell.vx);
+          for (let s = 0; s < spell.splitCount; s++) {
+            const splitAngle = baseAngle + (s - (spell.splitCount - 1) / 2) * 0.6;
+            const child = {
+              id: ctx.nextSpellId(), type: spell.type, spellType: SPELL_TYPES.PROJECTILE,
+              ownerId: spell.ownerId, x: spell.x, y: spell.y, originX: spell.x, originY: spell.y,
+              vx: Math.cos(splitAngle) * curSpeed, vy: Math.sin(splitAngle) * curSpeed,
+              radius: Math.max(4, spell.radius - 2), damage: spell.damage * spell.splitDamageMult,
+              knockbackForce: spell.knockbackForce * spell.splitKbMult,
+              lifetime: spell.lifetime - spell.elapsed, piercing: spell.piercing || false,
+              elapsed: 0, active: true, slowAmount: spell.slowAmount, slowDuration: spell.slowDuration,
+              rootDuration: 0, explosionRadius: 0, stunDuration: 0,
+              maxBounces: spell.maxBounces, bounceCount: spell.bounceCount,
+              destroysSpells: false, kbPerBounce: spell.kbPerBounce,
+              splitOnBounce: false, splitCount: 0, splitDamageMult: 0, splitKbMult: 0,
+            };
+            ctx.activeSpells.push(child);
+          }
         }
       } else {
         spell.active = false;
@@ -234,6 +309,26 @@ export const projectileHandler = {
         // Explosion on impact
         if (spell.explosionRadius > 0) {
           ctx.handleExplosion(spell, body.position.x, body.position.y, playerId);
+        }
+
+        // T3 Frostbolt: spawn ice prison zone around target
+        if (spell.icePrison) {
+          const iceZone = {
+            id: ctx.nextSpellId(), type: spell.type, spellType: SPELL_TYPES.ZONE,
+            ownerId: spell.ownerId,
+            x: body.position.x, y: body.position.y,
+            radius: spell.icePrisonRadius || 30,
+            damage: 0, knockbackForce: 0,
+            slowAmount: spell.slowAmount || 0.3,
+            slowDuration: 500,
+            lifetime: spell.icePrisonDuration || 1500,
+            elapsed: 0, active: true,
+            isMeteor: false, impactDelay: 0, impactTriggered: true,
+            burnZoneDuration: 0, burnSlowAmount: 0,
+            pullForce: 0, isGravityWell: false, burstPushForce: 0, burstPushRadius: 0,
+            secondMeteor: false, _secondMeteorSpawned: true, _meteorStats: null,
+          };
+          ctx.activeSpells.push(iceZone);
         }
 
         if (!spell.piercing) {

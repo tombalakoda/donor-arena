@@ -113,6 +113,44 @@ const MOD_LABELS = {
   burnZoneDuration: 'yanma süresi', burnSlowAmount: 'yanma yavaşlatma',
   destroysSpells: 'söz kırar', launchSpeedBonus: 'fırlatma hızı',
   flightDuration: 'uçuş süresi',
+  // ─── T3 mastery mod labels ───
+  arrivalPushForce: 'varış itmesi', arrivalPushRadius: 'varış alanı',
+  leaveDecoy: 'aldatmaca', dashStunDuration: 'çarpma sersemletme',
+  postDashSpeedBoost: 'hız patlaması', postDashSpeedDuration: 'hız süresi',
+  trailDamage: 'iz hasarı', trailKnockback: 'iz itmesi',
+  trailDuration: 'iz süresi', exitStunDuration: 'çıkış sersemletme',
+  swapThrowForce: 'savurma gücü', swapCharges: 'kullanım hakkı',
+  departureDamage: 'ayrılış hasarı', departureSlowAmount: 'ayrılış yavaşlatma',
+  departureSlowDuration: 'ayrılış yav. süresi',
+  arrivalBurstForce: 'varış patlaması', arrivalBurstRadius: 'patlama alanı',
+  secondWave: 'ikinci dalga', secondWaveDelay: 'dalga gecikmesi',
+  secondWaveConeAngle: 'yayılma açısı', pullEnemies: 'düşman çekimi',
+  pullForce: 'çekim gücü', burstPushForce: 'patlama itmesi',
+  pushRadius: 'itme alanı',
+  icePrison: 'buz hapsi', icePrisonDuration: 'hapsis süresi',
+  icePrisonRadius: 'hapsis alanı',
+  zoneEndBurst: 'alan patlaması', zoneEndBurstForce: 'patlama gücü',
+  zoneEndBurstRadius: 'patlama alanı', zoneKbAmp: 'itme artışı',
+  wallCount: 'duvar sayısı', wallFormationSpread: 'duvar açıklığı',
+  splitOnBounce: 'sekme bölünmesi', splitCount: 'bölünme sayısı',
+  splitDamageMult: 'bölünme hasarı', splitKbMult: 'bölünme itmesi',
+  shieldExplosionForce: 'kalkan patlaması', shieldExplosionRadius: 'patlama alanı',
+  forcePerAbsorb: 'emme başı güç',
+  kbTransfer: 'itme transferi', linkedSlowAmount: 'bağlı yavaşlatma',
+  linkDuration: 'bağ süresi',
+  tetherLaunch: 'ip fırlatma', tetherLaunchForce: 'fırlatma gücü',
+  tetherCutDamage: 'ip hasarı', tetherCutKb: 'ip itmesi',
+  doubleThrow: 'çift savurma', throwGrace: 'savurma penceresi',
+  chainRadiusGrowth: 'zincirleme büyüme',
+  dualMissile: 'ikiz söz', mergeExplosionRadius: 'birleşme alanı',
+  mergeExplosionForce: 'birleşme gücü',
+  secondMeteor: 'ikinci göktaşı', secondMeteorDelay: 'gecikme',
+  secondMeteorOffset: 'sapma',
+  convergenceOnHit: 'yakınsama', convergenceRadius: 'yakınsama alanı',
+  markOnHit: 'işaretleme', markDuration: 'işaret süresi',
+  homingToMarked: 'güdümlü dönüş', markedKbBonus: 'işaret itmesi',
+  growOnHit: 'büyüme', growPerHit: 'vuruş başı büyüme', maxGrowth: 'maks büyüme',
+  projectileCount: 'mermi sayısı',
 };
 
 // ─── ShopOverlay Class ───────────────────────────────────
@@ -130,6 +168,7 @@ export class ShopOverlay {
     this.previewSpellId = null;
     this._timerText = null;
     this._spText = null;
+    this._spSinkText = null;
     this._timerBar = null;
     this._scrollOffset = 0;
     this._ocakOverlay = new OcakOverlay(scene);
@@ -273,6 +312,25 @@ export class ShopOverlay {
     });
     this.chrome.push(this._spText);
     animateIn(s, this._spText, { from: 'slideDown', delay: 80, duration: 250 });
+
+    // SP → Material conversion button (next to SP counter)
+    const spSinkX = leftEdge + 120;
+    const canSink = sp >= SP.SP_TO_MATERIAL_COST;
+    this._spSinkText = createText(s, spSinkX, HEADER_Y, `${SP.SP_TO_MATERIAL_COST}◆→?`, FONT.BODY, {
+      fill: canSink ? '#FFD700' : '#666666', depth: D + 3, originX: 0,
+      stroke: '#000000', strokeThickness: 2,
+    });
+    this._spSinkText.setInteractive({ useHandCursor: true });
+    this._spSinkText.on('pointerdown', () => {
+      const curSp = this.progression ? this.progression.sp : 0;
+      if (curSp < SP.SP_TO_MATERIAL_COST) return;
+      if (s.network && s.network.connected) {
+        s.network.sendShopSpToMaterial();
+        if (s.sfx && s.sfx.click) s.sfx.click.play({ volume: getSfxVolume() });
+      }
+    });
+    this.chrome.push(this._spSinkText);
+    animateIn(s, this._spSinkText, { from: 'slideDown', delay: 100, duration: 250 });
 
     // Timer (right)
     this._timerText = createText(s, rightEdge - 10, HEADER_Y, `${Math.ceil(this.shopTimer)}s`, FONT.H3, {
@@ -953,6 +1011,11 @@ export class ShopOverlay {
         s.tweens.add({ targets: this._spText, scaleX: 1.3, scaleY: 1.3, duration: 100, yoyo: true, ease: 'Sine.easeOut' });
       }
     }
+    // Update SP sink button color
+    if (this._spSinkText && !this._spSinkText.destroyed) {
+      const canSink = sp >= SP.SP_TO_MATERIAL_COST;
+      this._spSinkText.setColor(canSink ? '#FFD700' : '#666666');
+    }
   }
 
   _rebuildAll() {
@@ -983,6 +1046,7 @@ export class ShopOverlay {
     this._tabButtons = [];
     this._timerText = null;
     this._spText = null;
+    this._spSinkText = null;
     this._timerBar = null;
     this._ocakOverlay.destroy();
   }

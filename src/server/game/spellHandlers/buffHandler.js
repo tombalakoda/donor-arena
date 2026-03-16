@@ -26,9 +26,10 @@ export const buffHandler = {
       effects.intangible = {
         until: now + duration,
         speedBoost: stats.speedBoost || 0,
-        // On-exit AoE push (Ghost T2: Poltergeist)
+        // On-exit AoE push (Ghost T2: Poltergeist, T3: Ruhani)
         exitPushForce: stats.exitPushForce || 0,
         exitPushRadius: stats.exitPushRadius || 0,
+        exitStunDuration: stats.exitStunDuration || 0, // T3: stun on exit
         ownerId: playerId,
       };
     }
@@ -40,6 +41,11 @@ export const buffHandler = {
         reflectOnBreak: stats.reflectOnBreak || false,
         lastHitData: null, // stores last absorbed hit for reflect
         ownerId: playerId,
+        // T3: explosion on break, force scales with absorbed hits
+        shieldExplosionForce: stats.shieldExplosionForce || 0,
+        shieldExplosionRadius: stats.shieldExplosionRadius || 0,
+        forcePerAbsorb: stats.forcePerAbsorb || 0,
+        absorbedCount: 0,
       };
     }
 
@@ -49,6 +55,7 @@ export const buffHandler = {
         until: now + duration,
         pushRadius: stats.pushRadius || 50,
         pushForce: stats.pushForce || 0.012,
+        pullEnemies: stats.pullEnemies || false, // T3: reverse to pull
         speedPenalty: stats.speedPenalty || 0,
         deflectsProjectiles: stats.deflectsProjectiles || false,
         burstPushForce: stats.burstPushForce || 0,
@@ -72,10 +79,14 @@ export const buffHandler = {
       buffType: stats.isSema ? 'sema' : stats.intangible ? 'ghost' : stats.shieldHits ? 'shield' : 'flash',
       pushRadius: stats.pushRadius || 0,
       pushForce: stats.pushForce || 0,
+      pullEnemies: stats.pullEnemies || false, // T3: sema pulls instead of pushes
       leaveTrail,
       trailSlowAmount: stats.trailSlowAmount || 0,
       trailSlowDuration: stats.trailSlowDuration || 0,
+      trailDamage: stats.trailDamage || 0,           // T3
+      trailKnockback: stats.trailKnockback || 0,     // T3
       trailPositions: leaveTrail ? [] : null,
+      trailHitTimestamps: leaveTrail ? {} : null,     // T3: per-player damage cooldown
     };
 
     ctx.activeSpells.push(spell);
@@ -96,7 +107,8 @@ export const buffHandler = {
       const pr = spell.pushRadius;
       const pf = spell.pushForce;
 
-      // Push nearby enemies (gentle force, NOT knockback)
+      // Push or pull nearby enemies (gentle force, NOT knockback)
+      const forceDir = spell.pullEnemies ? -1 : 1; // T3: -1 = pull inward
       for (const [playerId, body] of ctx.physics.playerBodies) {
         if (playerId === spell.ownerId) continue;
         if (ctx.isEliminated(playerId)) continue;
@@ -107,7 +119,7 @@ export const buffHandler = {
         if (dist < pr + PLAYER.RADIUS && dist > 0) {
           const nx = dx / dist;
           const ny = dy / dist;
-          Body.applyForce(body, body.position, { x: nx * pf, y: ny * pf });
+          Body.applyForce(body, body.position, { x: nx * pf * forceDir, y: ny * pf * forceDir });
         }
       }
 
@@ -141,18 +153,36 @@ export const buffHandler = {
         spell.trailPositions.shift();
       }
       // Check enemies crossing trail
-      if (spell.trailSlowAmount > 0) {
+      if (spell.trailSlowAmount > 0 || spell.trailDamage > 0) {
         for (const [playerId, body] of ctx.physics.playerBodies) {
           if (playerId === spell.ownerId) continue;
           if (ctx.isEliminated(playerId)) continue;
+          if (isIntangible(ctx, playerId)) continue;
           for (const tp of spell.trailPositions) {
             const dx = body.position.x - tp.x;
             const dy = body.position.y - tp.y;
             if (dx * dx + dy * dy < 20 * 20) { // 20px trail width
-              ctx.applyStatusEffect(playerId, 'slow', {
-                amount: spell.trailSlowAmount,
-                until: now + 500,
-              }, spell.type);
+              if (spell.trailSlowAmount > 0) {
+                ctx.applyStatusEffect(playerId, 'slow', {
+                  amount: spell.trailSlowAmount,
+                  until: now + 500,
+                }, spell.type);
+              }
+              // T3: trail deals damage + KB (max once per 500ms per player)
+              if (spell.trailDamage > 0) {
+                const lastHit = spell.trailHitTimestamps[playerId] || 0;
+                if (now - lastHit >= 500) {
+                  ctx.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.trailDamage, spellId: spell.type });
+                  if (spell.trailKnockback > 0) {
+                    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    const kbMult = ctx.getKnockbackMultiplier(spell.ownerId);
+                    ctx.physics.applyKnockback(playerId, nx * spell.trailKnockback * kbMult, ny * spell.trailKnockback * kbMult, ctx.getDamageTaken(playerId), spell.ownerId);
+                  }
+                  spell.trailHitTimestamps[playerId] = now;
+                }
+              }
               break;
             }
           }

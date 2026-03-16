@@ -34,6 +34,7 @@ export const instantHandler = {
       // Applied per-target below
     }
 
+    const hitIds = new Set();
     for (const t of targets) {
       if (tryShieldAbsorb(ctx, t.id, playerId, stats.damage || 3, stats.knockbackForce || 0.03)) {
         continue;
@@ -55,6 +56,42 @@ export const instantHandler = {
       const force = (stats.knockbackForce || 0.03) * targetKbMult;
       ctx.physics.applyKnockback(t.id, nx * force, ny * force, ctx.getDamageTaken(t.id), playerId);
       hits.push({ id: t.id, damage: stats.damage || 3 });
+      hitIds.add(t.id);
+    }
+
+    // T3: Chain to additional targets from each hit player
+    const chainRadiusGrowth = stats.chainRadiusGrowth || 0;
+    if (chainCount > 0 && hitIds.size > 0) {
+      let chainSources = [...hitIds];
+      let chainRadius = (stats.radius || 120) + chainRadiusGrowth;
+      let chainKb = (stats.knockbackForce || 0.03) * chainKbFactor;
+      for (let c = 0; c < chainCount; c++) {
+        const newSources = [];
+        for (const srcId of chainSources) {
+          const srcBody = ctx.physics.playerBodies.get(srcId);
+          if (!srcBody) continue;
+          for (const [id, body] of ctx.physics.playerBodies) {
+            if (id === playerId || hitIds.has(id)) continue;
+            if (ctx.isEliminated(id)) continue;
+            if (isIntangible(ctx, id)) continue;
+            const cdx = body.position.x - srcBody.position.x;
+            const cdy = body.position.y - srcBody.position.y;
+            const cDist = Math.sqrt(cdx * cdx + cdy * cdy);
+            if (cDist < chainRadius) {
+              const cnx = cDist > 0 ? cdx / cDist : 0;
+              const cny = cDist > 0 ? cdy / cDist : 1;
+              ctx.physics.applyKnockback(id, cnx * chainKb * kbMult, cny * chainKb * kbMult, ctx.getDamageTaken(id), playerId);
+              hits.push({ id, damage: stats.damage || 3 });
+              hitIds.add(id);
+              newSources.push(id);
+            }
+          }
+        }
+        chainSources = newSources;
+        chainRadius += chainRadiusGrowth;
+        chainKb *= chainKbFactor;
+        if (chainSources.length === 0) break;
+      }
     }
 
     const spell = {

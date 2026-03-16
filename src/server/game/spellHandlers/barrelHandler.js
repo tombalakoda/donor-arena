@@ -37,6 +37,11 @@ export const barrelHandler = {
       destroysObstacles: stats.destroysObstacles || false,
       slowAmount: stats.slowAmount || 0,
       slowDuration: stats.slowDuration || 0,
+      // T3: grow on hit
+      growOnHit: stats.growOnHit || false,
+      growPerHit: stats.growPerHit || 3,
+      maxGrowth: stats.maxGrowth || 15,
+      _totalGrowth: 0,
     };
 
     ctx.activeSpells.push(spell);
@@ -109,6 +114,13 @@ export const barrelHandler = {
           // Set kill credit for ring-out tracking (without applying force impulse)
           ctx.physics.lastKnockbackFrom.set(playerId, { attackerId: spell.ownerId, timestamp: ctx.now });
           spell.hitIds.push(playerId);
+
+          // T3: grow barrel on hit
+          if (spell.growOnHit && spell._totalGrowth < spell.maxGrowth) {
+            const growth = Math.min(spell.growPerHit, spell.maxGrowth - spell._totalGrowth);
+            spell.radius += growth;
+            spell._totalGrowth += growth;
+          }
 
           // Apply slow effect on first contact so enemies can't escape
           if (spell.slowAmount > 0 && spell.slowDuration > 0) {

@@ -77,6 +77,17 @@ export class PlayerProgression {
     return earned;
   }
 
+  /**
+   * Convert SP to a random material (SP sink).
+   * @returns {boolean} true if conversion succeeded
+   */
+  convertSpToMaterial() {
+    if (this.sp < SP.SP_TO_MATERIAL_COST) return false;
+    this.sp -= SP.SP_TO_MATERIAL_COST;
+    this.items.addRandomMaterial();
+    return true;
+  }
+
   resetRoundStats() {
     this.roundDamageDealt = 0;
   }

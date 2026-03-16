@@ -53,6 +53,12 @@ export const boomerangHandler = {
       casterPassX: 0,
       casterPassY: 0,
       returnDist: 0, // captured when entering return phase
+      // T3: mark on hit + homing to marked
+      markOnHit: stats.markOnHit || false,
+      markDuration: stats.markDuration || 4000,
+      homingToMarked: stats.homingToMarked || false,
+      markedKbBonus: stats.markedKbBonus || 0,
+      _markedTargets: new Map(), // playerId → markUntil timestamp
     };
 
     ctx.activeSpells.push(spell);
@@ -98,9 +104,29 @@ export const boomerangHandler = {
       currentSpeed = spell.speed * (RETURN_MIN_SPEED_MULT
         + (RETURN_MAX_SPEED_MULT - RETURN_MIN_SPEED_MULT) * Math.pow(t, 1.3));
 
-      // Steer toward cast origin (fixed point, not caster's live position)
-      spell.vx = (cx / cDist) * currentSpeed;
-      spell.vy = (cy / cDist) * currentSpeed;
+      // T3: if homingToMarked, steer toward nearest marked target instead of origin
+      let steerX = cx / cDist;
+      let steerY = cy / cDist;
+      if (spell.homingToMarked && spell._markedTargets.size > 0) {
+        let nearestMarkedDist = Infinity;
+        const { now } = ctx;
+        for (const [mid, markUntil] of spell._markedTargets) {
+          if (markUntil < now) { spell._markedTargets.delete(mid); continue; }
+          if (spell.hitIds.includes(mid)) continue; // already hit this pass
+          const mb = ctx.physics.playerBodies.get(mid);
+          if (!mb || ctx.isEliminated(mid)) continue;
+          const mdx = mb.position.x - spell.x;
+          const mdy = mb.position.y - spell.y;
+          const mDist = Math.sqrt(mdx * mdx + mdy * mdy);
+          if (mDist < nearestMarkedDist) {
+            nearestMarkedDist = mDist;
+            steerX = mdx / (mDist || 1);
+            steerY = mdy / (mDist || 1);
+          }
+        }
+      }
+      spell.vx = steerX * currentSpeed;
+      spell.vy = steerY * currentSpeed;
 
       // Check if reached origin or will pass through this tick — don't overshoot
       if (cDist < spell.radius + 4 || cDist <= currentSpeed) {
@@ -171,7 +197,12 @@ export const boomerangHandler = {
         const curSpd = Math.sqrt(spell.vx * spell.vx + spell.vy * spell.vy) || 1;
         const maxPossibleSpeed = spell.speed * OVERSHOOT_MAX_SPEED_MULT;
         const speedRatio = Math.min(1, curSpd / maxPossibleSpeed);
-        const scaledKb = spell.knockbackForce + (spell.maxKnockbackForce - spell.knockbackForce) * speedRatio;
+        let scaledKb = spell.knockbackForce + (spell.maxKnockbackForce - spell.knockbackForce) * speedRatio;
+
+        // T3: bonus KB on marked targets
+        if (spell.markedKbBonus > 0 && spell._markedTargets.has(playerId)) {
+          scaledKb += spell.markedKbBonus;
+        }
 
         const nx = pDist > 0 ? pdx / pDist : 0;
         const ny = pDist > 0 ? pdy / pDist : 1;
@@ -184,6 +215,11 @@ export const boomerangHandler = {
         );
         ctx.pendingHits.push({ attackerId: spell.ownerId, targetId: playerId, damage: spell.damage, spellId: spell.type });
         spell.hitIds.push(playerId);
+
+        // T3: mark hit enemy
+        if (spell.markOnHit) {
+          spell._markedTargets.set(playerId, ctx.now + spell.markDuration);
+        }
 
         // Deflect velocity on hit — bounce away from player (reuse curSpd from KB calc above)
         const dirX = spell.vx / curSpd;

@@ -1,6 +1,8 @@
 import Matter from 'matter-js';
 import { SPELL_TYPES } from '../../../shared/spellData.js';
+import { PLAYER } from '../../../shared/constants.js';
 import { getPassive } from '../../../shared/characterPassives.js';
+import { isIntangible } from './defenseUtils.js';
 
 const { Body } = Matter;
 
@@ -24,6 +26,28 @@ export const blinkHandler = {
       Body.setPosition(body, { x: destX, y: destY });
     }
 
+    // T3: Arrival AoE push at destination
+    const arrivalHits = [];
+    const arrivalForce = stats.arrivalPushForce || 0;
+    const arrivalRadius = stats.arrivalPushRadius || 0;
+    if (arrivalForce > 0 && arrivalRadius > 0) {
+      for (const [id, pBody] of ctx.physics.playerBodies) {
+        if (id === playerId) continue;
+        if (ctx.isEliminated(id)) continue;
+        if (isIntangible(ctx, id)) continue;
+        const adx = pBody.position.x - destX;
+        const ady = pBody.position.y - destY;
+        const aDist = Math.sqrt(adx * adx + ady * ady);
+        if (aDist < arrivalRadius + PLAYER.RADIUS) {
+          const anx = aDist > 0 ? adx / aDist : 0;
+          const any = aDist > 0 ? ady / aDist : 1;
+          const kbMult = ctx.getKnockbackMultiplier(playerId);
+          ctx.physics.applyKnockback(id, anx * arrivalForce * kbMult, any * arrivalForce * kbMult, ctx.getDamageTaken(id), playerId);
+          arrivalHits.push(id);
+        }
+      }
+    }
+
     const spell = {
       id: ctx.nextSpellId(),
       type: spellId,
@@ -33,9 +57,11 @@ export const blinkHandler = {
       y: originY,
       targetX: destX,
       targetY: destY,
-      lifetime: 300,
+      lifetime: stats.leaveDecoy ? 2000 : 300, // T3: decoy lasts longer
       elapsed: 0,
       active: true,
+      leaveDecoy: stats.leaveDecoy || false,    // T3: leave visual decoy at origin
+      arrivalHits,
     };
 
     ctx.activeSpells.push(spell);
