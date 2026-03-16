@@ -489,10 +489,17 @@ export class HUDManager {
         const tint = getHpTint(hpRatio);
         this._hpBar.setValue(hpRatio, tint, true);
 
-        const vulnPercent = Math.round((1 - hpRatio) * 100);
-        const hpStr = `${Math.ceil(scene.localHp)} Nefes (${vulnPercent}%)`;
+        const damageTaken = scene.localMaxHp - scene.localHp;
+        const vuln = 1.0 + (damageTaken / 100) * 1.8;
+        const vulnStr = vuln > 1.05 ? ` x${vuln.toFixed(1)}` : '';
+        const hpStr = `${Math.ceil(scene.localHp)} Nefes${vulnStr}`;
         if (hpStr !== this._lastHpText) {
           this.hpText.setText(hpStr);
+          // Color the vulnerability multiplier text
+          if (vuln >= 2.5) this.hpText.setFill('#ff4444');
+          else if (vuln >= 2.1) this.hpText.setFill('#ee7733');
+          else if (vuln >= 1.7) this.hpText.setFill('#ddbb44');
+          else this.hpText.setFill('#ffffff');
           this._lastHpText = hpStr;
         }
       }

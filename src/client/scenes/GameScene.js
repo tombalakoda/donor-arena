@@ -18,6 +18,35 @@ import { ArenaRenderer } from '../systems/ArenaRenderer.js';
 const MatterBody = Phaser.Physics.Matter.Matter.Body;
 const SPRITE_SCALE = 2.25;
 
+// ─── Vulnerability Visualization ─────────────────────────────
+// Tiers: 0 = safe, 1 = caution, 2 = danger, 3 = critical, 4 = extreme
+const VULN_TIERS = [
+  { min: 0,    color: 0x000000, alpha: 0,    radius: 0,  lineW: 0,   tint: null },       // safe
+  { min: 1.3,  color: 0xddcc44, alpha: 0.15, radius: 18, lineW: 1.5, tint: null },       // caution
+  { min: 1.7,  color: 0xee8833, alpha: 0.25, radius: 20, lineW: 2.0, tint: null },       // danger
+  { min: 2.1,  color: 0xee5522, alpha: 0.35, radius: 22, lineW: 2.0, tint: 0xffccaa },   // critical
+  { min: 2.5,  color: 0xff3333, alpha: 0.45, radius: 24, lineW: 2.5, tint: 0xff8866 },   // extreme
+];
+
+function getVulnTier(hp, maxHp) {
+  const damageTaken = maxHp - hp;
+  const vuln = 1.0 + (damageTaken / 100) * 1.8;
+  for (let i = VULN_TIERS.length - 1; i >= 0; i--) {
+    if (vuln >= VULN_TIERS[i].min) return i;
+  }
+  return 0;
+}
+
+function drawVulnRing(gfx, tier) {
+  gfx.clear();
+  if (tier === 0) { gfx.setVisible(false); return; }
+  const t = VULN_TIERS[tier];
+  gfx.setVisible(true);
+  gfx.setAlpha(t.alpha);
+  gfx.lineStyle(t.lineW, t.color, 1);
+  gfx.strokeCircle(0, 0, t.radius);
+}
+
 export class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene' });
@@ -412,12 +441,21 @@ export class GameScene extends Phaser.Scene {
           this.cameras.main.shake(150, Math.min(0.02, hpLost * 0.003));
           // Hit flash on local player sprite
           if (this.playerSprite && hpLost > 0) {
+            this._localInHitFlash = true;
             this.playerSprite.setTintFill(0xffffff);
             this.time.delayedCall(80, () => {
               if (this.playerSprite) {
                 this.playerSprite.setTintFill(0xff4444);
                 this.time.delayedCall(80, () => {
-                  if (this.playerSprite) this.playerSprite.clearTint();
+                  if (this.playerSprite) {
+                    this.playerSprite.clearTint();
+                    this._localInHitFlash = false;
+                    // Restore vulnerability tint after hit flash
+                    const tier = getVulnTier(this.localHp, this.localMaxHp);
+                    if (VULN_TIERS[tier].tint) {
+                      this.playerSprite.setTint(VULN_TIERS[tier].tint);
+                    }
+                  }
                 });
               }
             });
@@ -799,12 +837,18 @@ export class GameScene extends Phaser.Scene {
       align: 'center',
     }).setOrigin(0.5).setDepth(11);
 
+    // Vulnerability ring (between shadow and sprite)
+    const vulnRing = this.add.graphics();
+    vulnRing.setPosition(x, y);
+    vulnRing.setDepth(9.5);
+    vulnRing.setVisible(false);
+
     // HP bar for remote player
     const hpBg = this.add.image(x, y - 22, 'ui-lifebar-bg').setOrigin(0.5).setDepth(11).setDisplaySize(32, 4);
     const hpFill = this.add.image(x - 18, y - 22, 'ui-lifebar-fill').setOrigin(0, 0.5).setDepth(11).setDisplaySize(32, 4).setTint(0x44dd44);
 
     this.remotePlayers.set(playerId, {
-      sprite, shadow, nameLabel, hpBg, hpFill,
+      sprite, shadow, vulnRing, nameLabel, hpBg, hpFill,
       characterId,
       name: playerName || null,
       x, y,
@@ -816,6 +860,9 @@ export class GameScene extends Phaser.Scene {
       kbUntil: 0,
       _inKnockbackAnim: false,
       _lastHpRatio: null,
+      _lastVulnTier: 0,
+      _vulnPulseTween: null,
+      _inHitFlash: false,
       eliminated: false,
     });
   }
@@ -828,6 +875,10 @@ export class GameScene extends Phaser.Scene {
         rp.sprite.destroy();
       }
       if (rp.shadow && !rp.shadow.destroyed) rp.shadow.destroy();
+      if (rp.vulnRing && !rp.vulnRing.destroyed) {
+        if (rp._vulnPulseTween) rp._vulnPulseTween.remove();
+        rp.vulnRing.destroy();
+      }
       if (rp.nameLabel && !rp.nameLabel.destroyed) rp.nameLabel.destroy();
       if (rp.hpBg && !rp.hpBg.destroyed) rp.hpBg.destroy();
       if (rp.hpFill && !rp.hpFill.destroyed) rp.hpFill.destroy();
@@ -859,12 +910,21 @@ export class GameScene extends Phaser.Scene {
 
     // Hit flash and damage number on remote player damage
     if (prevHp > rp.hp && rp.sprite) {
+      rp._inHitFlash = true;
       rp.sprite.setTintFill(0xffffff);
       this.time.delayedCall(80, () => {
         if (rp.sprite && !rp.sprite.destroyed) {
           rp.sprite.setTintFill(0xff4444);
           this.time.delayedCall(80, () => {
-            if (rp.sprite && !rp.sprite.destroyed) rp.sprite.clearTint();
+            if (rp.sprite && !rp.sprite.destroyed) {
+              rp.sprite.clearTint();
+              rp._inHitFlash = false;
+              // Restore vulnerability tint after hit flash
+              const tier = getVulnTier(rp.hp, rp.maxHp);
+              if (VULN_TIERS[tier].tint && !rp.intangible) {
+                rp.sprite.setTint(VULN_TIERS[tier].tint);
+              }
+            }
           });
         }
       });
@@ -942,6 +1002,7 @@ export class GameScene extends Phaser.Scene {
 
       rp.sprite.setPosition(rp.x, rp.y - 4);
       rp.shadow.setPosition(rp.x, rp.y + PLAYER.RADIUS * 0.5);
+      rp.vulnRing.setPosition(rp.x, rp.y);
       rp.nameLabel.setPosition(rp.x, rp.y - 30);
 
       // Update remote HP bar position (always, since player moves)
@@ -961,6 +1022,32 @@ export class GameScene extends Phaser.Scene {
           rp.hpFill.setTint(0xff8833);
         } else {
           rp.hpFill.setTint(0xff3333);
+        }
+      }
+
+      // Vulnerability ring — update when tier changes
+      const vulnTier = getVulnTier(rp.hp, rp.maxHp);
+      if (vulnTier !== rp._lastVulnTier) {
+        rp._lastVulnTier = vulnTier;
+        drawVulnRing(rp.vulnRing, vulnTier);
+        // Manage pulse tween for extreme tier
+        if (vulnTier >= 4 && !rp._vulnPulseTween) {
+          rp._vulnPulseTween = this.tweens.add({
+            targets: rp.vulnRing, alpha: { from: 0.35, to: 0.55 },
+            duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+          });
+        } else if (vulnTier < 4 && rp._vulnPulseTween) {
+          rp._vulnPulseTween.remove();
+          rp._vulnPulseTween = null;
+        }
+        // Apply vulnerability tint to sprite (if not in hit flash)
+        if (!rp._inHitFlash && rp.sprite) {
+          const t = VULN_TIERS[vulnTier];
+          if (t.tint) {
+            rp.sprite.setTint(t.tint);
+          } else {
+            rp.sprite.clearTint();
+          }
         }
       }
 
@@ -1020,6 +1107,13 @@ export class GameScene extends Phaser.Scene {
 
     this.playerShadow = this.add.ellipse(x, y + PLAYER.RADIUS * 0.5, PLAYER.RADIUS * 2.5, PLAYER.RADIUS * 1.2, 0x000000, 0.3);
     this.playerShadow.setDepth(9);
+    this.localVulnRing = this.add.graphics();
+    this.localVulnRing.setPosition(x, y);
+    this.localVulnRing.setDepth(9.5);
+    this.localVulnRing.setVisible(false);
+    this._localVulnTier = 0;
+    this._localVulnPulseTween = null;
+    this._localInHitFlash = false;
     this.playerSprite = this.add.sprite(x, y - 4, `${this.characterId}-idle`, 0);
     this.playerSprite.setScale(SPRITE_SCALE);
     this.playerSprite.setDepth(10);
@@ -1708,6 +1802,34 @@ export class GameScene extends Phaser.Scene {
 
     this.playerSprite.setPosition(pos.x, pos.y - 4);
     this.playerShadow.setPosition(pos.x, pos.y + PLAYER.RADIUS * 0.5);
+    if (this.localVulnRing) {
+      this.localVulnRing.setPosition(pos.x, pos.y);
+      // Update local vulnerability ring when tier changes
+      const vulnTier = getVulnTier(this.localHp, this.localMaxHp);
+      if (vulnTier !== this._localVulnTier) {
+        this._localVulnTier = vulnTier;
+        drawVulnRing(this.localVulnRing, vulnTier);
+        // Manage pulse tween for extreme tier
+        if (vulnTier >= 4 && !this._localVulnPulseTween) {
+          this._localVulnPulseTween = this.tweens.add({
+            targets: this.localVulnRing, alpha: { from: 0.35, to: 0.55 },
+            duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+          });
+        } else if (vulnTier < 4 && this._localVulnPulseTween) {
+          this._localVulnPulseTween.remove();
+          this._localVulnPulseTween = null;
+        }
+        // Apply vulnerability tint to sprite (if not in hit flash)
+        if (!this._localInHitFlash && this.playerSprite) {
+          const t = VULN_TIERS[vulnTier];
+          if (t.tint) {
+            this.playerSprite.setTint(t.tint);
+          } else {
+            this.playerSprite.clearTint();
+          }
+        }
+      }
+    }
 
     const wasMoving = this.isMoving;
     const wasKnockback = this._inKnockbackAnim;
@@ -1882,6 +2004,11 @@ export class GameScene extends Phaser.Scene {
       this.playerShadow.destroy();
       this.playerShadow = null;
     }
+    if (this.localVulnRing && !this.localVulnRing.destroyed) {
+      if (this._localVulnPulseTween) this._localVulnPulseTween.remove();
+      this.localVulnRing.destroy();
+      this.localVulnRing = null;
+    }
 
     // Cleanup spell visuals
     if (this.spellVisualManager) {
@@ -1895,6 +2022,10 @@ export class GameScene extends Phaser.Scene {
         rp.sprite.destroy();
       }
       if (rp.shadow && !rp.shadow.destroyed) rp.shadow.destroy();
+      if (rp.vulnRing && !rp.vulnRing.destroyed) {
+        if (rp._vulnPulseTween) rp._vulnPulseTween.remove();
+        rp.vulnRing.destroy();
+      }
       if (rp.nameLabel && !rp.nameLabel.destroyed) rp.nameLabel.destroy();
       if (rp.hpBg && !rp.hpBg.destroyed) rp.hpBg.destroy();
       if (rp.hpFill && !rp.hpFill.destroyed) rp.hpFill.destroy();
