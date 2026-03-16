@@ -1,0 +1,595 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<arena2>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  CHARACTERS                                                  -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <characters>
+    <character id="Demon-Red" name="Demon Red">
+      <passive name="Kırk Canlı" description="Forty Lives">
+        <effect type="bonusHp" value="20"/>
+      </passive>
+    </character>
+    <character id="Knight" name="Knight">
+      <passive name="Metin Gönül" description="Iron Heart">
+        <effect type="damageReduction" value="0.12"/>
+      </passive>
+    </character>
+    <character id="Eskimo" name="Eskimo">
+      <passive name="Soğukkanlı" description="Cold-Blooded">
+        <effect type="slowResist" value="0.30"/>
+      </passive>
+    </character>
+    <character id="Ninja-Red" name="Ninja Red">
+      <passive name="Sözden Yılmaz" description="Undaunted by Words">
+        <effect type="fireResist" value="0.30"/>
+      </passive>
+    </character>
+    <character id="Boy" name="Boy">
+      <passive name="Hazırcevap" description="Quick-Witted">
+        <effect type="cooldownReduction" value="0.15"/>
+      </passive>
+    </character>
+    <character id="Ninja-Green" name="Ninja Green">
+      <passive name="Tez Ayak" description="Quick-Footed">
+        <effect type="mobilityRangeBonus" value="0.20"/>
+      </passive>
+    </character>
+    <character id="Mask-Racoon" name="Mask Racoon">
+      <passive name="Sözütok" description="Word-Bearer">
+        <effect type="knockbackBonus" value="0.15"/>
+      </passive>
+    </character>
+    <character id="Fighter-White" name="Fighter White">
+      <passive name="Koçaklama" description="Bulwark">
+        <effect type="knockbackResist" value="0.15"/>
+      </passive>
+    </character>
+  </characters>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  SPELLS                                                      -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <spells>
+
+    <!-- ── Q SLOT: FIREBALL VARIANTS ─────────────────────────── -->
+    <spell id="fireball-focus" slot="Q" name="Uzun Hava" type="projectile">
+      <stats damage="3" knockback="0.08" cooldown="3500" speed="8" range="450" radius="7" lifetime="2300" piercing="false"/>
+      <tier level="1" cost="5" name="Uzak Nefes">
+        <mod range="+60" speed="+1"/>
+      </tier>
+      <tier level="2" cost="6" name="Ağır Söz">
+        <mod knockback="+0.02"/>
+      </tier>
+      <tier level="3" cost="8" name="Delici Söz">
+        <mod piercing="true"/>
+      </tier>
+      <tier level="4" cost="10" name="Yıldırım Nefes">
+        <mod range="+80" knockback="+0.02" speed="+1"/>
+      </tier>
+    </spell>
+
+    <spell id="fireball-speed" slot="Q" name="Tekerleme" type="projectile">
+      <stats damage="3" knockback="0.10" cooldown="1800" speed="8" range="250" radius="2" lifetime="1300" piercing="false"/>
+      <tier level="1" cost="5" name="Hızlı Atış">
+        <mod cooldown="-300" speed="+1"/>
+      </tier>
+      <tier level="2" cost="6" name="Yakıcı Alev">
+        <mod cooldown="-300" damage="+1"/>
+      </tier>
+      <tier level="3" cost="8" name="Uzun Menzil">
+        <mod cooldown="-200" range="+50"/>
+      </tier>
+      <tier level="4" cost="10" name="Ateş Yağmuru">
+        <mod cooldown="-200"/>
+      </tier>
+    </spell>
+
+    <spell id="fireball-power" slot="Q" name="Taşlama" type="projectile">
+      <stats damage="3" knockback="0.12" cooldown="3200" speed="8" range="280" radius="7" lifetime="1500" piercing="false"/>
+      <tier level="1" cost="5" name="Sert Vuruş">
+        <mod knockback="+0.02" damage="+1"/>
+      </tier>
+      <tier level="2" cost="6" name="Çarpma Dalgası">
+        <mod explosionRadius="40"/>
+      </tier>
+      <tier level="3" cost="8" name="Sarsıntı">
+        <mod explosionRadius="+15" knockback="+0.02"/>
+      </tier>
+      <tier level="4" cost="10" name="Zelzele">
+        <mod damage="+2" knockback="+0.02" stunDuration="300"/>
+      </tier>
+    </spell>
+
+    <!-- ── W SLOT: MOBILITY / UTILITY ────────────────────────── -->
+    <spell id="blink" slot="W" name="Hop" type="blink">
+      <stats cooldown="5500" range="220" damage="0" knockback="0"/>
+      <tier level="1" cost="6" name="Uzun Adım">
+        <mod range="+60"/>
+      </tier>
+      <tier level="2" cost="10" name="Burak">
+        <mod range="+80" cooldown="-1000"/>
+      </tier>
+    </spell>
+
+    <spell id="dash" slot="W" name="Koşma" type="dash">
+      <stats cooldown="5500" range="160" dashDamage="3" dashKnockback="0.04" dashWidth="12"/>
+      <tier level="1" cost="6" name="Ağır Hücum">
+        <mod dashKnockback="+0.02" dashDamage="+2"/>
+      </tier>
+      <tier level="2" cost="10" name="Koç Başı">
+        <mod dashWidth="+10" cooldown="-1000" dashKnockback="+0.02"/>
+      </tier>
+    </spell>
+
+    <spell id="flash" slot="W" name="Seğirtme" type="buff">
+      <stats cooldown="6500" buffDuration="2000" speedBoost="0.6" frictionReduction="0.003"/>
+      <tier level="1" cost="6" name="Alev Topuk">
+        <mod buffDuration="+1000" speedBoost="+0.2"/>
+      </tier>
+      <tier level="2" cost="10" name="Ateş İzi">
+        <mod cooldown="-1500" leaveTrail="true" trailSlowAmount="0.3" trailSlowDuration="1500"/>
+      </tier>
+    </spell>
+
+    <spell id="ghost" slot="W" name="Gayb" type="buff">
+      <stats cooldown="9000" buffDuration="2500" speedBoost="0.2" intangible="true"/>
+      <tier level="1" cost="6" name="Hayalet">
+        <mod buffDuration="+1000"/>
+      </tier>
+      <tier level="2" cost="10" name="Cin Çarpması">
+        <mod cooldown="-2000" exitPushForce="0" exitPushRadius="0"/>
+      </tier>
+    </spell>
+
+    <spell id="swap" slot="W" name="Çelme" type="swap">
+      <stats cooldown="10000" speed="8" range="350" radius="7" lifetime="1800" damage="0" knockback="0"/>
+      <tier level="1" cost="6" name="Çabuk El">
+        <mod speed="+3" cooldown="-2000"/>
+      </tier>
+      <tier level="2" cost="10" name="Şaşırtma">
+        <mod swapStunDuration="500" cooldown="-1500"/>
+      </tier>
+    </spell>
+
+    <spell id="timeshift" slot="W" name="Devir" type="recall">
+      <stats cooldown="9000" recallDuration="3000"/>
+      <tier level="1" cost="6" name="Derin Hafıza">
+        <mod recallDuration="+1000" cooldown="-1500"/>
+      </tier>
+      <tier level="2" cost="10" name="Zaman Yarığı">
+        <mod departurePushForce="0" departurePushRadius="0" cooldown="-1500"/>
+      </tier>
+    </spell>
+
+    <spell id="grappling" slot="W" name="Sallama" type="hook">
+      <stats cooldown="9000" speed="12" range="320" radius="8" lifetime="1500" damage="0" knockback="0" pullSelf="true" pullSpeed="4" launchSpeedBonus="0" flightDuration="500"/>
+      <tier level="1" cost="6" name="Uzun Zincir">
+        <mod pullSpeed="+2" range="+80" cooldown="-1500"/>
+      </tier>
+      <tier level="2" cost="10" name="Gülle">
+        <mod flightCollision="true" flightDamage="4" flightKnockback="0.03"/>
+      </tier>
+    </spell>
+
+    <spell id="sacma" slot="W" name="Saçma" type="projectile">
+      <stats damage="1" knockback="0.012" cooldown="4500" speed="7" range="150" radius="2" lifetime="900" piercing="false" projectileCount="7" coneAngle="0.70"/>
+      <tier level="1" cost="6" name="Sıkı Nişan">
+        <mod projectileCount="+2" coneAngle="-0.15"/>
+      </tier>
+      <tier level="2" cost="10" name="Kurşun Yağmuru">
+        <mod cooldown="-800" knockback="+0.006"/>
+      </tier>
+    </spell>
+
+    <spell id="sema" slot="W" name="Sema" type="buff">
+      <stats cooldown="10000" buffDuration="2500" pushRadius="50" pushForce="0.012" speedPenalty="0.3" deflectsProjectiles="true"/>
+      <tier level="1" cost="6" name="Dönen Pervane">
+        <mod buffDuration="+1000" pushRadius="+15"/>
+      </tier>
+      <tier level="2" cost="10" name="Kasırga">
+        <mod speedPenalty="-0.3" burstPushForce="0.06"/>
+      </tier>
+    </spell>
+
+    <!-- ── E SLOT: CONTROL / DEBUFF ──────────────────────────── -->
+    <spell id="frostbolt" slot="E" name="Yârin Gözü" type="projectile">
+      <stats damage="2" knockback="0.02" cooldown="4000" speed="7" range="350" radius="6" lifetime="2000" piercing="false" slowAmount="0.5" slowDuration="2000" rootDuration="400"/>
+      <tier level="1" cost="6" name="Ebedî Ayaz">
+        <mod slowDuration="+500" slowAmount="+0.1"/>
+      </tier>
+      <tier level="2" cost="10" name="Mutlak Sıfır">
+        <mod rootDuration="+400" knockback="+0.02" damage="+2"/>
+      </tier>
+    </spell>
+
+    <spell id="blizzard" slot="E" name="Yârin Sözü" type="zone">
+      <stats cooldown="7000" range="300" zoneRadius="45" zoneDuration="3500" zoneDamage="0" slowAmount="0.5" slowDuration="1000"/>
+      <tier level="1" cost="6" name="Yayılan Soğuk">
+        <mod zoneRadius="+20" zoneDuration="+1500"/>
+      </tier>
+      <tier level="2" cost="10" name="Buzul Çağı">
+        <mod zoneDamage="+1" slowAmount="+0.15"/>
+      </tier>
+    </spell>
+
+    <spell id="icewall" slot="E" name="Mâni" type="wall">
+      <stats cooldown="10000" range="200" wallDuration="4000" wallHp="30" wallRadius="22"/>
+      <tier level="1" cost="6" name="Sağlam Duvar">
+        <mod wallHp="+20" wallDuration="+2000"/>
+      </tier>
+      <tier level="2" cost="10" name="Parçalanma">
+        <mod shatterSlowAmount="0.4" shatterSlowDuration="1500" shatterRadius="60" cooldown="-2000"/>
+      </tier>
+    </spell>
+
+    <spell id="bouncer" slot="E" name="Karşılama" type="projectile">
+      <stats damage="2" knockback="0.03" cooldown="5500" speed="6" range="600" radius="7" lifetime="4000" piercing="false" maxBounces="3" destroysSpells="true"/>
+      <tier level="1" cost="6" name="Çarpıp Sekme">
+        <mod maxBounces="+2" speed="+2"/>
+      </tier>
+      <tier level="2" cost="10" name="İvme">
+        <mod kbPerBounce="0.01" cooldown="-1000"/>
+      </tier>
+    </spell>
+
+    <spell id="shield" slot="E" name="Himmet" type="buff">
+      <stats cooldown="10000" buffDuration="2000" shieldHits="2"/>
+      <tier level="1" cost="6" name="Pekişmiş">
+        <mod shieldHits="+1" buffDuration="+1000"/>
+      </tier>
+      <tier level="2" cost="10" name="Yansıtma">
+        <mod reflectOnBreak="true" cooldown="-2000"/>
+      </tier>
+    </spell>
+
+    <spell id="rabita" slot="E" name="Rabıta" type="link">
+      <stats damage="2" knockback="0" cooldown="12000" speed="8" range="300" radius="7" lifetime="1500" linkDuration="4000" linkedKbMultiplier="0" linkForwardKb="0.05"/>
+      <tier level="1" cost="6" name="Ağır Bağ">
+        <mod linkedKbMultiplier="+0.25" linkDuration="+1000"/>
+      </tier>
+      <tier level="2" cost="10" name="Kader Ortağı">
+        <mod cooldown="-2500" linkDuration="+1000"/>
+      </tier>
+    </spell>
+
+    <spell id="kement" slot="E" name="Kement" type="tether">
+      <stats cooldown="11000" speed="10" range="200" radius="8" lifetime="1500" tetherLength="140" tetherDuration="3500" pullStrength="0.002"/>
+      <tier level="1" cost="6" name="Sağlam Urgan">
+        <mod tetherDuration="+2000" cooldown="-2000"/>
+      </tier>
+      <tier level="2" cost="10" name="Kısa İp">
+        <mod tetherLength="-40" pullStrength="+0.003"/>
+      </tier>
+    </spell>
+
+    <!-- ── R SLOT: ULTIMATES / POWER ─────────────────────────── -->
+    <spell id="hook" slot="R" name="Bağlama" type="hook">
+      <stats damage="3" knockback="0" cooldown="12000" speed="12" range="300" radius="10" lifetime="1500" pullSpeed="3.5" pullDuration="300" throwForce="0.13" throwGrace="200"/>
+      <tier level="1" cost="6" name="Sivri Kanca">
+        <mod throwForce="+0.01" damage="+2" cooldown="-1500"/>
+      </tier>
+      <tier level="2" cost="10" name="Ölüm Kavraması">
+        <mod range="+60" pullSpeed="+1.5" throwForce="+0.01" pullDuration="+100"/>
+      </tier>
+    </spell>
+
+    <spell id="lightning" slot="R" name="Sitem" type="instant">
+      <stats damage="3" knockback="0.15" castTime="750" cooldown="8500" radius="70"/>
+      <tier level="1" cost="6" name="Hamle">
+        <mod radius="+40" knockback="+0.03"/>
+      </tier>
+      <tier level="2" cost="10" name="Zincirleme Sitem">
+        <mod chainCount="1" chainKbFactor="0.5" cooldown="-1500"/>
+      </tier>
+    </spell>
+
+    <spell id="homing" slot="R" name="Hasret" type="homing">
+      <stats damage="3" knockback="0.08" cooldown="15000" speed="3.5" radius="7" lifetime="6000" turnRate="0.08" trackingRange="400"/>
+      <tier level="1" cost="6" name="Sebat">
+        <mod lifetime="+2000" turnRate="+0.03"/>
+      </tier>
+      <tier level="2" cost="10" name="Harp Başı">
+        <mod speed="+2" knockback="+0.03" explosionRadius="30"/>
+      </tier>
+    </spell>
+
+    <spell id="meteor" slot="R" name="Nazar" type="zone">
+      <stats damage="5" knockback="0.16" cooldown="13000" range="150" impactDelay="2000" impactRadius="45" isMeteor="true"/>
+      <tier level="1" cost="6" name="Çabuk Düşüş">
+        <mod impactDelay="-500" impactRadius="+10" cooldown="-2000"/>
+      </tier>
+      <tier level="2" cost="10" name="Kıyamet">
+        <mod knockback="+0.04" damage="+3" burnZoneDuration="2000" burnSlowAmount="0.3"/>
+      </tier>
+    </spell>
+
+    <spell id="rocketswarm" slot="R" name="Gıybet" type="homing">
+      <stats damage="1" knockback="0.04" cooldown="14000" speed="8" radius="5" lifetime="4000" turnRate="0.10" trackingRange="280" missileCount="5" isSwarm="true"/>
+      <tier level="1" cost="6" name="Yaylım">
+        <mod missileCount="+3" lifetime="+500"/>
+      </tier>
+      <tier level="2" cost="10" name="Doygunluk">
+        <mod knockback="+0.01" trackingRange="+50" cooldown="-2000"/>
+      </tier>
+    </spell>
+
+    <spell id="boomerang" slot="R" name="Beddua" type="boomerang">
+      <stats damage="2" knockback="0.03" maxKnockback="0.09" cooldown="8500" speed="7" range="70" radius="8" lifetime="4000" overshootRange="500"/>
+      <tier level="1" cost="6" name="Uzun Fırlatma">
+        <mod range="+100" maxKnockback="+0.02" lifetime="+2000"/>
+      </tier>
+      <tier level="2" cost="10" name="Tut ve Fırlat">
+        <mod hitsOnReturn="true" cooldownOnCatch="-2000"/>
+      </tier>
+    </spell>
+
+    <spell id="bade" slot="R" name="Bade" type="barrel">
+      <stats damage="4" knockback="0.08" cooldown="13000" speed="5" range="1050" radius="16" lifetime="10500" slowAmount="0.4" slowDuration="1500"/>
+      <tier level="1" cost="6" name="Ağır Varil">
+        <mod radius="+4" speed="+1" knockback="+0.02"/>
+      </tier>
+      <tier level="2" cost="10" name="Yıkım Topu">
+        <mod speed="+1.5" cooldown="-2500" destroysObstacles="true"/>
+      </tier>
+    </spell>
+
+    <spell id="cekim" slot="R" name="Çekim" type="zone">
+      <stats cooldown="12000" range="250" zoneRadius="55" zoneDuration="3500" zoneDamage="0" pullForce="0.010" isGravityWell="true"/>
+      <tier level="1" cost="6" name="Derin Kuyu">
+        <mod pullForce="+0.004" zoneRadius="+15"/>
+      </tier>
+      <tier level="2" cost="10" name="Kara Delik">
+        <mod burstPushForce="0.08" burstPushRadius="70"/>
+      </tier>
+    </spell>
+
+  </spells>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  MATERIALS                                                   -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <materials>
+    <material id="buz"      name="Buz Parcasi" tag="ice"      color="#4DC9F6"/>
+    <material id="koz"      name="Koz"         tag="fire"     color="#FF6B35"/>
+    <material id="agir"     name="Agir Tas"    tag="force"    color="#8B7355"/>
+    <material id="telek"    name="Telek"       tag="speed"    color="#7FFF7F"/>
+    <material id="demir"    name="Demir"       tag="guard"    color="#A0A0A0"/>
+    <material id="kehribar" name="Kehribar"    tag="electric" color="#FFD700"/>
+    <material id="altin"    name="Altin Varak" tag="greed"    color="#DAA520"/>
+    <material id="gam"      name="Gam Yuku"    tag="stealth"  color="#6B3FA0"/>
+  </materials>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  RECIPES                                                     -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <recipes>
+
+    <!-- ── SAZ (Offense) ─────────────────────────────────────── -->
+    <recipe id="saz-organ" name="Organ" slot="saz" rarity="beyaz" tags="fire">
+      <ingredients><mat id="koz" count="2"/></ingredients>
+      <effect damageDealtMult="1.12"/>
+      <description>+%12 büyü hasarı</description>
+    </recipe>
+    <recipe id="saz-piyano" name="Piyano" slot="saz" rarity="yesil" tags="ice,fire">
+      <ingredients><mat id="buz" count="1"/><mat id="koz" count="1"/></ingredients>
+      <effect slowBonusDamage="1"/>
+      <description>Yavaşlatan büyüler +1 bonus hasar verir</description>
+    </recipe>
+    <recipe id="saz-tokmak" name="Tokmak" slot="saz" rarity="beyaz" tags="force">
+      <ingredients><mat id="agir" count="2"/></ingredients>
+      <effect kbDealtMult="1.12"/>
+      <description>+%12 itme gücü</description>
+    </recipe>
+    <recipe id="saz-santur" name="Santur" slot="saz" rarity="yesil" tags="ice,force">
+      <ingredients><mat id="buz" count="1"/><mat id="agir" count="1"/></ingredients>
+      <effect kbBonusVsSlowed="0.15"/>
+      <description>Yavaşlamış hedeflere +%15 itme</description>
+    </recipe>
+    <recipe id="saz-kudum" name="Kudum" slot="saz" rarity="yesil" tags="force,speed">
+      <ingredients><mat id="agir" count="1"/><mat id="telek" count="1"/></ingredients>
+      <effect projectileSpeedMult="1.15" kbBonusAtMaxRange="0.08"/>
+      <description>Mermiler +%15 hızlı, menzil sonunda +%8 itme</description>
+    </recipe>
+    <recipe id="saz-korg" name="Korg" slot="saz" rarity="mor" tags="fire,electric">
+      <ingredients><mat id="koz" count="1"/><mat id="kehribar" count="1"/></ingredients>
+      <effect damageDealtMult="1.20" kbTakenMult="1.10"/>
+      <description>+%20 hasar, ama +%10 itme yeme</description>
+    </recipe>
+    <recipe id="saz-theremin" name="Theremin" slot="saz" rarity="yesil" tags="stealth,fire">
+      <ingredients><mat id="gam" count="1"/><mat id="koz" count="1"/></ingredients>
+      <effect firstHitBonusDamage="0.40"/>
+      <description>Her raundun ilk büyüsü +%40 hasar verir</description>
+    </recipe>
+    <recipe id="saz-ksilifon" name="Ksilifon" slot="saz" rarity="mor" tags="greed,force">
+      <ingredients><mat id="altin" count="1"/><mat id="agir" count="1"/><mat id="koz" count="1"/></ingredients>
+      <effect spBonusPerKill="1"/>
+      <description>Eleme başına +1 SP</description>
+    </recipe>
+
+    <!-- ── YADIGAR (Utility) ─────────────────────────────────── -->
+    <recipe id="yad-cevsen" name="Cevsen" slot="yadigar" rarity="beyaz" tags="ice">
+      <ingredients><mat id="buz" count="2"/></ingredients>
+      <effect slowResistMult="0.75"/>
+      <description>Yavaşlamalar %25 daha kısa sürer</description>
+    </recipe>
+    <recipe id="yad-celik-serhad" name="Celik Serhad" slot="yadigar" rarity="beyaz" tags="guard">
+      <ingredients><mat id="demir" count="2"/></ingredients>
+      <effect damageTakenMult="0.92"/>
+      <description>+%8 hasar azaltma</description>
+    </recipe>
+    <recipe id="yad-ampul" name="Ampul" slot="yadigar" rarity="yesil" tags="electric,guard">
+      <ingredients><mat id="kehribar" count="1"/><mat id="demir" count="1"/></ingredients>
+      <effect lowHpDamageReduction="0.15" lowHpThreshold="0.30"/>
+      <description>%30 HP altında +%15 hasar azaltma</description>
+    </recipe>
+    <recipe id="yad-saat" name="Saat" slot="yadigar" rarity="beyaz" tags="stealth">
+      <ingredients><mat id="gam" count="2"/></ingredients>
+      <effect idleCooldownReduction="0.30"/>
+      <description>3s saldırmayınca sonraki büyü -%30 bekleme</description>
+    </recipe>
+    <recipe id="yad-sikke-kesesi" name="Sikke Kesesi" slot="yadigar" rarity="beyaz" tags="greed">
+      <ingredients><mat id="altin" count="2"/></ingredients>
+      <effect spBonusPerRound="1"/>
+      <description>Her raund +1 SP</description>
+    </recipe>
+    <recipe id="yad-kelepce" name="Kelepce" slot="yadigar" rarity="yesil" tags="ice,guard">
+      <ingredients><mat id="buz" count="1"/><mat id="demir" count="1"/></ingredients>
+      <effect slowResistMult="0.80"/>
+      <description>Yavaşlatma/kökleme direnci +%20</description>
+    </recipe>
+    <recipe id="yad-altin-boru" name="Sari Altindan Bir Boru" slot="yadigar" rarity="mor" tags="greed,stealth">
+      <ingredients><mat id="altin" count="1"/><mat id="gam" count="1"/><mat id="demir" count="1"/></ingredients>
+      <effect disassembleBonus="1"/>
+      <description>Parçalama 1 yerine 2 malzeme verir</description>
+    </recipe>
+    <recipe id="yad-kozmatik" name="Kozmatik" slot="yadigar" rarity="mor" tags="fire,electric">
+      <ingredients><mat id="koz" count="1"/><mat id="kehribar" count="1"/><mat id="demir" count="1"/></ingredients>
+      <effect maxHpBonus="15" cooldownMult="1.10"/>
+      <description>+15 maks HP, ama büyülerin +%10 bekleme</description>
+    </recipe>
+
+    <!-- ── PABUC (Movement) ──────────────────────────────────── -->
+    <recipe id="pab-carik" name="Carik" slot="pabuc" rarity="beyaz" tags="speed">
+      <ingredients><mat id="telek" count="2"/></ingredients>
+      <effect moveSpeedMult="1.10"/>
+      <description>+%10 hareket hızı</description>
+    </recipe>
+    <recipe id="pab-kosele" name="Kosele" slot="pabuc" rarity="yesil" tags="guard,speed">
+      <ingredients><mat id="demir" count="1"/><mat id="telek" count="1"/></ingredients>
+      <effect kbTakenMult="0.92" moveSpeedMult="0.95"/>
+      <description>+%8 itme direnci, -%5 hareket hızı</description>
+    </recipe>
+    <recipe id="pab-takunya" name="Takunya" slot="pabuc" rarity="yesil" tags="ice,speed">
+      <ingredients><mat id="buz" count="1"/><mat id="telek" count="1"/></ingredients>
+      <effect frictionMult="0.70" moveSpeedMult="1.05"/>
+      <description>-%30 sürtünme (daha çok kayma), +%5 hız</description>
+    </recipe>
+    <recipe id="pab-yun-patik" name="Yun Patik" slot="pabuc" rarity="yesil" tags="stealth,speed">
+      <ingredients><mat id="gam" count="1"/><mat id="telek" count="1"/></ingredients>
+      <effect diMult="1.20"/>
+      <description>İtme sırasında +%20 yön kontrolü (DI)</description>
+    </recipe>
+    <recipe id="pab-kundura" name="Kundura" slot="pabuc" rarity="yesil" tags="force,guard">
+      <ingredients><mat id="agir" count="1"/><mat id="demir" count="1"/></ingredients>
+      <effect kbTakenMult="0.85" moveSpeedMult="0.92"/>
+      <description>+%15 itme direnci, -%8 hareket hızı</description>
+    </recipe>
+    <recipe id="pab-nalin" name="Nalin" slot="pabuc" rarity="mor" tags="electric,speed">
+      <ingredients><mat id="kehribar" count="1"/><mat id="telek" count="1"/></ingredients>
+      <effect moveSpeedMult="1.18" maxHpBonus="-12"/>
+      <description>+%18 hareket hızı, -12 maks HP</description>
+    </recipe>
+    <recipe id="pab-corap" name="Corap" slot="pabuc" rarity="mor" tags="greed,speed">
+      <ingredients><mat id="altin" count="1"/><mat id="telek" count="1"/><mat id="gam" count="1"/></ingredients>
+      <effect moveSpeedMult="1.05" materialBonusPerRound="1"/>
+      <description>+%5 hız, her raund +1 ekstra malzeme</description>
+    </recipe>
+    <recipe id="pab-basmak" name="Basmak" slot="pabuc" rarity="mor" tags="fire,speed">
+      <ingredients><mat id="koz" count="1"/><mat id="telek" count="1"/><mat id="agir" count="1"/></ingredients>
+      <effect maxSpeedKbBonus="0.10"/>
+      <description>Maks hızdayken büyülerin +%10 itme verir</description>
+    </recipe>
+
+  </recipes>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  HAZINE (Set Bonuses)                                        -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <hazine>
+
+    <!-- 2-tag same: two items share a tag -->
+    <setBonus id="hz-buzul" name="Buzul" requirement="ice×2">
+      <effect kbBonusVsSlowed="0.12"/>
+      <description>Yavaşlamış hedefler senden %12 daha fazla itme alır</description>
+    </setBonus>
+    <setBonus id="hz-yangin" name="Yangin" requirement="fire×2">
+      <effect burnOnHit="true" burnDamage="1" burnDuration="1000"/>
+      <description>Hasar veren büyülerin 1s boyunca yakar (1 HP/s)</description>
+    </setBonus>
+    <setBonus id="hz-deprem" name="Deprem" requirement="force×2">
+      <effect ignoreKbResistPct="0.30"/>
+      <description>İtmen hedefin pasif itme direncinin %30'unu yoksayar</description>
+    </setBonus>
+    <setBonus id="hz-kasirga" name="Kasirga" requirement="speed×2">
+      <effect postCastSpeedBuff="0.15" postCastSpeedDuration="2000"/>
+      <description>Büyü kullandıktan sonra 2s +%15 hız</description>
+    </setBonus>
+    <setBonus id="hz-kale" name="Kale" requirement="guard×2">
+      <effect roundDamageReductionPerRound="0.05" roundDamageReductionCap="0.25"/>
+      <description>Hayatta kaldığın her raund %5 daha az hasar alırsın (maks %25)</description>
+    </setBonus>
+    <setBonus id="hz-akimlar" name="Akimlar" requirement="electric×2">
+      <effect damageDealtMult="1.25" kbTakenMult="1.20"/>
+      <description>+%25 hasar, ama +%20 itme yeme</description>
+    </setBonus>
+    <setBonus id="hz-hazine-av" name="Hazine Avcisi" requirement="greed×2">
+      <effect spBonusPerRound="2"/>
+      <description>Her raund +2 SP</description>
+    </setBonus>
+    <setBonus id="hz-hayalet" name="Hayalet" requirement="stealth×2">
+      <effect hayaletActive="true"/>
+      <description>İtme yedikten sonra 1.5s yarı şeffaf olursun</description>
+    </setBonus>
+
+    <!-- 2-tag cross: two different tags across items -->
+    <setBonus id="hz-permafrost" name="Permafrost" requirement="ice+guard">
+      <effect slowDurationMult="1.30"/>
+      <description>Uyguladığın yavaşlatmalar %30 daha uzun sürer</description>
+    </setBonus>
+    <setBonus id="hz-isik-topu" name="Isik Topu" requirement="force+speed">
+      <effect kbBonusAtMaxRange="0.20"/>
+      <description>Menzilinin %70'inden fazla giden mermiler +%20 itme</description>
+    </setBonus>
+    <setBonus id="hz-berserker" name="Berserker" requirement="fire+electric">
+      <effect lowHpDamageBonus="0.20" lowHpThreshold="0.40"/>
+      <description>%40 HP altında: +%20 hasar</description>
+    </setBonus>
+    <setBonus id="hz-korsanlik" name="Korsanlik" requirement="greed+electric">
+      <effect korsanlikActive="true"/>
+      <description>Çift malzeme düşüşü, ama her raunda %85 HP ile başla</description>
+    </setBonus>
+    <setBonus id="hz-sessiz-olum" name="Sessiz Olum" requirement="stealth+force">
+      <effect firstKbBonusForce="0.25"/>
+      <description>Her raundun ilk itmesi +%25 güç</description>
+    </setBonus>
+    <setBonus id="hz-buz-kalesi" name="Buz Kalesi" requirement="ice+speed">
+      <effect slidingSlowBonus="0.15"/>
+      <description>Kayarken (hız > %80) yavaşlatma büyülerin +%15 yavaşlatma</description>
+    </setBonus>
+
+    <!-- 3-tag: same tag on all 3 equipped items -->
+    <setBonus id="hz-mutlak-sifir" name="Mutlak Sifir" requirement="ice×3">
+      <effect slowOnHit="0.15" slowOnHitDuration="1500"/>
+      <description>Tüm büyülerin 1.5s boyunca 0.15 yavaşlatma uygular</description>
+    </setBonus>
+    <setBonus id="hz-cehennem" name="Cehennem" requirement="fire×3">
+      <effect burnDamageOverride="2" burnDurationOverride="2000"/>
+      <description>Yanma hasarı 2 HP/s, 2s olur</description>
+    </setBonus>
+    <setBonus id="hz-titan" name="Titan" requirement="force×3">
+      <effect kbDealtMult="1.20" kbTakenMult="0.90" moveSpeedMult="0.90"/>
+      <description>+%20 itme, +%10 itme direnci, -%10 hız</description>
+    </setBonus>
+    <setBonus id="hz-simsek" name="Simsek" requirement="speed×3">
+      <effect moveSpeedMult="1.25" diMult="1.30" maxHpBonus="-15"/>
+      <description>+%25 hız, +%30 DI, -15 maks HP</description>
+    </setBonus>
+
+  </hazine>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!--  BALANCE CONSTANTS                                           -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <balance>
+    <player hp="100" radius="14" mass="20" speed="22" friction="0.01" airFriction="0.006" restitution="0.8"/>
+    <knockback scale="1.8" graceLight="200" graceHeavy="900" diStrength="0.15"/>
+    <arena radius="480" ringShrinkBase="2.0" ringShrinkScale="0.5" floorSize="1200"/>
+    <match rounds="20" roundDuration="45" countdown="3" maxPlayers="8"/>
+    <sp perRound="3" perDamage25="1" ringOutKill="4" roundWin="3" survival="2" spellSelectCost="3"/>
+    <spellTierCosts Q="5,6,8,10" WER="6,10"/>
+    <nazar maxStack="10" costReroll="1" costExtra="2" costHint="3" perKb="1" perElimination="2" perRingDamageSec="0.5"/>
+    <itemConstants maxStash="6"/>
+  </balance>
+
+</arena2>
